@@ -1,0 +1,4 @@
+This kernel driver package is to support kernels 2.6.26 and later. The paired X server Wacom driver is xf86-input-wacom.
+
+Ping Cheng <pingc@wacom.com>
+Nov. 29, 2010

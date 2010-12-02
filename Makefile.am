@@ -1,0 +1,2 @@
+SUBDIRS = @WCM_KERNEL_VER@
+

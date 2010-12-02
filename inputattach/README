@@ -1,0 +1,35 @@
+Date: Nov. 29, 2010
+Author: Ping Cheng, Wacom <pingc@wacom.com>
+
+inputattach is to provide /dev/input/event, an USB-like logical port, for Wacom
+serial ISDv4 digitizers on Linux. It requires wacom_w8001.ko being loaded in your
+kernel and the following:
+
+1.	inputattach.c
+2.	serio-ids.h: a header file for inputattach.c to compile on different platforms.
+3.	compile the code:  gcc inputattach.c -o inputattach
+
+Procedures to test the driver and device:
+1.	login to yourself and switch to root then issue:
+	xxd /dev/ttyS0 and move Wacom pen on the tablet.
+If you see data displays on the terminal where you launched xxd, this is the 
+port the device is mapped to. If not, try ttyS1, 2,.... I see ttyS4 sometime. 
+We assume it is on /dev/ttyS0 from now on.
+
+2.	ls /dev/input and keep a note on how many events you see. We need the 
+largest number later.
+
+3.	Connect your serial kernel driver to an input event by:
+	./inputattach --wacom /dev/ttyS0  (if your device is at baud rate 19200)
+or
+	./inputattach --wacom-384 /dev/ttyS0  (if your device is at baud rate 38400)
+4.	Check which port it is mapped to by:
+	ls /dev/input	
+You should see a new /dev/input/event# added in the above output, that is the port 
+your device is mapped to. Now you can view the data from the port by evtest or some 
+other programs. If you have X server running and you have installed the latest Wacom
+X server driver, you should see cursor movement when you move the pen on the tablet now.
+
+Good luck.
+
+

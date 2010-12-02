@@ -1,0 +1,35 @@
+############################ 2.6 kernel compile ###############################
+ifneq ($(KERNELRELEASE),)
+# We were called by kbuild
+# Do NOT indent stuff in this part! It has to be like this to make the
+# $(error ... ) stuff work
+
+ifneq ($(CONFIG_USB_WACOM),y)
+wacom-objs := wacom_wac.o wacom_sys.o
+obj-m += wacom.o
+obj-m += wacom_w8001.o
+else
+$(error You requested to build wacom with configure, but wacom is configured as built-in in your kernel config)
+endif # CONFIG_USB_WACOM
+
+else  # We were called from command line
+PWD  := $(shell pwd)
+
+WCM_KERNEL_DIR := @WCM_KERNEL_DIR@
+WCM_OPTION_WACOM := @WCM_OPTION_WACOM@
+
+all:
+	@echo '    Building linuxwacom drivers for 2.6 kernel.'
+	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD)
+
+endif  # End kbuild check
+
+######################### Version independent targets ##########################
+
+clean:
+	rm -rf *.o *.ko *.mod.* .[a-z]* core *.i
+
+EMPTY_AUTOMAKE_TARGETS = distdir install install-data install-exec uninstall install-info
+EMPTY_AUTOMAKE_TARGETS += installdirs check dvi pdf ps info html tags ctags mostlyclean distclean maintainer-clean
+.PHONY: $(EMPTY_AUTOMAKE_TARGETS)
+	$(EMPTY_AUTOMAKE_TARGETS):
