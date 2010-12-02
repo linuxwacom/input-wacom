@@ -1,5 +1,5 @@
 /*
- * $Id: inputattach.c,v 1.1 2010-12-02 01:57:01 pingc Exp $
+ * $Id: inputattach.c,v 1.1.1.1 2010-12-02 01:57:01 pingc Exp $
  *
  *  Copyright (c) 1999-2000 Vojtech Pavlik
  *
