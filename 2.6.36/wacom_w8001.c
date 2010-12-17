@@ -128,16 +128,16 @@ static void parse_single_touch(struct w8001 *w8001)
 	struct input_dev *dev = w8001->dev;
 	unsigned char *data = w8001->data;
 
-	/* We send single touch events for MT (non-signle touch) devices
-	 * even a stylus is in proximity. Apps or userland clients have
-	 * the opportunity to arbitrate these events if they don't need
-	 * the touch data when MT events are received.
-	 * Wacom X server driver arbitrates the events for all apps that
-	 * are based on X server.
-	 */
 	int x = (data[1] << 7) | data[2];
 	int y = (data[3] << 7) | data[4];
 	w8001->has_touch = data[0] & 0x1;
+
+	/* scale to pen maximum */
+	if (w8001->max_pen_x && w8001->max_pen_y && w8001->max_touch_x) {
+		x = x * w8001->max_pen_x / w8001->max_touch_x;
+		y = y * w8001->max_pen_y / w8001->max_touch_y;
+	}
+
 	input_report_abs(dev, ABS_X, x);
 	input_report_abs(dev, ABS_Y, y);
 	input_report_key(dev, BTN_TOUCH, w8001->has_touch);
@@ -151,14 +151,6 @@ static void parse_touch(struct w8001 *w8001)
 	struct input_dev *dev = w8001->dev;
 	unsigned char *data = w8001->data;
 	int i;
-
-	/* We send the first touch data as single touch events so the userland
-	 * apps don't need special code to deal with this corner case. However,
-	 * it will be the apps or userland agent/client's responsibility to
-	 * filter/ignore these events if they don't need the touch data when
-	 * MT events are received. 
-	 */
-	parse_single_touch(w8001);
 
 	for (i = 0; i < 2; i++) {
 		input_mt_slot(dev, i);
@@ -202,12 +194,9 @@ static void parse_touchquery(u8 *data, struct w8001_touch_query *query)
 	if (!query->x && !query->y) {
 		query->x = 1024;
 		query->y = 1024;
+		if (data[1])
+			query->x = query->y = (1 << data[1]);
 		query->panel_res = 10;
-		query->panel_res = 10;
-		if (data[1]) {
-			query->x = (1 << data[1]);
-			query->y = (1 << data[1]);
-		}
 	}
 }
 
@@ -293,15 +282,15 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 		if (tmp == W8001_TOUCH_BYTE)
 			break;
 
-		w8001->idx = 0;
-
 		if (w8001->has_touch) {
-			/* send touch data out */
+			/* send touch data out first */
 			w8001->has_touch = 0;
 			input_report_key(dev, BTN_TOUCH, 0);
 			input_report_key(dev, BTN_TOOL_FINGER, 0);
+			input_sync(dev);
 		}
 
+		w8001->idx = 0;
 		parse_data(w8001->data, &coord);
 		report_pen_events(w8001, &coord);
 		w8001->pen_in_prox = coord.rdy ? true : false;
@@ -348,6 +337,24 @@ static int w8001_command(struct w8001 *w8001, unsigned char command,
 	return rc;
 }
 
+static void w8001_setup_single_touch(struct w8001 *w8001)
+{
+	struct input_dev *dev = w8001->dev;
+	int px = w8001->max_touch_x, py = w8001->max_touch_y;
+
+	__set_bit(BTN_TOUCH, dev->keybit);
+	__set_bit(BTN_TOOL_FINGER, dev->keybit);
+
+	/* scale to pen maximum */
+	if (w8001->max_pen_x && w8001->max_pen_y) {
+		px = w8001->max_pen_x;
+		py = w8001->max_pen_y;
+	}
+
+	input_set_abs_params(dev, ABS_X, 0, px, 0, 0);
+	input_set_abs_params(dev, ABS_Y, 0, py, 0, 0);
+}
+
 static int w8001_setup(struct w8001 *w8001)
 {
 	struct input_dev *dev = w8001->dev;
@@ -363,20 +370,22 @@ static int w8001_setup(struct w8001 *w8001)
 	/* penabled? */
 	error = w8001_command(w8001, W8001_CMD_QUERY, true);
 	if (!error) {
-		dev->keybit[BIT_WORD(BTN_TOOL_PEN)] |= BIT_MASK(BTN_TOOL_PEN);
-		dev->keybit[BIT_WORD(BTN_TOOL_RUBBER)] |= BIT_MASK(BTN_TOOL_RUBBER);
-		dev->keybit[BIT_WORD(BTN_STYLUS)] |= BIT_MASK(BTN_STYLUS);
-		dev->keybit[BIT_WORD(BTN_STYLUS2)] |= BIT_MASK(BTN_STYLUS2);
+		__set_bit(BTN_TOUCH, dev->keybit);
+		__set_bit(BTN_TOOL_PEN, dev->keybit);
+		__set_bit(BTN_TOOL_RUBBER, dev->keybit);
+		__set_bit(BTN_STYLUS, dev->keybit);
+		__set_bit(BTN_STYLUS2, dev->keybit);
 		parse_data(w8001->response, &coord);
 
 		input_set_abs_params(dev, ABS_X, 0, coord.x, 0, 0);
 		input_set_abs_params(dev, ABS_Y, 0, coord.y, 0, 0);
 		input_set_abs_params(dev, ABS_PRESSURE, 0, coord.pen_pressure, 0, 0);
-		if (coord.tilt_x && coord.tilt_y)
-		{
+		if (coord.tilt_x && coord.tilt_y) {
 			input_set_abs_params(dev, ABS_TILT_X, 0, coord.tilt_x, 0, 0);
 			input_set_abs_params(dev, ABS_TILT_Y, 0, coord.tilt_y, 0, 0);
 		}
+		w8001->max_pen_x = coord.x;
+		w8001->max_pen_y = coord.y;
 	}
 
 	/* touch enabled? */
@@ -387,31 +396,22 @@ static int w8001_setup(struct w8001 *w8001)
 	 */
 	if (!error && w8001->response[1]) {
 		struct w8001_touch_query touch;
-		int px, py;
 
 		parse_touchquery(w8001->response, &touch);
-
-		px = w8001->max_touch_x = touch.x;
-		py = w8001->max_touch_x = touch.y;
-
-		/* scale to pen maximum */
-		if (coord.x && coord.y) {
-			px = w8001->max_pen_x = coord.x;
-			py = w8001->max_pen_y = coord.y;
-		}
-		input_set_abs_params(dev, ABS_X, 0, px, 0, 0);
-		input_set_abs_params(dev, ABS_Y, 0, py, 0, 0);
-		dev->keybit[BIT_WORD(BTN_TOOL_FINGER)] |= BIT_MASK(BTN_TOOL_FINGER);
+		w8001->max_touch_x = touch.x;
+		w8001->max_touch_y = touch.y;
 
 		switch (touch.sensor_id) {
 		case 0:
 		case 2:
 			w8001->pktlen = W8001_PKTLEN_TOUCH93;
+			w8001_setup_single_touch(w8001);
 			break;
 		case 1:
 		case 3:
 		case 4:
 			w8001->pktlen = W8001_PKTLEN_TOUCH9A;
+			w8001_setup_single_touch(w8001);
 			break;
 		case 5:
 			w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
@@ -483,7 +483,6 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->dev.parent = &serio->dev;
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
 	serio_set_drvdata(serio, w8001);
 	err = serio_open(serio, drv);

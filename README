@@ -3,10 +3,10 @@ For serial ISDV4 devices, an utility, inputattach, is needed to map the driver t
 logical port for user land to access. Please refer to the README under inputattach
 for details.
 
-The paired X server Wacom driver is xf86-input-wacom. If you are not running the
-latest xf86-input-wacom, please download it from linuxwacom.sf.net.
+The paired X server Wacom driver is xf86-input-wacom, which should be running on X
+servers 1.7 and later. If you are not running the latest xf86-input-wacom, please 
+download it from linuxwacom.sf.net.
 
-Ping Cheng, Wacom, <pingc@wacom.com>
-Nov. 29, 2010
+2010 Ping Cheng, Wacom, <pingc@wacom.com>
 
 

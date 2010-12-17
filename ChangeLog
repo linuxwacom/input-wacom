@@ -2,3 +2,6 @@ Nov. 29, 2010 Ping Cheng <pingc@wacom.com>
 Initialize release
 Support kernels: 2.6.26 and later
 
+Dec. 17, 2010 Ping Cheng <pingc@wacom.com>
+Bring 2.6.37 wacom-w8001.c back to 2.6.36 fold
+
