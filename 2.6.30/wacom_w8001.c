@@ -163,11 +163,12 @@ static void parse_touchquery(u8 *data, struct w8001_touch_query *query)
 	if (!query->x && !query->y) {
 		query->x = 1024;
 		query->y = 1024;
-		query->panel_res = 10;
 		if (data[1]) {
 			query->x = (1 << data[1]);
 			query->y = (1 << data[1]);
-		}
+		} else
+			query->panel_res = 10;
+			
 	}
 }
 

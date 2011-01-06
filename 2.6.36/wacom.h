@@ -88,6 +88,13 @@
 #include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/usb/input.h>
+#include <linux/input.h>
+# ifndef LINUX_VERSION_CODE
+# include <linux/version.h>
+# endif 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,36)
+#include <linux/input/mt.h>
+#endif
 #include <asm/unaligned.h>
 
 /*

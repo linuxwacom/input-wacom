@@ -889,13 +889,16 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 		input_report_abs(input, ABS_MT_TRACKING_ID, wacom->id[i]);
 	}
 
-	input_report_key(input, BTN_TOUCH, count > 0);
-	input_report_key(input, BTN_TOOL_FINGER, count == 1);
-	input_report_key(input, BTN_TOOL_DOUBLETAP, count == 2);		
+	if (!wacom->shared->stylus_in_proximity) {
+		input_report_key(input, BTN_TOUCH, count > 0);
+		input_report_key(input, BTN_TOOL_FINGER, count == 1);
+		input_report_key(input, BTN_TOOL_DOUBLETAP, count == 2);		
 
-	input_report_abs(input, ABS_PRESSURE, sp);
-	input_report_abs(input, ABS_X, sx);
-	input_report_abs(input, ABS_Y, sy);
+		input_report_abs(input, ABS_PRESSURE, sp);
+		input_report_abs(input, ABS_X, sx);
+		input_report_abs(input, ABS_Y, sy);
+	} else
+		input_report_abs(input, ABS_PRESSURE, 0);
 
 	input_report_key(input, BTN_LEFT, (data[1] & 0x08) != 0);
 	input_report_key(input, BTN_FORWARD, (data[1] & 0x04) != 0);
@@ -1266,7 +1269,11 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
 			input_mt_create_slots(input_dev, 2);
+#else
+			input_mt_init_slots(input_dev, 2);
+#endif
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 					     0, features->x_max,
 					     features->x_fuzz, 0);
@@ -1430,6 +1437,12 @@ static struct wacom_features wacom_features_0xD2 =
 	{ "Wacom Bamboo Craft",   WACOM_PKGLEN_BBFUN,     14720,  9200, 1023, 63, BAMBOO_PT };
 static struct wacom_features wacom_features_0xD3 =
 	{ "Wacom Bamboo 2FG 6x8", WACOM_PKGLEN_BBFUN,     21648, 13530, 1023, 63, BAMBOO_PT };
+static struct wacom_features wacom_features_0xD4 =
+	{ "Wacom Bamboo 4x5",     WACOM_PKGLEN_BBFUN,     14720,  9200, 1023, 63, BAMBOO_PT };
+static struct wacom_features wacom_features_0xD6 =
+	{ "Wacom BambooPT 2FG 4x5", WACOM_PKGLEN_BBFUN,   14720,  9200, 1023, 63, BAMBOO_PT };
+static struct wacom_features wacom_features_0xD7 =
+	{ "Wacom BambooPT 2FG Small", WACOM_PKGLEN_BBFUN, 14720,  9200, 1023, 63, BAMBOO_PT };
 static struct wacom_features wacom_features_0xD8 =
 	{ "Wacom Bamboo Comic 2FG", WACOM_PKGLEN_BBFUN,   21648, 13530, 1023, 63, BAMBOO_PT };
 static struct wacom_features wacom_features_0xDA =
@@ -1504,6 +1517,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xD1) },
 	{ USB_DEVICE_WACOM(0xD2) },
 	{ USB_DEVICE_WACOM(0xD3) },
+	{ USB_DEVICE_WACOM(0xD4) },
+	{ USB_DEVICE_WACOM(0xD6) },
+	{ USB_DEVICE_WACOM(0xD7) },
 	{ USB_DEVICE_WACOM(0xD8) },
 	{ USB_DEVICE_WACOM(0xDA) },
 	{ USB_DEVICE_WACOM(0xDB) },
