@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2008 Jaya Kumar
  * Copyright (c) 2010 Red Hat, Inc.
- * Copyright (c) 2010 Ping Cheng, Wacom. <pingc@wacom.com>
+ * Copyright (c) 2010 - 2011 Ping Cheng, Wacom. <pingc@wacom.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file COPYING in the main directory of this archive for
@@ -20,6 +20,7 @@
 #include <linux/serio.h>
 #include <linux/init.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 # ifndef LINUX_VERSION_CODE
 # include <linux/version.h>
 # endif 
@@ -59,12 +60,12 @@ MODULE_LICENSE("GPL");
 #define MAX_TRACKING_ID		0xFF	/* arbitrarily chosen */
 
 struct w8001_coord {
+	u16 x;
+	u16 y;
 	u8 rdy;
 	u8 tsw;
 	u8 f1;
 	u8 f2;
-	u16 x;
-	u16 y;
 	u16 pen_pressure;
 	u8 tilt_x;
 	u8 tilt_y;
@@ -97,15 +98,14 @@ struct w8001 {
 	unsigned int pktlen;
 	int trkid[2];
 	int trkid_idx;
-	bool pen_in_prox;
-	bool has_touch;
 	int max_touch_x;
 	int max_touch_y;
 	int max_pen_x;
 	int max_pen_y;
+	char name[64];
 };
 
-static void parse_data(u8 *data, struct w8001_coord *coord)
+static void parse_pen_data(u8 *data, struct w8001_coord *coord)
 {
 	memset(coord, 0, sizeof(*coord));
 
@@ -129,30 +129,14 @@ static void parse_data(u8 *data, struct w8001_coord *coord)
 	coord->tilt_y = data[8] & 0x7F;
 }
 
-static void parse_single_touch(struct w8001 *w8001)
+static void parse_single_touch(u8 *data, struct w8001_coord *coord)
 {
-	struct input_dev *dev = w8001->dev;
-	unsigned char *data = w8001->data;
-
-	int x = (data[1] << 7) | data[2];
-	int y = (data[3] << 7) | data[4];
-	w8001->has_touch = data[0] & 0x1;
-
-	/* scale to pen maximum */
-	if (w8001->max_pen_x && w8001->max_pen_y && w8001->max_touch_x) {
-		x = x * w8001->max_pen_x / w8001->max_touch_x;
-		y = y * w8001->max_pen_y / w8001->max_touch_y;
-	}
-
-	input_report_abs(dev, ABS_X, x);
-	input_report_abs(dev, ABS_Y, y);
-	input_report_key(dev, BTN_TOUCH, w8001->has_touch);
-	input_report_key(dev, BTN_TOOL_FINGER, w8001->has_touch);
-
-	input_sync(dev);
+	coord->x = (data[1] << 7) | data[2];
+	coord->y = (data[3] << 7) | data[4];
+	coord->tsw = data[0] & 0x1;
 }
 
-static void parse_touch(struct w8001 *w8001)
+static void parse_multi_touch(struct w8001 *w8001)
 {
 	struct input_dev *dev = w8001->dev;
 	unsigned char *data = w8001->data;
@@ -165,6 +149,13 @@ static void parse_touch(struct w8001 *w8001)
 			int x = (data[6 * i + 1] << 7) | (data[6 * i + 2]);
 			int y = (data[6 * i + 3] << 7) | (data[6 * i + 4]);
 			/* data[5,6] and [11,12] is finger capacity */
+
+			/* scale to pen maximum */
+			if (w8001->max_pen_x && w8001->max_touch_x)
+				x = x * w8001->max_pen_x / w8001->max_touch_x;
+
+			if (w8001->max_pen_y && w8001->max_touch_y)
+				y = y * w8001->max_pen_y / w8001->max_touch_y;
 
 			input_report_abs(dev, ABS_MT_POSITION_X, x);
 			input_report_abs(dev, ABS_MT_POSITION_Y, y);
@@ -213,16 +204,15 @@ static void report_pen_events(struct w8001 *w8001, struct w8001_coord *coord)
 	/*
 	 * We have 1 bit for proximity (rdy) and 3 bits for tip, side,
 	 * side2/eraser. If rdy && f2 are set, this can be either pen + side2,
-	 * or eraser. assume
+	 * or eraser. Assume
 	 * - if dev is already in proximity and f2 is toggled → pen + side2
 	 * - if dev comes into proximity with f2 set → eraser
 	 * If f2 disappears after assuming eraser, fake proximity out for
 	 * eraser and in for pen.
 	 */
 
-	if (!w8001->type) {
-		w8001->type = coord->f2 ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
-	} else if (w8001->type == BTN_TOOL_RUBBER) {
+	switch (w8001->type) {
+	case BTN_TOOL_RUBBER:
 		if (!coord->f2) {
 			input_report_abs(dev, ABS_PRESSURE, 0);
 			input_report_key(dev, BTN_TOUCH, 0);
@@ -232,7 +222,19 @@ static void report_pen_events(struct w8001 *w8001, struct w8001_coord *coord)
 			input_sync(dev);
 			w8001->type = BTN_TOOL_PEN;
 		}
-	} else {
+		break;
+
+	case BTN_TOOL_FINGER:
+		input_report_key(dev, BTN_TOUCH, 0);
+		input_report_key(dev, BTN_TOOL_FINGER, 0);
+		input_sync(dev);
+		/* fall through */
+
+	case KEY_RESERVED:
+		w8001->type = coord->f2 ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
+		break;
+
+	default:
 		input_report_key(dev, BTN_STYLUS2, coord->f2);
 	}
 
@@ -245,14 +247,36 @@ static void report_pen_events(struct w8001 *w8001, struct w8001_coord *coord)
 	input_sync(dev);
 
 	if (!coord->rdy)
-		w8001->type = 0;
+		w8001->type = KEY_RESERVED;
+}
+
+static void report_single_touch(struct w8001 *w8001, struct w8001_coord *coord)
+{
+	struct input_dev *dev = w8001->dev;
+	unsigned int x = coord->x;
+	unsigned int y = coord->y;
+
+	/* scale to pen maximum */
+	if (w8001->max_pen_x && w8001->max_touch_x)
+		x = x * w8001->max_pen_x / w8001->max_touch_x;
+
+	if (w8001->max_pen_y && w8001->max_touch_y)
+		y = y * w8001->max_pen_y / w8001->max_touch_y;
+
+	input_report_abs(dev, ABS_X, x);
+	input_report_abs(dev, ABS_Y, y);
+	input_report_key(dev, BTN_TOUCH, coord->tsw);
+	input_report_key(dev, BTN_TOOL_FINGER, coord->tsw);
+
+	input_sync(dev);
+
+	w8001->type = coord->tsw ? BTN_TOOL_FINGER : KEY_RESERVED;
 }
 
 static irqreturn_t w8001_interrupt(struct serio *serio,
 				   unsigned char data, unsigned int flags)
 {
 	struct w8001 *w8001 = serio_get_drvdata(serio);
-	struct input_dev *dev = w8001->dev;
 	struct w8001_coord coord;
 	unsigned char tmp;
 
@@ -273,8 +297,11 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 
 		if (w8001->pktlen == w8001->idx) {
 			w8001->idx = 0;
-			if (!w8001->pen_in_prox)
-				parse_single_touch(w8001);
+			if (w8001->type != BTN_TOOL_PEN &&
+			    w8001->type != BTN_TOOL_RUBBER) {
+				parse_single_touch(w8001->data, &coord);
+				report_single_touch(w8001, &coord);
+			}
 		}
 		break;
 
@@ -288,18 +315,9 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 		if (tmp == W8001_TOUCH_BYTE)
 			break;
 
-		if (w8001->has_touch) {
-			/* send touch data out first */
-			w8001->has_touch = 0;
-			input_report_key(dev, BTN_TOUCH, 0);
-			input_report_key(dev, BTN_TOOL_FINGER, 0);
-			input_sync(dev);
-		}
-
 		w8001->idx = 0;
-		parse_data(w8001->data, &coord);
+		parse_pen_data(w8001->data, &coord);
 		report_pen_events(w8001, &coord);
-		w8001->pen_in_prox = coord.rdy ? true : false;
 		break;
 
 	/* control packet */
@@ -317,7 +335,7 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 	/* 2 finger touch packet */
 	case W8001_PKTLEN_TOUCH2FG - 1:
 		w8001->idx = 0;
-		parse_touch(w8001);
+		parse_multi_touch(w8001);
 		break;
 	}
 
@@ -346,25 +364,22 @@ static int w8001_command(struct w8001 *w8001, unsigned char command,
 static void w8001_setup_single_touch(struct w8001 *w8001)
 {
 	struct input_dev *dev = w8001->dev;
-	int px = w8001->max_touch_x, py = w8001->max_touch_y;
+	int px = max(w8001->max_touch_x, w8001->max_pen_x);
+	int py = max(w8001->max_touch_y, w8001->max_pen_y);
 
 	__set_bit(BTN_TOUCH, dev->keybit);
 	__set_bit(BTN_TOOL_FINGER, dev->keybit);
 
-	/* scale to pen maximum */
-	if (w8001->max_pen_x && w8001->max_pen_y) {
-		px = w8001->max_pen_x;
-		py = w8001->max_pen_y;
-	}
-
 	input_set_abs_params(dev, ABS_X, 0, px, 0, 0);
 	input_set_abs_params(dev, ABS_Y, 0, py, 0, 0);
+	strlcat(w8001->name, " 1FG", sizeof(w8001->name));
 }
 
 static int w8001_setup(struct w8001 *w8001)
 {
 	struct input_dev *dev = w8001->dev;
 	struct w8001_coord coord;
+	struct w8001_touch_query touch;
 	int error;
 
 	error = w8001_command(w8001, W8001_CMD_STOP, false);
@@ -372,6 +387,7 @@ static int w8001_setup(struct w8001 *w8001)
 		return error;
 
 	mdelay(250);	/* wait 250ms before querying the device */
+	strlcat(w8001->name, "Wacom Serial", sizeof(w8001->name));
 
 	/* penabled? */
 	error = w8001_command(w8001, W8001_CMD_QUERY, true);
@@ -381,7 +397,9 @@ static int w8001_setup(struct w8001 *w8001)
 		__set_bit(BTN_TOOL_RUBBER, dev->keybit);
 		__set_bit(BTN_STYLUS, dev->keybit);
 		__set_bit(BTN_STYLUS2, dev->keybit);
-		parse_data(w8001->response, &coord);
+		parse_pen_data(w8001->response, &coord);
+		w8001->max_pen_x = coord.x;
+		w8001->max_pen_y = coord.y;
 
 		input_set_abs_params(dev, ABS_X, 0, coord.x, 0, 0);
 		input_set_abs_params(dev, ABS_Y, 0, coord.y, 0, 0);
@@ -390,8 +408,8 @@ static int w8001_setup(struct w8001 *w8001)
 			input_set_abs_params(dev, ABS_TILT_X, 0, coord.tilt_x, 0, 0);
 			input_set_abs_params(dev, ABS_TILT_Y, 0, coord.tilt_y, 0, 0);
 		}
-		w8001->max_pen_x = coord.x;
-		w8001->max_pen_y = coord.y;
+		w8001->id = 0x90;
+		strlcat(w8001->name, " Penabled", sizeof(w8001->name));
 	}
 
 	/* touch enabled? */
@@ -401,23 +419,29 @@ static int w8001_setup(struct w8001 *w8001)
 	 * second byte is empty, which indicates touch is not supported.
 	 */
 	if (!error && w8001->response[1]) {
-		struct w8001_touch_query touch;
-
 		parse_touchquery(w8001->response, &touch);
 		w8001->max_touch_x = touch.x;
 		w8001->max_touch_y = touch.y;
+
+		/* scale to pen maximum */
+		if (w8001->max_pen_x && w8001->max_pen_y) {
+			touch.x = w8001->max_pen_x;
+			touch.y = w8001->max_pen_y;
+		}
 
 		switch (touch.sensor_id) {
 		case 0:
 		case 2:
 			w8001->pktlen = W8001_PKTLEN_TOUCH93;
 			w8001_setup_single_touch(w8001);
+			w8001->id = 0x93;
 			break;
 		case 1:
 		case 3:
 		case 4:
 			w8001->pktlen = W8001_PKTLEN_TOUCH9A;
 			w8001_setup_single_touch(w8001);
+			w8001->id = 0x9a;
 			break;
 		case 5:
 			w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
@@ -435,10 +459,17 @@ static int w8001_setup(struct w8001 *w8001)
 						0, touch.y, 0, 0);
 			input_set_abs_params(dev, ABS_MT_TOOL_TYPE,
 						0, 0, 0, 0);
+
+			strlcat(w8001->name, " 2FG", sizeof(w8001->name));
+			if (w8001->max_pen_x && w8001->max_pen_y)
+				w8001->id = 0xE3;
+			else
+				w8001->id = 0xE2;
 			break;
 		}
 	}
 
+	strlcat(w8001->name, " Touchscreen", sizeof(w8001->name));
 	return w8001_command(w8001, W8001_CMD_START, false);
 }
 
@@ -478,17 +509,14 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	}
 
 	w8001->serio = serio;
-	w8001->id = serio->id.id;
 	w8001->dev = input_dev;
 	w8001->trkid[0] = w8001->trkid[1] = -1;
 	init_completion(&w8001->cmd_done);
 	snprintf(w8001->phys, sizeof(w8001->phys), "%s/input0", serio->phys);
 
-	input_dev->name = "Wacom W8001 Penabled Serial TouchScreen";
 	input_dev->phys = w8001->phys;
 	input_dev->id.bustype = BUS_RS232;
-	input_dev->id.vendor = SERIO_W8001;
-	input_dev->id.product = w8001->id;
+	input_dev->id.vendor = 0x056a;
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &serio->dev;
 
@@ -503,6 +531,8 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	if (err)
 		goto fail3;
 
+	input_dev->name = w8001->name;
+	input_dev->id.product = w8001->id;
 	err = input_register_device(w8001->dev);
 	if (err)
 		goto fail3;
