@@ -92,7 +92,7 @@
 # ifndef LINUX_VERSION_CODE
 # include <linux/version.h>
 # endif 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,36)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,37)
 #include <linux/input/mt.h>
 #endif
 #include <asm/unaligned.h>

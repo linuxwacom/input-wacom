@@ -426,6 +426,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 			input_report_abs(input, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
 		}
 		input_report_abs(input, ABS_MISC, wacom->id[0]); /* report tool id */
+		input_event(input, EV_MSC, MSC_SERIAL, 1);
 		input_report_key(input, wacom->tool[0], prox);
 		input_sync(input); /* sync last event */
 	}
@@ -450,7 +451,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 		break;
 
 	case WACOM_MO:
-		prox = (data[7] & 0xf8) || data[8];
+		prox = (data[7] & 0x78) || (data[8] & 0x7f);
 		if (prox || wacom->id[1]) {
 			wacom->id[1] = PAD_DEVICE_ID;
 			input_report_key(input, BTN_0, (data[7] & 0x08));

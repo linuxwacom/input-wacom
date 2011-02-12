@@ -50,6 +50,10 @@ MODULE_LICENSE("GPL");
 #define W8001_PKTLEN_TPCPEN	9
 #define W8001_PKTLEN_TPCCTL	11	/* control packet */
 
+/* resolution in points/mm */
+#define W8001_PEN_RESOLUTION    100
+#define W8001_TOUCH_RESOLUTION  10
+
 struct w8001_coord {
 	u16 x;
 	u16 y;
@@ -311,25 +315,6 @@ static int w8001_command(struct w8001 *w8001, unsigned char command,
 	return rc;
 }
 
-static void w8001_setup_single_touch(struct w8001 *w8001)
-{
-	struct input_dev *dev = w8001->dev;
-	int px = w8001->max_touch_x, py = w8001->max_touch_y;
-
-	__set_bit(BTN_TOUCH, dev->keybit);
-	__set_bit(BTN_TOOL_FINGER, dev->keybit);
-
-	/* scale to pen maximum */
-	if (w8001->max_pen_x && w8001->max_pen_y) {
-		px = w8001->max_pen_x;
-		py = w8001->max_pen_y;
-	}
-
-	input_set_abs_params(dev, ABS_X, 0, px, 0, 0);
-	input_set_abs_params(dev, ABS_Y, 0, py, 0, 0);
-	strlcat(w8001->name, " 1FG", sizeof(w8001->name));
-}
-
 static int w8001_setup(struct w8001 *w8001)
 {
 	struct input_dev *dev = w8001->dev;
@@ -375,27 +360,46 @@ static int w8001_setup(struct w8001 *w8001)
 	 * second byte is empty, which indicates touch is not supported.
 	 */
 	if (!error && w8001->response[1]) {
-		parse_touchquery(w8001->response, &touch);
+		__set_bit(BTN_TOUCH, dev->keybit);
+		__set_bit(BTN_TOOL_FINGER, dev->keybit);
 
+		parse_touchquery(w8001->response, &touch);
 		w8001->max_touch_x = touch.x;
 		w8001->max_touch_y = touch.y;
+
+		if (w8001->max_pen_x && w8001->max_pen_y) {
+			/* if pen is supported scale to pen maximum */
+			touch.x = w8001->max_pen_x;
+			touch.y = w8001->max_pen_y;
+			touch.panel_res = W8001_PEN_RESOLUTION;
+		}
+
+		input_set_abs_params(dev, ABS_X, 0, touch.x, 0, 0);
+		input_set_abs_params(dev, ABS_Y, 0, touch.y, 0, 0);
+		input_abs_set_res(dev, ABS_X, touch.panel_res);
+		input_abs_set_res(dev, ABS_Y, touch.panel_res);
 
 		switch (touch.sensor_id) {
 		case 0:
 		case 2:
 			w8001->pktlen = W8001_PKTLEN_TOUCH93;
-			w8001_setup_single_touch(w8001);
+			strlcat(w8001->name, " 1FG", sizeof(w8001->name));
 			w8001->id = 0x93;
 			break;
 		case 1:
 		case 3:
 		case 4:
 			w8001->pktlen = W8001_PKTLEN_TOUCH9A;
-			w8001_setup_single_touch(w8001);
+			strlcat(w8001->name, " 1FG", sizeof(w8001->name));
 			w8001->id = 0x9a;
 			break;
 		case 5:
 			/* 2FGT is not suppoted for kernels < 2.6.36 */
+			strlcat(w8001->name, " 2FG", sizeof(w8001->name));
+			if (w8001->max_pen_x && w8001->max_pen_y)
+				w8001->id = 0xE3;
+			else
+				w8001->id = 0xE2;
 			break;
 		}
 	}

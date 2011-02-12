@@ -103,15 +103,15 @@ if test -n "$WCM_KERNEL_DIR"; then
 		AC_MSG_RESULT([$MODUTS])
 		MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.[[0-9]]*\.\([[0-9]]*\).*/\1/'`
 		if echo $MODUTS | grep "^2.4" >/dev/null; then
-			AC_MSG_WARN([kernel 2.4.x is ot supported])
+			AC_MSG_WARN([kernel 2.4.x is not supported])
 		elif echo $MODUTS | grep "^2.6" >/dev/null; then
-			if test $MINOR -ge 25; then
+			if test $MINOR -ge 26; then
 				case $MINOR in
 					26|27|28|29|30|31|32|33|34|35) WCM_KERNEL_VER="2.6.30";;
 					*) WCM_KERNEL_VER="2.6.36";;
 				esac
 			else
-				AC_MSG_WARN([kernels older than 2.6.25 is supported by linuxwacom])
+				AC_MSG_WARN([kernels older than 2.6.26 is supported by linuxwacom])
 			fi
 		else
 			AC_MSG_WARN(kernel version $MODUTS not supported)
