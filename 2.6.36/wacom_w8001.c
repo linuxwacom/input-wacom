@@ -447,7 +447,7 @@ static int w8001_setup(struct w8001 *w8001)
 		case 5:
 			w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,37)
 			input_mt_create_slots(dev, 2);
 #else
 			input_mt_init_slots(dev, 2);

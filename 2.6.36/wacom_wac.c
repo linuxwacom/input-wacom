@@ -1281,7 +1281,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,37)
 			input_mt_create_slots(input_dev, 2);
 #else
 			input_mt_init_slots(input_dev, 2);
