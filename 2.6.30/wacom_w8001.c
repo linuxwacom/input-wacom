@@ -376,8 +376,6 @@ static int w8001_setup(struct w8001 *w8001)
 
 		input_set_abs_params(dev, ABS_X, 0, touch.x, 0, 0);
 		input_set_abs_params(dev, ABS_Y, 0, touch.y, 0, 0);
-		input_abs_set_res(dev, ABS_X, touch.panel_res);
-		input_abs_set_res(dev, ABS_Y, touch.panel_res);
 
 		switch (touch.sensor_id) {
 		case 0:
