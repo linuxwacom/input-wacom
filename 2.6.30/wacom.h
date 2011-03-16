@@ -11,7 +11,7 @@
  *  Copyright (c) 2000 Daniel Egger		<egger@suse.de>
  *  Copyright (c) 2001 Frederic Lepied		<flepied@mandrakesoft.com>
  *  Copyright (c) 2004 Panagiotis Issaris	<panagiotis.issaris@mech.kuleuven.ac.be>
- *  Copyright (c) 2002-2010 Ping Cheng		<pingc@wacom.com>
+ *  Copyright (c) 2002-2011 Ping Cheng		<pingc@wacom.com>
  *
  *  ChangeLog:
  *      v0.1 (vp)  - Initial release
@@ -93,7 +93,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v1.52-input-wacom-0.1"
+#define DRIVER_VERSION "v1.52-input-wacom-0.2"
 #define DRIVER_AUTHOR "Vojtech Pavlik <vojtech@ucw.cz>"
 #define DRIVER_DESC "USB Wacom tablet driver"
 #define DRIVER_LICENSE "GPL"
@@ -103,6 +103,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
 
 #define USB_VENDOR_ID_WACOM	0x056a
+#define USB_VENDOR_ID_LENOVO	0x17ef
 
 struct wacom {
 	dma_addr_t data_dma;
