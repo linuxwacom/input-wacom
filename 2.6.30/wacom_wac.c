@@ -924,7 +924,7 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, size_t len)
 		input_report_abs(input, ABS_X, get_unaligned_le16(&data[1]));
 		input_report_abs(input, ABS_Y, get_unaligned_le16(&data[3]));
 		input_report_key(input, BTN_TOUCH, 1);
-		input_report_abs(input, ABS_MISC, wacom->id[1]);
+		input_report_abs(input, ABS_MISC, wacom->id[0]);
 		input_report_key(input, wacom->tool[1], 1);
 		input_sync(input);
 	}
