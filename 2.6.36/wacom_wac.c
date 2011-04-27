@@ -538,9 +538,9 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 				input_report_key(input, BTN_7, (data[6] & 0x08));
 				input_report_key(input, BTN_8, (data[5] & 0x10));
 				input_report_key(input, BTN_9, (data[6] & 0x10));
+				input_report_abs(input, ABS_RX, ((data[1] & 0x1f) << 8) | data[2]);
+				input_report_abs(input, ABS_RY, ((data[3] & 0x1f) << 8) | data[4]);
 			}
-			input_report_abs(input, ABS_RX, ((data[1] & 0x1f) << 8) | data[2]);
-			input_report_abs(input, ABS_RY, ((data[3] & 0x1f) << 8) | data[4]);
 
 			if ((data[5] & 0x1f) | data[6] | (data[1] & 0x1f) |
 				data[2] | (data[3] & 0x1f) | data[4] | data[8] |
