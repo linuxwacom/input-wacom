@@ -669,7 +669,7 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
 	int contact_with_no_pen_down_count = 0;
-	int sp = 0, sx = 0, sy = 0;
+	int sx = 0, sy = 0;
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -686,7 +686,7 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 			if (wacom->id[i] < 0)
 				wacom->id[i] = wacom->trk_id++ & MAX_TRACKING_ID;
 			if (!contact_with_no_pen_down_count++)
-				sp = p, sx = x, sy = y;
+				sx = x, sy = y;
 		} else
 			wacom->id[i] = -1;
 
@@ -1285,6 +1285,10 @@ static const struct wacom_features wacom_features_0x65 =
 	{ "Wacom Bamboo",         WACOM_PKGLEN_BBFUN,     14760,  9225,  511, 63, WACOM_MO };
 static const struct wacom_features wacom_features_0x69 =
 	{ "Wacom Bamboo1",        WACOM_PKGLEN_GRAPHIRE,   5104,  3712,  511, 63, GRAPHIRE };
+static const struct wacom_features wacom_features_0x6A =
+	{ "Wacom Bamboo1 4x6",    WACOM_PKGLEN_GRAPHIRE,  14760,  9225, 1023, 63, GRAPHIRE };
+static const struct wacom_features wacom_features_0x6B =
+	{ "Wacom Bamboo1 5x8",    WACOM_PKGLEN_GRAPHIRE,  21648, 13530, 1023, 63, GRAPHIRE };
 static const struct wacom_features wacom_features_0x20 =
 	{ "Wacom Intuos 4x5",     WACOM_PKGLEN_INTUOS,    12700, 10600, 1023, 31, INTUOS };
 static const struct wacom_features wacom_features_0x21 =
@@ -1373,6 +1377,8 @@ static const struct wacom_features wacom_features_0x90 =
 	{ "Wacom ISDv4 90",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,  0, TABLETPC };
 static const struct wacom_features wacom_features_0x93 =
 	{ "Wacom ISDv4 93",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,  0, TABLETPC };
+static const struct wacom_features wacom_features_0x97 =
+	{ "Wacom ISDv4 97",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  511,  0, TABLETPC };
 static const struct wacom_features wacom_features_0x9A =
 	{ "Wacom ISDv4 9A",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,  0, TABLETPC };
 static const struct wacom_features wacom_features_0x9F =
@@ -1435,6 +1441,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x64) },
 	{ USB_DEVICE_WACOM(0x65) },
 	{ USB_DEVICE_WACOM(0x69) },
+	{ USB_DEVICE_WACOM(0x6A) },
+	{ USB_DEVICE_WACOM(0x6B) },
 	{ USB_DEVICE_WACOM(0x20) },
 	{ USB_DEVICE_WACOM(0x21) },
 	{ USB_DEVICE_WACOM(0x22) },
@@ -1489,6 +1497,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xCC) },
 	{ USB_DEVICE_WACOM(0x90) },
 	{ USB_DEVICE_WACOM(0x93) },
+	{ USB_DEVICE_WACOM(0x97) },
 	{ USB_DEVICE_WACOM(0x9A) },
 	{ USB_DEVICE_WACOM(0x9F) },
 	{ USB_DEVICE_WACOM(0xE2) },
