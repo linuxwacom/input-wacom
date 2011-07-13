@@ -12,6 +12,8 @@
 /* Added Wacom serial Tablet PC to the list 
  * Use "gcc inputattach.c -o inputattach" to compile the program
  * Ping Cheng <pingc@wacom.com> Oct. 3, 2010
+ * Updated with changes at (as of July 13, 2011):
+ *	 http://linuxconsole.cvs.sourceforge.net/viewvc/linuxconsole/ruby/utils/
  */
 
 /*
@@ -38,24 +40,17 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <linux/serio.h>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-
+#include "serio-ids.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <termios.h>
 #include <string.h>
-#include <errno.h>
-#include <assert.h>
-#include <ctype.h>
-
-#include "serio-ids.h"
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <unistd.h>
 
 static int readchar(int fd, unsigned char *c, int timeout)
 {
@@ -126,7 +121,7 @@ static int warrior_init(int fd, unsigned long *id, unsigned long *extra)
 	return 0;
 }
 
-static int spaceball_waitchar(int fd, unsigned char c, unsigned char *d,
+static int spaceball_waitchar(int fd, unsigned char c, char *d,
 				int timeout)
 {
 	unsigned char b = 0;
@@ -245,7 +240,7 @@ static int stinger_init(int fd, unsigned long *id, unsigned long *extra)
 {
 	int i;
 	unsigned char c;
-	unsigned char *response = "\r\n0600520058C272";
+	unsigned char *response = (unsigned char *)"\r\n0600520058C272";
 
 	if (write(fd, " E5E5", 5) != 5)		/* Enable command */
 		return -1;
@@ -291,10 +286,10 @@ static int twiddler_init(int fd, unsigned long *id, unsigned long *extra)
 	int count, line;
 
 	/* Turn DTR off, otherwise the Twiddler won't send any data. */
-	if (ioctl(fd, TIOCMGET, &line))
+	if (ioctl(fd, TIOCMGET, &line) < 0)
 		return -1;
 	line &= ~TIOCM_DTR;
-	if (ioctl(fd, TIOCMSET, &line))
+	if (ioctl(fd, TIOCMSET, &line) < 0)
 		return -1;
 
 	/*
@@ -497,15 +492,18 @@ static struct input_types input_types[] = {
 { "--fujitsu",		"-fjt",	"Fujitsu serial touchscreen",
 	B9600, CS8,
 	SERIO_FUJITSU,		0x00,	0x00,	1,	fujitsu_init },
-{ "--dump",		"-dump",	"Just enable device",
-	B2400, CS8,
-	0,			0x00,	0x00,	0,	dump_init },
+{ "--ps2mult",	"-ps2m",	"PS/2 serial multiplexer",
+	B57600, CS8,
+	SERIO_PS2MULT,		0x00,	0x00,	1,	NULL },
 { "--wacom",		"-wacom",	"Wacom W8001-19200",
 	B19200, CS8,
 	SERIO_W8001,		0x00,	0x00,	0,	NULL },
 { "--wacom-384",		"-wacom-384",	"Wacom W8001-38400",
 	B38400, CS8,
 	SERIO_W8001,		0x00,	0x00,	0,	NULL },
+{ "--dump",		"-dump",	"Just enable device",
+	B2400, CS8,
+	0,			0x00,	0x00,	0,	dump_init },
 { NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, NULL }
 };
 
@@ -525,6 +523,9 @@ static void show_help(void)
 	puts("");
 }
 
+/* palmed wisdom from http://stackoverflow.com/questions/1674162/ */
+#define RETRY_ERROR(x) (x == EAGAIN || x == EWOULDBLOCK || x == EINTR)
+
 int main(int argc, char **argv)
 {
 	unsigned long devt;
@@ -536,9 +537,11 @@ int main(int argc, char **argv)
 	unsigned long id, extra;
 	int fd;
 	int i;
-	char c;
+	unsigned char c;
 	int retval;
 	int baud = -1;
+	int ignore_init_res = 0;
+	int no_init = 0;
 
 	for (i = 1; i < argc; i++) {
 		if (!strcasecmp(argv[i], "--help")) {
@@ -546,6 +549,10 @@ int main(int argc, char **argv)
 			return EXIT_SUCCESS;
 		} else if (!strcasecmp(argv[i], "--daemon")) {
 			daemon_mode = 1;
+		} else if (!strcasecmp(argv[i], "--always")) {
+			ignore_init_res = 1;
+		} else if (!strcasecmp(argv[i], "--noinit")) {
+			no_init = 1;
 		} else if (need_device) {
 			device = argv[i];
 			need_device = 0;
@@ -620,20 +627,26 @@ int main(int argc, char **argv)
 	id = type->id;
 	extra = type->extra;
 
-	if (type->init && type->init(fd, &id, &extra)) {
-		fprintf(stderr, "inputattach: device initialization failed\n");
-		return EXIT_FAILURE;
+	if (type->init && !no_init) {
+		if (type->init(fd, &id, &extra)) {
+			if (ignore_init_res) {
+				fprintf(stderr, "inputattach: ignored device initialization failure\n");
+			} else {
+				fprintf(stderr, "inputattach: device initialization failed\n");
+				return EXIT_FAILURE;
+			}
+		}
 	}
 
 	ldisc = N_MOUSE;
-	if (ioctl(fd, TIOCSETD, &ldisc)) {
+	if (ioctl(fd, TIOCSETD, &ldisc) < 0) {
 		fprintf(stderr, "inputattach: can't set line discipline\n");
 		return EXIT_FAILURE;
 	}
 
 	devt = type->type | (id << 8) | (extra << 16);
 
-	if (ioctl(fd, SPIOCSTYPE, &devt)) {
+	if (ioctl(fd, SPIOCSTYPE, &devt) < 0) {
 		fprintf(stderr, "inputattach: can't set device type\n");
 		return EXIT_FAILURE;
 	}
@@ -644,7 +657,13 @@ int main(int argc, char **argv)
 		retval = EXIT_FAILURE;
 	}
 
-	read(fd, NULL, 0);
+	do {
+		i = read(fd, NULL, 0);
+		if (i == -1) {
+			if (RETRY_ERROR(errno))
+				continue;
+		}
+	} while (!i);
 
 	ldisc = 0;
 	ioctl(fd, TIOCSETD, &ldisc);

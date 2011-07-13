@@ -1,7 +1,11 @@
-Nov. 29, 2010 Ping Cheng <pingc@wacom.com>
-Initialize release
-Support kernels: 2.6.26 and later
+July 13, 2011
+Add 6A, 6B, 97, and E6
+Bring inputattach in-sync with the one at:
+   http://linuxconsole.cvs.sourceforge.net/viewvc/linuxconsole/ruby/utils
 
 Dec. 17, 2010 Ping Cheng <pingc@wacom.com>
 Bring 2.6.37 wacom-w8001.c back to 2.6.36 fold
 
+Nov. 29, 2010 Ping Cheng <pingc@wacom.com>
+Initialize release
+Support kernels: 2.6.26 and later
