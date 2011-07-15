@@ -1,6 +1,4 @@
 /*
- * $Id: inputattach.c,v 1.1 2010-12-02 01:57:01 pingc Exp $
- *
  *  Copyright (c) 1999-2000 Vojtech Pavlik
  *
  *  Sponsored by SuSE
@@ -495,11 +493,8 @@ static struct input_types input_types[] = {
 { "--ps2mult",	"-ps2m",	"PS/2 serial multiplexer",
 	B57600, CS8,
 	SERIO_PS2MULT,		0x00,	0x00,	1,	NULL },
-{ "--wacom",		"-wacom",	"Wacom W8001-19200",
+{ "--wacom",		"-wacom",	"Wacom W8001",
 	B19200, CS8,
-	SERIO_W8001,		0x00,	0x00,	0,	NULL },
-{ "--wacom-384",		"-wacom-384",	"Wacom W8001-38400",
-	B38400, CS8,
 	SERIO_W8001,		0x00,	0x00,	0,	NULL },
 { "--dump",		"-dump",	"Just enable device",
 	B2400, CS8,

@@ -21,7 +21,7 @@ largest number later.
 3.	Connect your serial kernel driver to an input event by:
 	./inputattach --wacom /dev/ttyS0  (if your device is at baud rate 19200)
 or
-	./inputattach --wacom-384 /dev/ttyS0  (if your device is at baud rate 38400)
+	./inputattach --baud 38400 --wacom /dev/ttyS0  (if your device is at baud rate 38400)
 
 4.	Check which port it is mapped to by:
 	ls /dev/input
@@ -40,7 +40,8 @@ In order to let Wacom X driver communicate with the wacom_w8001.ko kernel driver
 instead of to the device directly, you need to install the newly built inputattach
 to a path your env is aware of, such as /usr/bin or /usr/sbin. Then add
 
-inputattach --wacom /dev/ttyS0 (or inputattach --wacom-384 /dev/ttyS0, whichever applies)
+inputattach --wacom /dev/ttyS0 
+(or inputattach --baud 38400 --wacom /dev/ttyS0, whichever applies)
 
 to a system start script, such as /etc/rc.local, so the device will be mapped to a
 /dev/input/event# before X driver starts.
