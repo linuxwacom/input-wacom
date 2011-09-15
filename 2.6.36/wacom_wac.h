@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 /* maximum packet length for USB devices */
-#define WACOM_PKGLEN_MAX	32
+#define WACOM_PKGLEN_MAX	64
 
 /* packet length for individual models */
 #define WACOM_PKGLEN_PENPRTN	 7
@@ -22,6 +22,7 @@
 #define WACOM_PKGLEN_TPC1FG	 5
 #define WACOM_PKGLEN_TPC2FG	14
 #define WACOM_PKGLEN_BBTOUCH	20
+#define WACOM_PKGLEN_MTOUCH	62
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -36,7 +37,13 @@
 #define WACOM_REPORT_INTUOSWRITE	6
 #define WACOM_REPORT_INTUOSPAD		12
 #define WACOM_REPORT_TPC1FG		6
-#define WACOM_REPORT_TPC2FG		13
+#define WACOM_REPORT_TPCMT		13
+#define WACOM_REPORT_TPCHID		15
+#define WACOM_REPORT_TPCST		16
+
+/* wacom data size per MT contact */
+#define WACOM_BYTES_PER_MT_PACKET	11
+#define WACOM_CONTACTSMAX_DEFAULT	16
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
@@ -66,6 +73,7 @@ enum {
 	WACOM_MO,
 	TABLETPC,
 	TABLETPC2FG,
+	MTSCREEN,
 	MAX_TYPE
 };
 
@@ -77,6 +85,8 @@ struct wacom_features {
 	int pressure_max;
 	int distance_max;
 	int type;
+	int x_resolution;
+	int y_resolution;
 	int device_type;
 	int x_phy;
 	int y_phy;
@@ -87,6 +97,9 @@ struct wacom_features {
 	int pressure_fuzz;
 	int distance_fuzz;
 	unsigned quirks;
+	unsigned touch_max;
+	unsigned num_contacts;
+	unsigned num_contacts_left;
 };
 
 struct wacom_shared {
@@ -104,6 +117,7 @@ struct wacom_wac {
 	struct wacom_features features;
 	struct wacom_shared *shared;
 	struct input_dev *input;
+	int *mt_id;
 };
 
 #endif

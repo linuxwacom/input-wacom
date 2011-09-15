@@ -29,6 +29,7 @@
 #define HID_USAGE_FINGER		0x22
 #define HID_USAGE_STYLUS		0x20
 #define HID_COLLECTION			0xc0
+#define HID_MT_CONTACTMAX		0x55
 
 enum {
 	WCM_UNDEFINED = 0,
@@ -49,6 +50,7 @@ struct hid_descriptor {
 #define USB_REQ_GET_REPORT	0x01
 #define USB_REQ_SET_REPORT	0x09
 #define WAC_HID_FEATURE_REPORT	0x03
+#define WAC_MSG_RETRIES		5
 
 static int usb_get_report(struct usb_interface *intf, unsigned char type,
 				unsigned char id, void *buf, int size)
@@ -150,9 +152,14 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 	int result = 0;
 	int i = 0, usage = WCM_UNDEFINED, finger = 0, pen = 0;
 	unsigned char *report;
+	unsigned char *rep_data;
 
 	report = kzalloc(hid_desc->wDescriptorLength, GFP_KERNEL);
 	if (!report)
+		return -ENOMEM;
+
+	rep_data = kmalloc(2, GFP_KERNEL);
+	if (!rep_data)
 		return -ENOMEM;
 
 	/* retrive report descriptors */
@@ -165,7 +172,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			report,
 			hid_desc->wDescriptorLength,
 			5000); /* 5 secs */
-	} while (result < 0 && limit++ < 5);
+	} while (result < 0 && limit++ < WAC_MSG_RETRIES);
 
 	/* No need to parse the Descriptor. It isn't an error though */
 	if (result < 0)
@@ -195,12 +202,15 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 					if (finger) {
 						features->device_type = BTN_TOOL_FINGER;
 						if (features->type == TABLETPC2FG) {
-							/* need to reset back */
 							features->pktlen = WACOM_PKGLEN_TPC2FG;
-							features->device_type = BTN_TOOL_DOUBLETAP;
+							features->touch_max = 2;
 						}
+
+						if (features->type == MTSCREEN)
+							features->pktlen = WACOM_PKGLEN_MTOUCH;
+
 						if (features->type == BAMBOO_PT) {
-							/* need to reset back */
+							features->touch_max = 2;
 							features->pktlen = WACOM_PKGLEN_BBTOUCH;
 							features->device_type = BTN_TOOL_DOUBLETAP;
 							features->x_phy =
@@ -228,33 +238,28 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							get_unaligned_le16(&report[i + 3]);
 						i += 4;
 					}
-				} else if (usage == WCM_DIGITIZER) {
-					/* max pressure isn't reported
-					features->pressure_max = (unsigned short)
-							(report[i+4] << 8  | report[i + 3]);
-					*/
-					features->pressure_max = 255;
-					i += 4;
 				}
 				break;
 
 			case HID_USAGE_Y:
 				if (usage == WCM_DESKTOP) {
 					if (finger) {
+						int type = features->type;
+						int *len = &features->pktlen;
+
 						features->device_type = BTN_TOOL_FINGER;
-						if (features->type == TABLETPC2FG) {
-							/* need to reset back */
-							features->pktlen = WACOM_PKGLEN_TPC2FG;
-							features->device_type = BTN_TOOL_DOUBLETAP;
+						if (type == TABLETPC2FG || type == MTSCREEN) {
+							if (type == TABLETPC2FG)
+								*len = WACOM_PKGLEN_TPC2FG;
+							else
+								*len = WACOM_PKGLEN_MTOUCH;
 							features->y_max =
 								get_unaligned_le16(&report[i + 3]);
 							features->y_phy =
 								get_unaligned_le16(&report[i + 6]);
 							i += 7;
-						} else if (features->type == BAMBOO_PT) {
-							/* need to reset back */
-							features->pktlen = WACOM_PKGLEN_BBTOUCH;
-							features->device_type = BTN_TOOL_DOUBLETAP;
+						} else if (type == BAMBOO_PT) {
+							*len = WACOM_PKGLEN_BBTOUCH;
 							features->y_phy =
 								get_unaligned_le16(&report[i + 3]);
 							features->y_max =
@@ -291,12 +296,19 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				i++;
 				break;
 
-			case HID_USAGE_UNDEFINED:
-				if (usage == WCM_DESKTOP && finger) /* capacity */
-					features->pressure_max =
-						get_unaligned_le16(&report[i + 3]);
-				i += 4;
 				break;
+
+			case HID_MT_CONTACTMAX:
+				do {
+					rep_data[0] = 12;
+					result = usb_get_report(intf,
+						WAC_HID_FEATURE_REPORT, rep_data[0],
+						rep_data, 2);
+				} while (result < 0 && limit++ < WAC_MSG_RETRIES);
+
+				if ((result >= 0) && (rep_data[1] > 2))
+					features->touch_max = rep_data[1];
+				i++;
 			}
 			break;
 
@@ -310,6 +322,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
  out:
 	result = 0;
 	kfree(report);
+	kfree(rep_data);
 	return result;
 }
 
@@ -319,24 +332,26 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 	int limit = 0, report_id = 2;
 	int error = -ENOMEM;
 
-	rep_data = kmalloc(2, GFP_KERNEL);
+	rep_data = kmalloc(4, GFP_KERNEL);
 	if (!rep_data)
 		return error;
 
 	/* ask to report tablet data if it is 2FGT Tablet PC or
 	 * not a Tablet PC */
-	if (features->type == TABLETPC2FG) {
+	if ((features->type == TABLETPC2FG) || (features->type == MTSCREEN)) {
 		do {
 			rep_data[0] = 3;
 			rep_data[1] = 4;
+			rep_data[2] = 0;
+			rep_data[3] = 0;
 			report_id = 3;
 			error = usb_set_report(intf, WAC_HID_FEATURE_REPORT,
-				report_id, rep_data, 2);
+				report_id, rep_data, 4);
 			if (error >= 0)
 				error = usb_get_report(intf,
 					WAC_HID_FEATURE_REPORT, report_id,
-					rep_data, 3);
-		} while ((error < 0 || rep_data[1] != 4) && limit++ < 5);
+					rep_data, 4);
+		} while ((error < 0 || rep_data[1] != 4) && limit++ < WAC_MSG_RETRIES);
 	} else if (features->type != TABLETPC) {
 		do {
 			rep_data[0] = 2;
@@ -347,7 +362,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 				error = usb_get_report(intf,
 					WAC_HID_FEATURE_REPORT, report_id,
 					rep_data, 2);
-		} while ((error < 0 || rep_data[1] != 2) && limit++ < 5);
+		} while ((error < 0 || rep_data[1] != 2) && limit++ < WAC_MSG_RETRIES);
 	}
 
 	kfree(rep_data);
@@ -369,9 +384,9 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	features->pressure_fuzz = 0;
 	features->distance_fuzz = 0;
 
-	/* only Tablet PCs and Bamboo P&T need to retrieve the info */
+	/* only devices support touch need to retrieve the info */
 	if ((features->type != TABLETPC) && (features->type != TABLETPC2FG) &&
-	    (features->type != BAMBOO_PT))
+	    (features->type != BAMBOO_PT) && (features->type != MTSCREEN))
 		goto out;
 
 	if (usb_get_extra_descriptor(interface, HID_DEVICET_HID, &hid_desc)) {
@@ -516,10 +531,20 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 
-	/* Retrieve the physical and logical size for OEM devices */
+	/* Retrieve the physical and logical size for touch devices */
+	features->touch_max = 0;
 	error = wacom_retrieve_hid_descriptor(intf, features);
 	if (error)
 		goto fail3;
+
+	if (features->touch_max > 2) {
+
+		wacom_wac->mt_id = (int *)kzalloc(sizeof(int) * features->touch_max, GFP_KERNEL);
+		if (!wacom_wac->mt_id) {
+			error = -ENOMEM;
+			goto fail3;
+		}
+	}
 
 	wacom_setup_device_quirks(features);
 
@@ -534,7 +559,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 		error = wacom_add_shared_data(wacom_wac, dev);
 		if (error)
-			goto fail3;
+			goto fail4;
 	}
 
 	input_dev->name = wacom_wac->name;
@@ -555,7 +580,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	error = input_register_device(input_dev);
 	if (error)
-		goto fail4;
+		goto fail5;
 
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(intf, features);
@@ -563,7 +588,9 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_set_intfdata(intf, wacom);
 	return 0;
 
- fail4:	wacom_remove_shared_data(wacom_wac);
+ fail5:	wacom_remove_shared_data(wacom_wac);
+ fail4:	if (features->touch_max > 2)
+		kfree(wacom_wac->mt_id);
  fail3:	usb_free_urb(wacom->irq);
  fail2:	usb_free_coherent(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
  fail1:	input_free_device(input_dev);
