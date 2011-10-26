@@ -163,8 +163,10 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 		return -ENOMEM;
 
 	rep_data = kmalloc(2, GFP_KERNEL);
-	if (!rep_data)
-		return -ENOMEM;
+	if (!rep_data) {
+		result = -ENOMEM;
+		goto out1;
+	}
 
 	/* retrive report descriptors */
 	do {
@@ -180,7 +182,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 
 	/* No need to parse the Descriptor. It isn't an error though */
 	if (result < 0)
-		goto out;
+		goto out2;
 
 	for (i = 0; i < hid_desc->wDescriptorLength; i++) {
 
@@ -307,10 +309,9 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 		}
 	}
 
- out:
-	result = 0;
-	kfree(report);
+ out2:	result = 0;
 	kfree(rep_data);
+ out1:	kfree(report);
 	return result;
 }
 
