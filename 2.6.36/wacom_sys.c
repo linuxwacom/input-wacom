@@ -232,11 +232,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							i += 12;
 						}
 					} else if (pen) {
-						/* penabled only accepts exact bytes of data */
-						if (features->type == TABLETPC2FG)
-							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
-						if (features->type == BAMBOO_PT)
-							features->pktlen = WACOM_PKGLEN_BBFUN;
 						features->device_type = BTN_TOOL_PEN;
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
@@ -249,21 +244,15 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				if (usage == WCM_DESKTOP) {
 					if (finger) {
 						int type = features->type;
-						int *len = &features->pktlen;
 
 						features->device_type = BTN_TOOL_FINGER;
 						if (type == TABLETPC2FG || type == MTSCREEN) {
-							if (type == TABLETPC2FG)
-								*len = WACOM_PKGLEN_TPC2FG;
-							else
-								*len = WACOM_PKGLEN_MTOUCH;
 							features->y_max =
 								get_unaligned_le16(&report[i + 3]);
 							features->y_phy =
 								get_unaligned_le16(&report[i + 6]);
 							i += 7;
 						} else if (type == BAMBOO_PT) {
-							*len = WACOM_PKGLEN_BBTOUCH;
 							features->y_phy =
 								get_unaligned_le16(&report[i + 3]);
 							features->y_max =
@@ -277,11 +266,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							i += 4;
 						}
 					} else if (pen) {
-						/* penabled only accepts exact bytes of data */
-						if (features->type == TABLETPC2FG)
-							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
-						if (features->type == BAMBOO_PT)
-							features->pktlen = WACOM_PKGLEN_BBFUN;
 						features->device_type = BTN_TOOL_PEN;
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
