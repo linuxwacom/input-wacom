@@ -113,6 +113,8 @@ if test -n "$WCM_KERNEL_DIR"; then
 			else
 				AC_MSG_WARN([kernels older than 2.6.26 is supported by linuxwacom])
 			fi
+		elif echo $MODUTS | grep "^3." >/dev/null; then
+			WCM_KERNEL_VER="2.6.36"
 		else
 			AC_MSG_WARN(kernel version $MODUTS not supported)
 		fi
