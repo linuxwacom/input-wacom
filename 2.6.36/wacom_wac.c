@@ -694,7 +694,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	contacts_to_send = min(5, (int)features->num_contacts_left);
 
 	for (i = 0; i < contacts_to_send; i++) {
-		id = le16_to_cpup((__le16 *)&data[k]) & MAX_TRACKING_ID;
+		id = le16_to_cpup((__le16 *)&data[k]);
 
 		/* is there an existing slot for this contact? */
 		for (j = 0; j < features->touch_max; j++) {
@@ -1119,7 +1119,7 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 
 	/* these device have multiple inputs */
 	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
-	    features->type == BAMBOO_PT)
+	    features->type == BAMBOO_PT || features->type == MTSCREEN)
 		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
 
 	/* quirks for bamboo touch */

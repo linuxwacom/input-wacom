@@ -790,15 +790,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail3;
 
-	if (features->touch_max > 2) {
-
-		wacom_wac->mt_id = (int *)kzalloc(sizeof(int) * features->touch_max, GFP_KERNEL);
-		if (!wacom_wac->mt_id) {
-			error = -ENOMEM;
-			goto fail3;
-		}
-	}
-
 	wacom_setup_device_quirks(features);
 
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
@@ -809,6 +800,15 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			features->device_type == BTN_TOOL_PEN ?
 				" Pen" : " Finger",
 			sizeof(wacom_wac->name));
+
+		if (features->type == MTSCREEN && (features->touch_max > 2)) {
+			wacom_wac->mt_id = (int *)kzalloc(
+				sizeof(int) * features->touch_max, GFP_KERNEL);
+			if (!wacom_wac->mt_id) {
+				error = -ENOMEM;
+				goto fail3;
+			}
+		}
 
 		error = wacom_add_shared_data(wacom_wac, dev);
 		if (error)

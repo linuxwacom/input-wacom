@@ -50,7 +50,7 @@
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
 
 /* largest reported tracking id */
-#define MAX_TRACKING_ID			0xfff
+#define MAX_TRACKING_ID			0xffff
 
 enum {
 	PENPARTNER = 0,
