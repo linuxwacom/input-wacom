@@ -218,7 +218,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						if (features->type == BAMBOO_PT) {
 							features->touch_max = 2;
 							features->pktlen = WACOM_PKGLEN_BBTOUCH;
-							features->device_type = BTN_TOOL_DOUBLETAP;
 							features->x_phy =
 								get_unaligned_le16(&report[i + 5]);
 							features->x_max =

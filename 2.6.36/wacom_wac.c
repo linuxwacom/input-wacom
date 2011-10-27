@@ -1124,7 +1124,7 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 
 	/* quirks for bamboo touch */
 	if (features->type == BAMBOO_PT &&
-	    features->device_type == BTN_TOOL_DOUBLETAP) {
+	    features->device_type == BTN_TOOL_FINGER) {
 		features->x_max <<= 5;
 		features->y_max <<= 5;
 		features->x_fuzz <<= 5;
