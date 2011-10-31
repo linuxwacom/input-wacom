@@ -93,7 +93,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v1.52-input-wacom-0.2"
+#define DRIVER_VERSION "v1.52-input-wacom-0.3"
 #define DRIVER_AUTHOR "Vojtech Pavlik <vojtech@ucw.cz>"
 #define DRIVER_DESC "USB Wacom tablet driver"
 #define DRIVER_LICENSE "GPL"
@@ -114,6 +114,11 @@ struct wacom {
 	struct mutex lock;
 	bool open;
 	char phys[32];
+	struct wacom_led {
+		u8 select[2]; /* status led selector (0...3) */
+		u8 llv;       /* status led brightness no button */
+		u8 hlv;       /* status led brightness button pressed */
+	} led;
 };
 
 extern const struct usb_device_id wacom_ids[];

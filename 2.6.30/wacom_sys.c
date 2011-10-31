@@ -54,6 +54,8 @@ struct hid_descriptor {
 #define USB_REQ_SET_REPORT	0x09
 #define WAC_HID_FEATURE_REPORT	0x03
 
+#define WAC_CMD_LED_CONTROL	0x20
+
 static int usb_get_report(struct usb_interface *intf, unsigned char type,
 				unsigned char id, void *buf, int size)
 {
@@ -319,26 +321,27 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 	int limit = 0, report_id = 2;
 	int error = -ENOMEM;
 
-	rep_data = kmalloc(2, GFP_KERNEL);
+	rep_data = kmalloc(4, GFP_KERNEL);
 	if (!rep_data)
 		return error;
 
 	/* ask to report tablet data if it is 2FGT Tablet PC
 	 * OR not a Tablet PC */
-	if (features->device_type == BTN_TOOL_TRIPLETAP &&
-			(features->type == TABLETPC2FG)) {
+	if (features->type == TABLETPC2FG && features->device_type != BTN_TOOL_PEN) {
 		do {
 			rep_data[0] = 3;
 			rep_data[1] = 4;
+			rep_data[2] = 0;
+			rep_data[3] = 0;
 			report_id = 3;
 			error = usb_set_report(intf, WAC_HID_FEATURE_REPORT,
-				report_id, rep_data, 2);
+				report_id, rep_data, 4);
 			if (error >= 0)
 				error = usb_get_report(intf,
 					WAC_HID_FEATURE_REPORT, report_id,
-					rep_data, 3);
+					rep_data, 4);
 		} while ((error < 0 || rep_data[1] != 4) && limit++ < 5);
-	} else if (features->type != TABLETPC && features->type != TABLETPC2FG) {
+	} else if (features->type != TABLETPC && features->device_type == BTN_TOOL_PEN) {
 		do {
 			rep_data[0] = 2;
 			rep_data[1] = 2;
@@ -468,6 +471,144 @@ static void wacom_remove_shared_data(struct wacom_wac *wacom)
 	}
 }
 
+static int wacom_led_control(struct wacom *wacom)
+{
+	unsigned char *buf;
+	int retval, led = wacom->led.select[0] | 0x4;
+
+	buf = kzalloc(9, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (wacom->wacom_wac.features.type == WACOM_21UX2)
+		led |= (wacom->led.select[1] << 4) | 0x40;
+
+	buf[0] = WAC_CMD_LED_CONTROL;
+	buf[1] = led;
+	buf[2] = wacom->led.llv;
+	buf[3] = wacom->led.hlv;
+
+	retval = usb_set_report(wacom->intf, 0x03, WAC_CMD_LED_CONTROL,
+				  buf, sizeof(buf));
+	kfree(buf);
+
+	return retval;
+}
+
+static ssize_t wacom_led_select_store(struct device *dev, int set_id,
+				      const char *buf, size_t count)
+{
+	struct wacom *wacom = dev_get_drvdata(dev);
+	u8 id = 0;
+	int err, i;
+
+	for (i = 0; i < count; i++)
+		id = id * 10 + buf[i] - '0';
+
+	mutex_lock(&wacom->lock);
+
+	wacom->led.select[set_id] = id;
+	err = wacom_led_control(wacom);
+
+	mutex_unlock(&wacom->lock);
+
+	return err < 0 ? err : count;
+}
+
+#define DEVICE_LED_SELECT_ATTR(SET_ID)                                 \
+static ssize_t wacom_led##SET_ID##_select_store(struct device *dev,    \
+	struct device_attribute *attr, const char *buf, size_t count)  \
+{                                                                      \
+	return wacom_led_select_store(dev, SET_ID, buf, count);        \
+}                                                                      \
+static ssize_t wacom_led##SET_ID##_select_show(struct device *dev,     \
+	struct device_attribute *attr, char *buf)                      \
+{                                                                      \
+	struct wacom *wacom = dev_get_drvdata(dev);                    \
+	return snprintf(buf, 2, "%d\n", wacom->led.select[SET_ID]);    \
+}                                                                      \
+static DEVICE_ATTR(status_led##SET_ID##_select, S_IWUSR | S_IRUSR,     \
+		   wacom_led##SET_ID##_select_show,                    \
+		   wacom_led##SET_ID##_select_store)
+
+DEVICE_LED_SELECT_ATTR(0);
+DEVICE_LED_SELECT_ATTR(1);
+
+static struct attribute *cintiq_led_attrs[] = {
+	&dev_attr_status_led0_select.attr,
+	&dev_attr_status_led1_select.attr,
+	NULL
+};
+
+static struct attribute_group cintiq_led_attr_group = {
+	.name = "wacom_led",
+	.attrs = cintiq_led_attrs,
+};
+
+static struct attribute *intuos4_led_attrs[] = {
+	&dev_attr_status_led0_select.attr,
+	NULL
+};
+
+static struct attribute_group intuos4_led_attr_group = {
+	.name = "wacom_led",
+	.attrs = intuos4_led_attrs,
+};
+
+static int wacom_initialize_leds(struct wacom *wacom)
+{
+	int error;
+
+	/* Initialize default values */
+	switch (wacom->wacom_wac.features.type) {
+	case INTUOS4S...INTUOS4L:
+		wacom->led.select[0] = 0;
+		wacom->led.select[1] = 0;
+		wacom->led.llv = 10;
+		wacom->led.hlv = 20;
+		error = sysfs_create_group(&wacom->intf->dev.kobj,
+					   &intuos4_led_attr_group);
+		break;
+
+	case WACOM_21UX2:
+		wacom->led.select[0] = 0;
+		wacom->led.select[1] = 0;
+		wacom->led.llv = 0;
+		wacom->led.hlv = 0;
+		error = sysfs_create_group(&wacom->intf->dev.kobj,
+					   &cintiq_led_attr_group);
+		break;
+
+	default:
+		return 0;
+	}
+
+	if (error) {
+		dev_err(&wacom->intf->dev,
+			"cannot create sysfs group err: %d\n", error);
+		return error;
+	}
+	wacom_led_control(wacom);
+
+	return 0;
+}
+
+static void wacom_destroy_leds(struct wacom *wacom)
+{
+	switch (wacom->wacom_wac.features.type) {
+	case INTUOS4S:
+	case INTUOS4L:
+		sysfs_remove_group(&wacom->intf->dev.kobj,
+				   &intuos4_led_attr_group);
+		break;
+
+	case WACOM_21UX2:
+		sysfs_remove_group(&wacom->intf->dev.kobj,
+				   &cintiq_led_attr_group);
+		break;
+	}
+}
+
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
@@ -560,9 +701,13 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	wacom->irq->transfer_dma = wacom->data_dma;
 	wacom->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	error = input_register_device(input_dev);
+	error = wacom_initialize_leds(wacom);
 	if (error)
 		goto fail4;
+
+	error = input_register_device(input_dev);
+	if (error)
+		goto fail5;
 
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(intf, features);
@@ -570,6 +715,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_set_intfdata(intf, wacom);
 	return 0;
 
+ fail5:	wacom_destroy_leds(wacom);
  fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)

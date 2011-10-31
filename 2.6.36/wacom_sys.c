@@ -326,7 +326,8 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 
 	/* ask to report tablet data if it is 2FGT Tablet PC or
 	 * not a Tablet PC */
-	if ((features->type == TABLETPC2FG) || (features->type == MTSCREEN)) {
+	if (((features->type == TABLETPC2FG) || (features->type == MTSCREEN))
+			&& features->device_type != BTN_TOOL_PEN) {
 		do {
 			rep_data[0] = 3;
 			rep_data[1] = 4;
@@ -340,7 +341,8 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 					WAC_HID_FEATURE_REPORT, report_id,
 					rep_data, 4);
 		} while ((error < 0 || rep_data[1] != 4) && limit++ < WAC_MSG_RETRIES);
-	} else if (features->type != TABLETPC) {
+	} else if (features->type != TABLETPC &&
+			features->device_type == BTN_TOOL_PEN) {
 		do {
 			rep_data[0] = 2;
 			rep_data[1] = 2;
