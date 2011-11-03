@@ -1155,8 +1155,6 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 			     features->x_fuzz, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, features->y_max,
 			     features->y_fuzz, 0);
-	input_set_abs_params(input_dev, ABS_PRESSURE, 0, features->pressure_max,
-			     features->pressure_fuzz, 0);
 
 	if (features->device_type == BTN_TOOL_PEN) {
 		input_set_abs_params(input_dev, ABS_PRESSURE, 0, features->pressure_max,
