@@ -679,7 +679,8 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 	char *data = wacom->data;
 	struct input_mt_slot *mt;
-	int i, id = -1, j = 0, k = 4, x = 0, y = 0;
+	int i, id = -1, j = 0, k = 4;
+	int x = 0, y = 0, sx = 0, sy = 0, st = 0;
 	int current_num_contacts = data[2];
 	int contacts_to_send = 0;
 	bool touch = false;
@@ -729,12 +730,14 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 
 	/* emulate ST when there is only one touch point */
 	if (features->num_contacts == 1) {
-		input_report_key(input, BTN_TOUCH, (id != -1));
+		sx = x;
+		sy = y;
+		st = (id != -1);
+	}
 
-		input_report_abs(input, ABS_X, x);
-		input_report_abs(input, ABS_Y, y);
-	} else
-		input_report_key(input, BTN_TOUCH, 0);
+	input_report_key(input, BTN_TOUCH, st);
+	input_report_abs(input, ABS_X, sx);
+	input_report_abs(input, ABS_Y, sy);
 
 	features->num_contacts_left -= contacts_to_send;
 	if (features->num_contacts_left < 0)
@@ -775,8 +778,7 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
 
 	if (!wacom->shared->stylus_in_proximity) {
-		input_report_key(input, BTN_TOUCH, contact_with_no_pen_down_count > 0);
-		input_report_key(input, BTN_TOOL_FINGER, contact_with_no_pen_down_count == 1);
+		input_report_key(input, BTN_TOUCH, contact_with_no_pen_down_count == 1);
 
 		input_report_abs(input, ABS_X, sx);
 		input_report_abs(input, ABS_Y, sy);
