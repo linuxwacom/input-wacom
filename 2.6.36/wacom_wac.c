@@ -678,8 +678,8 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
 	char *data = wacom->data;
-	int *mt_id = wacom->mt_id;
-	int i, id, j = 0, k = 4, x = 0, y = 0;
+	struct input_mt_slot *mt;
+	int i, id = -1, j = 0, k = 4, x = 0, y = 0;
 	int current_num_contacts = data[2];
 	int contacts_to_send = 0;
 	bool touch = false;
@@ -698,14 +698,16 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 
 		/* is there an existing slot for this contact? */
 		for (j = 0; j < features->touch_max; j++) {
-			if (mt_id[j] == id )
+			mt = &input->mt[j];
+			if (input_mt_get_value(mt, ABS_MT_TRACKING_ID) == id )
 				break;
 		}
 
 		/* no. then find an unused slot to fill */
 		if (j >= features->touch_max) {
 			for (j = 0; j < features->touch_max; j++) {
-				if (mt_id[j] == -1 )
+				mt = &input->mt[j];
+				if (input_mt_get_value(mt, ABS_MT_TRACKING_ID) == id )
 					break;
 			}
 		}
@@ -718,17 +720,16 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
-			mt_id[j] = id;
 		} else
-			mt_id[j] = -1;
-		input_report_abs(input, ABS_MT_TRACKING_ID, mt_id[j]);
+			id = -1;
+		input_report_abs(input, ABS_MT_TRACKING_ID, id);
 
 		k += WACOM_BYTES_PER_MT_PACKET;
 	}
 
 	/* emulate ST when there is only one touch point */
 	if (features->num_contacts == 1) {
-		input_report_key(input, BTN_TOUCH, (mt_id[j] != -1));
+		input_report_key(input, BTN_TOUCH, (id != -1));
 
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
@@ -1279,11 +1280,6 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 					     0, features->y_max, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0,
 					     MAX_TRACKING_ID, 0, 0);
-
-			if (features->touch_max > 2) {
-				for (i = 0; i < features->touch_max; i++)
-					wacom_wac->mt_id[i] = -1;
-			}
 		}
 		/* fall through */
 

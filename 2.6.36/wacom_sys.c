@@ -803,18 +803,9 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 				" Pen" : " Finger",
 			sizeof(wacom_wac->name));
 
-		if (features->type == MTSCREEN && (features->touch_max > 2)) {
-			wacom_wac->mt_id = (int *)kzalloc(
-				sizeof(int) * features->touch_max, GFP_KERNEL);
-			if (!wacom_wac->mt_id) {
-				error = -ENOMEM;
-				goto fail3;
-			}
-		}
-
 		error = wacom_add_shared_data(wacom_wac, dev);
 		if (error)
-			goto fail4;
+			goto fail3;
 	}
 
 	input_dev->name = wacom_wac->name;
@@ -835,11 +826,11 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	error = wacom_initialize_leds(wacom);
 	if (error)
-		goto fail5;
+		goto fail4;
 
 	error = input_register_device(input_dev);
 	if (error)
-		goto fail6;
+		goto fail5;
 
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(intf, features);
@@ -847,10 +838,8 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_set_intfdata(intf, wacom);
 	return 0;
 
- fail6: wacom_destroy_leds(wacom);
- fail5:	wacom_remove_shared_data(wacom_wac);
- fail4:	if (features->touch_max > 2)
-		kfree(wacom_wac->mt_id);
+ fail5:	wacom_destroy_leds(wacom);
+ fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
  fail2:	usb_free_coherent(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
  fail1:	input_free_device(input_dev);
