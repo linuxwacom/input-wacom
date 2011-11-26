@@ -9,8 +9,6 @@ AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
 
 AC_PROG_CC
-AC_PROG_AWK
-AC_PROG_LIBTOOL
 
 dnl =======================================================
 dnl Check if we should be compiling for linux
