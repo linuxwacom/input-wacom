@@ -106,13 +106,14 @@ if test -n "$WCM_KERNEL_DIR"; then
 			if test $MINOR -ge 26; then
 				case $MINOR in
 					26|27|28|29|30|31|32|33|34|35) WCM_KERNEL_VER="2.6.30";;
-					*) WCM_KERNEL_VER="2.6.36";;
+					36|37) WCM_KERNEL_VER="2.6.36";;
+					*) WCM_KERNEL_VER="2.6.38";;
 				esac
 			else
 				AC_MSG_WARN([kernels older than 2.6.26 is supported by linuxwacom])
 			fi
 		elif echo $MODUTS | grep "^3." >/dev/null; then
-			WCM_KERNEL_VER="2.6.36"
+			WCM_KERNEL_VER="2.6.38"
 		else
 			AC_MSG_WARN(kernel version $MODUTS not supported)
 		fi
@@ -129,7 +130,8 @@ AC_SUBST(WCM_XFREE86_DIR)
 
 AC_CONFIG_FILES([Makefile
                  2.6.30/Makefile
-                 2.6.36/Makefile])
+                 2.6.36/Makefile
+		 2.6.38/Makefile])
 AC_OUTPUT
 
 make
