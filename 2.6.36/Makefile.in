@@ -16,18 +16,19 @@ else  # We were called from command line
 PWD  := $(shell pwd)
 
 WCM_KERNEL_DIR := @WCM_KERNEL_DIR@
-WCM_OPTION_WACOM := @WCM_OPTION_WACOM@
 
 all:
-	@echo '    Building linuxwacom drivers for 2.6 kernel.'
+	@echo '    Building input-wacom drivers for 2.6 kernel.'
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD)
+
+clean:
+	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) clean
 
 endif  # End kbuild check
 
 ######################### Version independent targets ##########################
 
-clean:
-	rm -rf *.o *.ko *.mod.* .[a-z]* core *.i
+distclean: clean
 
 EMPTY_AUTOMAKE_TARGETS = distdir install install-data install-exec uninstall install-info
 EMPTY_AUTOMAKE_TARGETS += installdirs check dvi pdf ps info html tags ctags mostlyclean distclean maintainer-clean
