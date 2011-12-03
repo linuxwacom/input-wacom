@@ -30,7 +30,14 @@ endif  # End kbuild check
 
 distclean: clean
 
-EMPTY_AUTOMAKE_TARGETS = distdir install install-data install-exec uninstall install-info
-EMPTY_AUTOMAKE_TARGETS += installdirs check dvi pdf ps info html tags ctags mostlyclean distclean maintainer-clean
+DISTFILES = wacom.h wacom_sys.c wacom_w8001.c wacom_wac.c wacom_wac.h
+
+distdir:
+	for file in $(DISTFILES); do \
+	    cp -fpR ./$$file "$(distdir)" || exit 1; \
+	done
+
+EMPTY_AUTOMAKE_TARGETS = install install-data install-exec uninstall install-info
+EMPTY_AUTOMAKE_TARGETS += installdirs check dvi pdf ps info html tags ctags mostlyclean maintainer-clean
 .PHONY: $(EMPTY_AUTOMAKE_TARGETS)
 	$(EMPTY_AUTOMAKE_TARGETS):
