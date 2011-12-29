@@ -94,6 +94,12 @@
 # endif 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,37)
 #include <linux/input/mt.h>
+#else
+static inline int input_mt_get_value(const struct input_mt_slot *slot,
+                                     unsigned code)
+{
+        return slot->abs[code - ABS_MT_FIRST];
+}
 #endif
 #include <asm/unaligned.h>
 
