@@ -539,12 +539,11 @@ static ssize_t wacom_led_select_store(struct device *dev, int set_id,
 				      const char *buf, size_t count)
 {
 	struct wacom *wacom = dev_get_drvdata(dev);
-	unsigned int id;
-	int err;
+	unsigned int id = 0;
+	int err, i;
 
-	err = kstrtouint(buf, 10, &id);
-	if (err)
-		return err;
+	for (i = 0; i < count; i++)
+		id = id * 10 + buf[i] - '0';
 
 	mutex_lock(&wacom->lock);
 
@@ -578,12 +577,11 @@ DEVICE_LED_SELECT_ATTR(1);
 static ssize_t wacom_luminance_store(struct wacom *wacom, u8 *dest,
 				     const char *buf, size_t count)
 {
-	unsigned int value;
-	int err;
+	unsigned int value = 0;
+	int err, i;
 
-	err = kstrtouint(buf, 10, &value);
-	if (err)
-		return err;
+	for (i = 0; i < count; i++)
+		value = value * 10 + buf[i] - '0';
 
 	mutex_lock(&wacom->lock);
 
