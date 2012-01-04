@@ -43,7 +43,6 @@
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
-#define WACOM_CONTACTSMAX_DEFAULT	16
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001

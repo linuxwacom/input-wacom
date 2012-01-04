@@ -708,7 +708,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 		if (j >= features->touch_max) {
 			for (j = 0; j < features->touch_max; j++) {
 				mt = &input->mt[j];
-				if (input_mt_get_value(mt, ABS_MT_TRACKING_ID) == id )
+				if (input_mt_get_value(mt, ABS_MT_TRACKING_ID) == -1 )
 					break;
 			}
 		}
