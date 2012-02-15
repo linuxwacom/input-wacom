@@ -23,6 +23,7 @@
 #define WACOM_PKGLEN_TPC2FG	14
 #define WACOM_PKGLEN_BBTOUCH	20
 #define WACOM_PKGLEN_BBTOUCH3   64
+#define WACOM_PKGLEN_BBPEN      10
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02

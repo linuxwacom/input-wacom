@@ -32,7 +32,10 @@
 #define HID_USAGE_Y_TILT		0x3e
 #define HID_USAGE_FINGER		0x22
 #define HID_USAGE_STYLUS		0x20
-#define HID_COLLECTION			0xc0
+#define HID_COLLECTION			0xa1
+#define HID_COLLECTION_LOGICAL		0x02
+#define HID_COLLECTION_END		0xc0
+
 
 enum {
 	WCM_UNDEFINED = 0,
@@ -159,6 +162,25 @@ static void wacom_close(struct input_dev *dev)
 	wacom->open = false;
 	wacom->intf->needs_remote_wakeup = 0;
 	mutex_unlock(&wacom->lock);
+}
+
+static int wacom_parse_logical_collection(unsigned char *report,
+					  struct wacom_features *features)
+{
+	int length = 0;
+
+	if (features->type == BAMBOO_PT) {
+
+		/* Logical collection is only used by 3rd gen Bamboo Touch */
+		features->pktlen = WACOM_PKGLEN_BBTOUCH3;
+		features->device_type = BTN_TOOL_DOUBLETAP;
+
+		features->x_max = features->y_max =
+			get_unaligned_le16(&report[10]);
+
+		length = 11;
+	}
+	return length;
 }
 
 static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hid_desc,
@@ -320,9 +342,18 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			}
 			break;
 
-		case HID_COLLECTION:
+		case HID_COLLECTION_END:
 			/* reset UsagePage and Finger */
 			finger = usage = 0;
+			break;
+		case HID_COLLECTION:
+			i++;
+			switch (report[i]) {
+			case HID_COLLECTION_LOGICAL:
+				i += wacom_parse_logical_collection(&report[i],
+								    features);
+				break;
+			}
 			break;
 		}
 	}
