@@ -737,10 +737,20 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail2;
 
+	/* Ignore Intuos5 touch interface until BPT3 touch support backported */
+	if (features->type >= INTUOS5S && features->type <= INTUOS5L) {
+		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
+			error = -ENODEV;
+			goto fail2;
+		} else {
+			features->device_type = BTN_TOOL_PEN;
+		}
+	}
+
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
 
 	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
-			 features->type == BAMBOO_PT) {
+	    features->type == BAMBOO_PT || (features->type >= INTUOS5S && features->type <= INTUOS5L)) {
 		/* Append the device type to the name */
 		strlcat(wacom_wac->name,
 			features->device_type == BTN_TOOL_PEN ?
