@@ -509,7 +509,7 @@ static int wacom_led_control(struct wacom *wacom)
 	buf[4] = wacom->led.img_lum;
 
 	retval = wacom_set_report(wacom->intf, 0x03, WAC_CMD_LED_CONTROL,
-				  buf, sizeof(buf), WAC_CMD_RETRIES);
+				  buf, 9, WAC_CMD_RETRIES);
 	kfree(buf);
 
 	return retval;
