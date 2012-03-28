@@ -887,6 +887,8 @@ static int wacom_resume(struct usb_interface *intf)
 
 	/* switch to wacom mode first */
 	wacom_query_tablet_data(intf, features);
+	wacom_led_control(wacom);
+
 	if (wacom->open)
 		rv = usb_submit_urb(wacom->irq, GFP_NOIO);
 	else
