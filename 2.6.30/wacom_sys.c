@@ -853,6 +853,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 
 	usb_kill_urb(wacom->irq);
 	input_unregister_device(wacom->wacom_wac.input);
+	wacom_destroy_leds(wacom);
 	usb_free_urb(wacom->irq);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
 	usb_buffer_free(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
