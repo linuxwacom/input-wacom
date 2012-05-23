@@ -24,6 +24,11 @@
 #define WACOM_PKGLEN_BBTOUCH	20
 #define WACOM_PKGLEN_BBTOUCH3	64
 #define WACOM_PKGLEN_BBPEN	10
+#define WACOM_PKGLEN_WIRELESS	32
+#define WACOM_PKGLEN_MTOUCH	62
+
+/* wacom data size per MT contact */
+#define WACOM_BYTES_PER_MT_PACKET	11
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -40,10 +45,15 @@
 #define WACOM_REPORT_INTUOS5PAD         3
 #define WACOM_REPORT_TPC1FG		6
 #define WACOM_REPORT_TPC2FG		13
+#define WACOM_REPORT_TPCMT		13
+#define WACOM_REPORT_TPCHID		15
+#define WACOM_REPORT_TPCST		16
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
+#define WACOM_QUIRK_NO_INPUT		0x0004
+#define WACOM_QUIRK_MONITOR		0x0008
 
 enum {
 	PENPARTNER = 0,
@@ -52,6 +62,7 @@ enum {
 	PTU,
 	PL,
 	DTU,
+	WIRELESS,
 	BAMBOO_PT,
 	INTUOS,
 	INTUOS3S,
@@ -70,6 +81,7 @@ enum {
 	WACOM_MO,
 	TABLETPC,
 	TABLETPC2FG,
+	MTSCREEN,
 	MAX_TYPE
 };
 
@@ -93,6 +105,7 @@ struct wacom_features {
 	int pressure_fuzz;
 	int distance_fuzz;
 	unsigned quirks;
+	unsigned touch_max;
 };
 
 struct wacom_shared {
@@ -109,6 +122,10 @@ struct wacom_wac {
 	struct wacom_features features;
 	struct wacom_shared *shared;
 	struct input_dev *input;
+	int pid;
+	int battery_capacity;
+	int num_contacts_left;
+	int *slots;
 };
 
 #endif
