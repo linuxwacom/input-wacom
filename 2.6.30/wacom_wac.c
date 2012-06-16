@@ -16,6 +16,10 @@
 #include "wacom.h"
 #include <linux/hid.h>
 
+# ifndef LINUX_VERSION_CODE
+# include <linux/version.h>
+# endif
+
 static int wacom_penpartner_irq(struct wacom_wac *wacom)
 {
 	unsigned char *data = wacom->data;
@@ -967,6 +971,7 @@ static void wacom_tpc_finger_in(struct wacom_wac *wacom, char *data, int idx)
 	int x = le16_to_cpup((__le16 *)&data[finger * 2]) & 0x7fff;
 	int y = le16_to_cpup((__le16 *)&data[4 + finger * 2]) & 0x7fff;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
 	if (wacom->last_finger != finger) {
 		if (x == input->abs[ABS_X])
 			x++;
@@ -974,6 +979,7 @@ static void wacom_tpc_finger_in(struct wacom_wac *wacom, char *data, int idx)
 		if (y == input->abs[ABS_Y])
 			y++;
 	}
+#endif
 
 	input_report_abs(input, ABS_X, x);
 	input_report_abs(input, ABS_Y, y);

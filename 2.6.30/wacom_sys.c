@@ -768,11 +768,17 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail2;
 
-	/* Ignore Intuos5 touch interface until BPT3 touch support backported */
+        /* Intuos5 has no useful data about its touch interface in its
+         * HID descriptor. If this is the touch interface (wMaxPacketSize
+         * of WACOM_PKGLEN_BBTOUCH3), override the table values.
+         */
 	if (features->type >= INTUOS5S && features->type <= INTUOS5L) {
 		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
-			error = -ENODEV;
-			goto fail2;
+                        features->device_type = BTN_TOOL_FINGER;
+                        features->pktlen = WACOM_PKGLEN_BBTOUCH3;
+
+                        features->x_max = 4096;
+                        features->y_max = 4096;
 		} else {
 			features->device_type = BTN_TOOL_PEN;
 		}
