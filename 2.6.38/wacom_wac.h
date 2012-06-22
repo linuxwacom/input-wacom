@@ -26,6 +26,7 @@
 #define WACOM_PKGLEN_BBPEN	10
 #define WACOM_PKGLEN_WIRELESS	32
 #define WACOM_PKGLEN_MTOUCH	62
+#define WACOM_REPORT_TPC1FGE		18
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
@@ -62,8 +63,6 @@ enum {
 	PTU,
 	PL,
 	DTU,
-	WIRELESS,
-	BAMBOO_PT,
 	INTUOS,
 	INTUOS3S,
 	INTUOS3,
@@ -79,7 +78,10 @@ enum {
 	CINTIQ,
 	WACOM_BEE,
 	WACOM_MO,
-	TABLETPC,
+	WIRELESS,
+	BAMBOO_PT,
+	TABLETPC,   /* add new TPC below */
+	TABLETPCE,
 	TABLETPC2FG,
 	MTSCREEN,
 	MAX_TYPE

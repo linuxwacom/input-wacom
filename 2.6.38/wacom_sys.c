@@ -213,7 +213,7 @@ static void wacom_retrieve_report_data(struct usb_interface *intf,
 
 		rep_data[0] = 12;
 		result = wacom_get_report(intf, WAC_HID_FEATURE_REPORT,
-					  rep_data[0], &rep_data, 2,
+					  rep_data[0], rep_data, 2,
 					  WAC_MSG_RETRIES);
 
 		if (result >= 0 && rep_data[1] > 2)
@@ -398,7 +398,9 @@ static int wacom_parse_hid(struct usb_interface *intf,
 				break;
 
 			case HID_USAGE_CONTACTMAX:
-				wacom_retrieve_report_data(intf, features);
+				/* leave touch_max as is if predefined */
+				if (!features->touch_max)
+					wacom_retrieve_report_data(intf, features);
 				i++;
 				break;
 			}
@@ -440,8 +442,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 	/* ask to report Wacom data */
 	if (features->device_type == BTN_TOOL_FINGER) {
 		/* if it is an MT Tablet PC touch */
-		if (features->type == TABLETPC2FG ||
-		    features->type == MTSCREEN) {
+		if (features->type > TABLETPC) {
 			do {
 				rep_data[0] = 3;
 				rep_data[1] = 4;
@@ -460,7 +461,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 			} while ((error < 0 || rep_data[1] != 4) &&
 				 limit++ < WAC_MSG_RETRIES);
 		}
-	} else if (features->type != TABLETPC &&
+	} else if (features->type <= BAMBOO_PT &&
 		   features->type != WIRELESS &&
 		   features->device_type == BTN_TOOL_PEN) {
 		do {
@@ -510,10 +511,7 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	}
 
 	/* only devices that support touch need to retrieve the info */
-	if (features->type != TABLETPC &&
-	    features->type != TABLETPC2FG &&
-	    features->type != BAMBOO_PT &&
-	    features->type != MTSCREEN) {
+	if (features->type < BAMBOO_PT) {
 		goto out;
 	}
 
@@ -522,7 +520,8 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 		error = usb_get_extra_descriptor(&interface->endpoint[0],
 						 HID_DEVICET_REPORT, &hid_desc);
 		if (error) {
-			printk("wacom: can not retrieve extra class descriptor\n");
+			dev_err(&intf->dev,
+				"can not retrieve extra class descriptor\n");
 			goto out;
 		}
 	}
@@ -620,7 +619,8 @@ static int wacom_led_control(struct wacom *wacom)
 
 	if (wacom->wacom_wac.features.type >= INTUOS5S &&
 	    wacom->wacom_wac.features.type <= INTUOS5L)	{
-		/* Touch Ring and crop mark LED luminance may take on
+		/*
+		 * Touch Ring and crop mark LED luminance may take on
 		 * one of four values:
 		 *    0 = Low; 1 = Medium; 2 = High; 3 = Off
 		 */
@@ -965,6 +965,12 @@ static int wacom_initialize_battery(struct wacom *wacom)
 
 		error = power_supply_register(&wacom->usbdev->dev,
 					      &wacom->battery);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
+		if (!error)
+			power_supply_powers(&wacom->battery,
+					    &wacom->usbdev->dev);
+#endif
 	}
 
 	return error;
@@ -972,8 +978,11 @@ static int wacom_initialize_battery(struct wacom *wacom)
 
 static void wacom_destroy_battery(struct wacom *wacom)
 {
-	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_MONITOR)
+	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_MONITOR &&
+	    wacom->battery.dev) {
 		power_supply_unregister(&wacom->battery);
+		wacom->battery.dev = NULL;
+	}
 }
 
 static int wacom_register_input(struct wacom *wacom)
@@ -1020,23 +1029,30 @@ static void wacom_wireless_work(struct work_struct *work)
 	struct wacom *wacom = container_of(work, struct wacom, work);
 	struct usb_device *usbdev = wacom->usbdev;
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct wacom *wacom1, *wacom2;
+	struct wacom_wac *wacom_wac1, *wacom_wac2;
+	int error;
 
 	/*
 	 * Regardless if this is a disconnect or a new tablet,
-	 * remove any existing input devices.
+	 * remove any existing input and battery devices.
 	 */
 
+	wacom_destroy_battery(wacom);
+
 	/* Stylus interface */
-	wacom = usb_get_intfdata(usbdev->config->interface[1]);
-	if (wacom->wacom_wac.input)
-		input_unregister_device(wacom->wacom_wac.input);
-	wacom->wacom_wac.input = NULL;
+	wacom1 = usb_get_intfdata(usbdev->config->interface[1]);
+	wacom_wac1 = &(wacom1->wacom_wac);
+	if (wacom_wac1->input)
+		input_unregister_device(wacom_wac1->input);
+	wacom_wac1->input = NULL;
 
 	/* Touch interface */
-	wacom = usb_get_intfdata(usbdev->config->interface[2]);
-	if (wacom->wacom_wac.input)
-		input_unregister_device(wacom->wacom_wac.input);
-	wacom->wacom_wac.input = NULL;
+	wacom2 = usb_get_intfdata(usbdev->config->interface[2]);
+	wacom_wac2 = &(wacom2->wacom_wac);
+	if (wacom_wac2->input)
+		input_unregister_device(wacom_wac2->input);
+	wacom_wac2->input = NULL;
 
 	if (wacom_wac->pid == 0) {
 		dev_info(&wacom->intf->dev, "wireless tablet disconnected\n");
@@ -1061,24 +1077,39 @@ static void wacom_wireless_work(struct work_struct *work)
 		}
 
 		/* Stylus interface */
-		wacom = usb_get_intfdata(usbdev->config->interface[1]);
-		wacom_wac = &wacom->wacom_wac;
-		wacom_wac->features =
+		wacom_wac1->features =
 			*((struct wacom_features *)id->driver_info);
-		wacom_wac->features.device_type = BTN_TOOL_PEN;
-		wacom_register_input(wacom);
+		wacom_wac1->features.device_type = BTN_TOOL_PEN;
+		error = wacom_register_input(wacom1);
+		if (error)
+			goto fail1;
 
 		/* Touch interface */
-		wacom = usb_get_intfdata(usbdev->config->interface[2]);
-		wacom_wac = &wacom->wacom_wac;
-		wacom_wac->features =
+		wacom_wac2->features =
 			*((struct wacom_features *)id->driver_info);
-		wacom_wac->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
-		wacom_wac->features.device_type = BTN_TOOL_FINGER;
-		wacom_set_phy_from_res(&wacom_wac->features);
-		wacom_wac->features.x_max = wacom_wac->features.y_max = 4096;
-		wacom_register_input(wacom);
+		wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
+		wacom_wac2->features.device_type = BTN_TOOL_FINGER;
+		wacom_set_phy_from_res(&wacom_wac2->features);
+		wacom_wac2->features.x_max = wacom_wac2->features.y_max = 4096;
+		error = wacom_register_input(wacom2);
+		if (error)
+			goto fail2;
+
+		error = wacom_initialize_battery(wacom);
+		if (error)
+			goto fail3;
 	}
+
+	return;
+
+fail3:
+	input_unregister_device(wacom_wac2->input);
+	wacom_wac2->input = NULL;
+fail2:
+	input_unregister_device(wacom_wac1->input);
+	wacom_wac1->input = NULL;
+fail1:
+	return;
 }
 
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -1132,7 +1163,8 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail3;
 
-	/* Intuos5 has no useful data about its touch interface in its
+	/*
+	 * Intuos5 has no useful data about its touch interface in its
 	 * HID descriptor. If this is the touch interface (wMaxPacketSize
 	 * of WACOM_PKGLEN_BBTOUCH3), override the table values.
 	 */
@@ -1141,10 +1173,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			features->device_type = BTN_TOOL_FINGER;
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 
-			features->x_phy =
-				(features->x_max * 100) / features->x_resolution;
-			features->y_phy =
-				(features->y_max * 100) / features->y_resolution;
+			wacom_set_phy_from_res(features);
 
 			features->x_max = 4096;
 			features->y_max = 4096;
@@ -1180,14 +1209,10 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail4;
 
-	error = wacom_initialize_battery(wacom);
-	if (error)
-		goto fail5;
-
 	if (!(features->quirks & WACOM_QUIRK_NO_INPUT)) {
 		error = wacom_register_input(wacom);
 		if (error)
-			goto fail6;
+			goto fail5;
 	}
 
 	/* Note that if query fails it is not a hard failure */
@@ -1202,7 +1227,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	return 0;
 
- fail6: wacom_destroy_battery(wacom);
  fail5: wacom_destroy_leds(wacom);
  fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
@@ -1278,6 +1302,7 @@ static struct usb_driver wacom_driver = {
 	.supports_autosuspend = 1,
 };
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
 static int __init wacom_init(void)
 {
 	int result;
@@ -1296,3 +1321,6 @@ static void __exit wacom_exit(void)
 
 module_init(wacom_init);
 module_exit(wacom_exit);
+#else
+module_usb_driver(wacom_driver);
+#endif

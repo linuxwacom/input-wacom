@@ -90,6 +90,9 @@
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <asm/unaligned.h>
+# ifndef LINUX_VERSION_CODE
+# include <linux/version.h>
+# endif 
 
 /*
  * Version Information
