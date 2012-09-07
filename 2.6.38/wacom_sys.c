@@ -100,6 +100,7 @@ static int wacom_set_report(struct usb_interface *intf, u8 type, u8 id,
 static void wacom_sys_irq(struct urb *urb)
 {
 	struct wacom *wacom = urb->context;
+	struct device *dev = &wacom->intf->dev;
 	int retval;
 
 	switch (urb->status) {
@@ -123,7 +124,7 @@ static void wacom_sys_irq(struct urb *urb)
 	usb_mark_last_busy(wacom->usbdev);
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err ("%s - usb_submit_urb failed with result %d",
+		dev_err (dev, "%s - usb_submit_urb failed with result %d\n",
 		     __func__, retval);
 }
 
