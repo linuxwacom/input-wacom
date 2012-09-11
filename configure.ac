@@ -1,6 +1,6 @@
 AC_PREREQ(2.60)
 AC_INIT([input-wacom],
-	[0.14.0])
+	[0.15.0])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
@@ -113,7 +113,12 @@ if test -n "$WCM_KERNEL_DIR"; then
 				AC_MSG_WARN([kernels older than 2.6.26 is supported by linuxwacom])
 			fi
 		elif echo $MODUTS | grep "^3." >/dev/null; then
-			WCM_KERNEL_VER="2.6.38"
+			MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.\([[0-9]]*\).*/\1/'`
+			if test $MINOR -ge 7; then
+				WCM_KERNEL_VER="3.7"
+			else
+				WCM_KERNEL_VER="2.6.38"
+			fi
 		else
 			AC_MSG_WARN(kernel version $MODUTS not supported)
 		fi
@@ -131,7 +136,8 @@ AC_SUBST(WCM_XFREE86_DIR)
 AC_CONFIG_FILES([Makefile
                  2.6.30/Makefile
                  2.6.36/Makefile
-		 2.6.38/Makefile])
+                 2.6.38/Makefile
+                 3.7/Makefile])
 AC_OUTPUT
 
 make
