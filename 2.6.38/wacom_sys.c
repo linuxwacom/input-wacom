@@ -1022,6 +1022,7 @@ fail2:
 	input_free_device(input_dev);
 	wacom_wac->input = NULL;
 fail1:
+	kfree(wacom_wac->slots);
 	return error;
 }
 
@@ -1229,6 +1230,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	return 0;
 
  fail5: wacom_destroy_leds(wacom);
+	kfree(wacom_wac->slots);
  fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
  fail2:	usb_free_coherent(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
@@ -1252,6 +1254,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_free_coherent(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
 			wacom->wacom_wac.data, wacom->data_dma);
 	wacom_remove_shared_data(&wacom->wacom_wac);
+	kfree(wacom->wacom_wac.slots);
 	kfree(wacom);
 }
 
