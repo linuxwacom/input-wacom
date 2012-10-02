@@ -236,9 +236,12 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				if (usage == WCM_DESKTOP) {
 					if (finger) {
 						features->device_type = BTN_TOOL_DOUBLETAP;
-						if (features->type == TABLETPC2FG) {
+						if (features->type == TABLETPC2FG ||
+								 features->type == MTTPC) {
 							/* need to reset back */
 							features->pktlen = WACOM_PKGLEN_TPC2FG;
+							if (features->type == MTTPC)
+								features->pktlen = WACOM_PKGLEN_MTTPC;
 							features->device_type = BTN_TOOL_TRIPLETAP;
 						}
 						if (features->type == BAMBOO_PT) {
@@ -261,7 +264,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						}
 					} else if (pen) {
 						/* penabled only accepts exact bytes of data */
-						if (features->type == TABLETPC2FG)
+						if (features->type == TABLETPC2FG ||
+								features->type == MTTPC)
 							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
 						if (features->type == BAMBOO_PT)
 							features->pktlen = WACOM_PKGLEN_BBFUN;
@@ -284,10 +288,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				if (usage == WCM_DESKTOP) {
 					if (finger) {
 						features->device_type = BTN_TOOL_DOUBLETAP;
-						if (features->type == TABLETPC2FG) {
-							/* need to reset back */
-							features->pktlen = WACOM_PKGLEN_TPC2FG;
-							features->device_type = BTN_TOOL_TRIPLETAP;
+						if (features->type == TABLETPC2FG ||
+								features->type == MTTPC) {
 							features->y_max =
 								get_unaligned_le16(&report[i + 3]);
 							features->y_phy =
@@ -310,12 +312,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							i += 4;
 						}
 					} else if (pen) {
-						/* penabled only accepts exact bytes of data */
-						if (features->type == TABLETPC2FG)
-							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
-						if (features->type == BAMBOO_PT)
-							features->pktlen = WACOM_PKGLEN_BBFUN;
-						features->device_type = BTN_TOOL_PEN;
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
 						i += 4;
@@ -374,23 +370,25 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 	if (!rep_data)
 		return error;
 
-	/* ask to report tablet data if it is 2FGT Tablet PC
-	 * OR not a Tablet PC */
-	if (features->type == TABLETPC2FG && features->device_type != BTN_TOOL_PEN) {
-		do {
-			rep_data[0] = 3;
-			rep_data[1] = 4;
-			rep_data[2] = 0;
-			rep_data[3] = 0;
-			report_id = 3;
-			error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
-				report_id, rep_data, 4, 1);
-			if (error >= 0)
-				error = wacom_get_report(intf,
-					WAC_HID_FEATURE_REPORT, report_id,
-					rep_data, 4, 1);
-		} while ((error < 0 || rep_data[1] != 4) && limit++ < 5);
-	} else if (features->type != TABLETPC && features->device_type == BTN_TOOL_PEN) {
+	/* ask to report Wacom data */
+	if (features->device_type != BTN_TOOL_PEN) {
+		/* if it is an MT Tablet PC touch */
+		if (features->type > TABLETPC) {
+			do {
+				rep_data[0] = 3;
+				rep_data[1] = 4;
+				rep_data[2] = 0;
+				rep_data[3] = 0;
+				report_id = 3;
+				error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
+					report_id, rep_data, 4, 1);
+				if (error >= 0)
+					error = wacom_get_report(intf,
+						WAC_HID_FEATURE_REPORT, report_id,
+						rep_data, 4, 1);
+			} while ((error < 0 || rep_data[1] != 4) && limit++ < 5);
+		}
+	} else if (features->type <= BAMBOO_PT) {
 		do {
 			rep_data[0] = 2;
 			rep_data[1] = 2;
@@ -418,9 +416,8 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	/* default device to penabled */
 	features->device_type = BTN_TOOL_PEN;
 
-	/* only Tablet PCs and 2FGT devices need to retrieve the info */
-	if ((features->type != TABLETPC) && (features->type != TABLETPC2FG)
-			&& (features->type != BAMBOO_PT))
+	/* only devices that support touch need to retrieve the info */
+	if (features->type < BAMBOO_PT)
 		goto out;
 
 	if (usb_get_extra_descriptor(interface, HID_DEVICET_HID, &hid_desc)) {
@@ -777,7 +774,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
          */
 	if (features->type >= INTUOS5S && features->type <= INTUOS5L) {
 		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
-                        features->device_type = BTN_TOOL_FINGER;
+                        features->device_type = BTN_TOOL_DOUBLETAP;
                         features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 
                         features->x_max = 4096;
@@ -789,8 +786,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
 
-	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
-	    features->type == BAMBOO_PT || (features->type >= INTUOS5S && features->type <= INTUOS5L)) {
+	if (features->type >= BAMBOO_PT || (features->type >= INTUOS5S && features->type <= INTUOS5L)) {
 		/* Append the device type to the name */
 		strlcat(wacom_wac->name,
 			features->device_type == BTN_TOOL_PEN ?
