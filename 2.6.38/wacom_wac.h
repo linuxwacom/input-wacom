@@ -27,9 +27,11 @@
 #define WACOM_PKGLEN_WIRELESS	32
 #define WACOM_PKGLEN_MTOUCH	62
 #define WACOM_REPORT_TPC1FGE		18
+#define WACOM_REPORT_24HDT	1
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
+#define WACOM_BYTES_PER_24HDT_PACKET	14
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -81,6 +83,7 @@ enum {
 	WACOM_MO,
 	WIRELESS,
 	BAMBOO_PT,
+	WACOM_24HDT,
 	TABLETPC,   /* add new TPC below */
 	TABLETPCE,
 	TABLETPC2FG,
