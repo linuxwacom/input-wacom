@@ -26,8 +26,6 @@
 #define WACOM_PKGLEN_BBPEN	10
 #define WACOM_PKGLEN_WIRELESS	32
 #define WACOM_PKGLEN_MTOUCH	62
-#define WACOM_REPORT_TPC1FGE		18
-#define WACOM_REPORT_24HDT	1
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
@@ -51,6 +49,8 @@
 #define WACOM_REPORT_TPCMT		13
 #define WACOM_REPORT_TPCHID		15
 #define WACOM_REPORT_TPCST		16
+#define WACOM_REPORT_TPC1FGE		18
+#define WACOM_REPORT_24HDT		1
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
