@@ -111,10 +111,12 @@ static void wacom_sys_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dev_dbg(dev, "%s - urb shutting down with status: %d", __func__, urb->status);
+		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
+			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d", __func__, urb->status);
+		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+			__func__, urb->status);
 		goto exit;
 	}
 
@@ -124,8 +126,8 @@ static void wacom_sys_irq(struct urb *urb)
 	usb_mark_last_busy(wacom->usbdev);
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err (dev, "%s - usb_submit_urb failed with result %d\n",
-		     __func__, retval);
+		dev_err(dev, "%s - usb_submit_urb failed with result %d\n",
+			__func__, retval);
 }
 
 static int wacom_open(struct input_dev *dev)
@@ -1105,11 +1107,9 @@ static int wacom_initialize_battery(struct wacom *wacom)
 		error = power_supply_register(&wacom->usbdev->dev,
 					      &wacom->battery);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
 		if (!error)
 			power_supply_powers(&wacom->battery,
 					    &wacom->usbdev->dev);
-#endif
 	}
 
 	return error;
@@ -1447,25 +1447,4 @@ static struct usb_driver wacom_driver = {
 	.supports_autosuspend = 1,
 };
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
-static int __init wacom_init(void)
-{
-	int result;
-
-	result = usb_register(&wacom_driver);
-	if (result == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-		       DRIVER_DESC "\n");
-	return result;
-}
-
-static void __exit wacom_exit(void)
-{
-	usb_deregister(&wacom_driver);
-}
-
-module_init(wacom_init);
-module_exit(wacom_exit);
-#else
 module_usb_driver(wacom_driver);
-#endif

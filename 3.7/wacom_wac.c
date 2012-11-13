@@ -467,7 +467,9 @@ static void wacom_intuos_general(struct wacom_wac *wacom)
 	/* general pen packet */
 	if ((data[1] & 0xb8) == 0xa0) {
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
-		if (features->type >= INTUOS4S && features->type <= WACOM_24HD) {
+		if ((features->type >= INTUOS4S && features->type <= INTUOS4L) ||
+                    (features->type >= INTUOS5S && features->type <= INTUOS5L) ||
+		    (features->type >= WACOM_21UX2 && features->type <= WACOM_24HD)) {
 			t = (t << 1) | (data[1] & 1);
 		}
 		input_report_abs(input, ABS_PRESSURE, t);
@@ -1445,7 +1447,7 @@ static unsigned int wacom_calculate_touch_res(unsigned int logical_max,
 }
 
 int wacom_setup_input_capabilities(struct input_dev *input_dev,
-				    struct wacom_wac *wacom_wac)
+				   struct wacom_wac *wacom_wac)
 {
 	struct wacom_features *features = &wacom_wac->features;
 	int i;
@@ -1663,7 +1665,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case MTSCREEN:
 	case MTTPC:
 		if (features->device_type == BTN_TOOL_FINGER) {
-
 			wacom_wac->slots = kmalloc(features->touch_max *
 							sizeof(int),
 						   GFP_KERNEL);
@@ -1677,7 +1678,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case TABLETPC2FG:
 		if (features->device_type == BTN_TOOL_FINGER) {
-
 			input_mt_init_slots(input_dev, features->touch_max, 0);
 			input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
 					0, MT_TOOL_MAX, 0, 0);
@@ -2015,7 +2015,7 @@ static const struct wacom_features wacom_features_0xE5 =
 static const struct wacom_features wacom_features_0xE6 =
 	{ "Wacom ISDv4 E6",       WACOM_PKGLEN_TPC2FG,    27760, 15694,  255,
 	  0, TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	.touch_max = 2 };
 static const struct wacom_features wacom_features_0xEC =
 	{ "Wacom ISDv4 EC",       WACOM_PKGLEN_GRAPHIRE,  25710, 14500,  255,
 	  0, TABLETPC,    WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2083,11 +2083,11 @@ static const struct wacom_features wacom_features_0xDD =
           31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xDE =
         { "Wacom Bamboo 16FG 4x5", WACOM_PKGLEN_BBPEN,    14720,  9200, 1023,
-          31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
 	  .touch_max = 16 };
 static const struct wacom_features wacom_features_0xDF =
         { "Wacom Bamboo 16FG 6x8", WACOM_PKGLEN_BBPEN,    21648, 13700, 1023,
-          31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
 	  .touch_max = 16 };
 static const struct wacom_features wacom_features_0x6004 =
 	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800,  8000,  255,
@@ -2195,7 +2195,6 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xDF) },
 	{ USB_DEVICE_WACOM(0xF0) },
 	{ USB_DEVICE_WACOM(0xCC) },
-	{ USB_DEVICE_WACOM(0xFA) },
 	{ USB_DEVICE_WACOM(0x90) },
 	{ USB_DEVICE_WACOM(0x93) },
 	{ USB_DEVICE_WACOM(0x97) },
@@ -2214,6 +2213,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xF4) },
 	{ USB_DEVICE_WACOM(0xF8) },
 	{ USB_DEVICE_WACOM(0xF6) },
+	{ USB_DEVICE_WACOM(0xFA) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };
