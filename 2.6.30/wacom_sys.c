@@ -287,7 +287,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			case HID_USAGE_Y:
 				if (usage == WCM_DESKTOP) {
 					if (finger) {
-						features->device_type = BTN_TOOL_DOUBLETAP;
 						if (features->type == TABLETPC2FG ||
 								features->type == MTTPC) {
 							features->y_max =
@@ -296,9 +295,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 								get_unaligned_le16(&report[i + 6]);
 							i += 7;
 						} else if (features->type == BAMBOO_PT) {
-							/* need to reset back */
-							features->pktlen = WACOM_PKGLEN_BBTOUCH;
-							features->device_type = BTN_TOOL_TRIPLETAP;
 							features->y_phy =
 								get_unaligned_le16(&report[i + 3]);
 							features->y_max =
