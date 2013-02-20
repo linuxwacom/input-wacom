@@ -589,6 +589,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x80a: /* Intuos4 General Pen Eraser */
 		case 0x90a: /* Intuos4 Airbrush Eraser */
 		case 0x4080a: /* Intuos4 Classic Pen Eraser */
+		case 0x18803: /* DTH2242 Grip Pen */
 			wacom->tool[idx] = BTN_TOOL_RUBBER;
 			break;
 
@@ -724,6 +725,13 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
 			else
 				input_report_abs(input, ABS_MISC, 0);
+		} else if (features->type == DTK) {
+			input_report_key(input, BTN_0, (data[6] & 0x01));
+			input_report_key(input, BTN_1, (data[6] & 0x02));
+			input_report_key(input, BTN_2, (data[6] & 0x04));
+			input_report_key(input, BTN_3, (data[6] & 0x08));
+			input_report_key(input, BTN_4, (data[6] & 0x10));
+			input_report_key(input, BTN_5, (data[6] & 0x20));
 		} else if (features->type == WACOM_24HD) {
 			input_report_key(input, BTN_0, (data[6] & 0x01));
 			input_report_key(input, BTN_1, (data[6] & 0x02));
@@ -1287,6 +1295,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case WACOM_21UX2:
 	case WACOM_22HD:
 	case WACOM_24HD:
+	case DTK:
 		sync = wacom_intuos_irq(wacom_wac);
 		break;
 
@@ -1429,13 +1438,17 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(BTN_Y, input_dev->keybit);
 		__set_bit(BTN_Z, input_dev->keybit);
 
-		for (i = 0; i < 10; i++)
+		for (i = 6; i < 10; i++)
 			__set_bit(BTN_0 + i, input_dev->keybit);
 
 		__set_bit(KEY_PROG1, input_dev->keybit);
 		__set_bit(KEY_PROG2, input_dev->keybit);
 		__set_bit(KEY_PROG3, input_dev->keybit);
+		/* fall through */
 
+	case DTK:
+		for (i = 0; i < 6; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		input_set_abs_params(input_dev, ABS_THROTTLE, 0, 71, 0, 0);
 		wacom_setup_cintiq(wacom_wac);
@@ -1723,6 +1736,8 @@ static const struct wacom_features wacom_features_0xCE =
 	{ "Wacom DTU2231",        WACOM_PKGLEN_GRAPHIRE,  47864, 27011,  511,  0, DTU };
 static const struct wacom_features wacom_features_0xF0 =
 	{ "Wacom DTU1631",        WACOM_PKGLEN_GRAPHIRE,  34623, 19553,  511,  0, DTU };
+static const struct wacom_features wacom_features_0x59 =
+	{ "Wacom DTH2242",        WACOM_PKGLEN_INTUOS,    95840, 54260, 2047, 63, DTK };
 static const struct wacom_features wacom_features_0xCC =
 	{ "Wacom Cintiq 21UX2",   WACOM_PKGLEN_INTUOS,    87200, 65600, 2047, 63, WACOM_21UX2 };
 static const struct wacom_features wacom_features_0xFA =
@@ -1825,6 +1840,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x43) },
 	{ USB_DEVICE_WACOM(0x44) },
 	{ USB_DEVICE_WACOM(0x45) },
+	{ USB_DEVICE_WACOM(0x59) },
 	{ USB_DEVICE_WACOM(0xB0) },
 	{ USB_DEVICE_WACOM(0xB1) },
 	{ USB_DEVICE_WACOM(0xB2) },
