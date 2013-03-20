@@ -1754,8 +1754,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		if (features->device_type == BTN_TOOL_FINGER) {
 
 			input_mt_init_slots(input_dev, features->touch_max);
-			input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
-					0, MT_TOOL_MAX, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 					0, features->x_max, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
