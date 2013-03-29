@@ -554,6 +554,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x802: /* Intuos General Pen */
 		case 0x40802: /* Intuos4 Classic Pen */
 		case 0x804: /* Intuos4 Marker Pen */
+		case 0x18803: /* DTH2242 Grip Pen */
 		case 0x022:
 			wacom->tool[idx] = BTN_TOOL_PEN;
 			break;
@@ -589,7 +590,6 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x80a: /* Intuos4 General Pen Eraser */
 		case 0x90a: /* Intuos4 Airbrush Eraser */
 		case 0x4080a: /* Intuos4 Classic Pen Eraser */
-		case 0x18803: /* DTH2242 Grip Pen */
 			wacom->tool[idx] = BTN_TOOL_RUBBER;
 			break;
 
