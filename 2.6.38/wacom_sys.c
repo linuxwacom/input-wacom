@@ -622,7 +622,7 @@ static DEFINE_MUTEX(wacom_udev_list_lock);
 
 static struct usb_device *wacom_get_sibling(struct usb_device *dev, int vendor, int product)
 {
-	struct usb_device **sibling;
+	int i;
 
 	if (vendor == 0 && product == 0)
 		return dev;
@@ -630,14 +630,17 @@ static struct usb_device *wacom_get_sibling(struct usb_device *dev, int vendor, 
 	if (dev->parent == NULL)
 		return NULL;
 
-	sibling = dev->parent->children;
-	while (sibling != NULL && *sibling != NULL) {
-		struct usb_device_descriptor d = (*sibling)->descriptor;
+	for (i = 0 ; i < dev->parent->maxchild; i++) {
+		struct usb_device *sibling = dev->parent->children[i];
+		struct usb_device_descriptor d;
+
+		if (sibling == NULL)
+			continue;
+
+		d = sibling->descriptor;
 
 		if (d.idVendor == vendor && d.idProduct == product)
-			return *sibling;
-
-		sibling++;
+			return sibling;
 	}
 
 	return NULL;
