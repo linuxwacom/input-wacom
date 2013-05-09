@@ -1989,7 +1989,8 @@ static const struct wacom_features wacom_features_0xF4 =
 	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xF8 =
 	{ "Wacom Cintiq 24HD touch", WACOM_PKGLEN_INTUOS,   104480, 65600, 2047, /* Pen */
-	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6 };
+	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6 };
 static const struct wacom_features wacom_features_0xF6 =
 	{ "Wacom Cintiq 24HD touch", .type = WACOM_24HDT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10 };
