@@ -1090,12 +1090,12 @@ static int find_slot_from_contactid(struct wacom_wac *wacom, int contactid)
 {
 	int i;
 
-	for (i = 0; i < 10; ++i) {
+	for (i = 0; i < 2; ++i) {
 		if (wacom->slots[i] == contactid)
 			return i;
 	}
 
-	for (i = 0; i < 10; ++i) {
+	for (i = 0; i < 2; ++i) {
 		if (wacom->slots[i] == -1)
 			return i;
 	}
@@ -1132,9 +1132,6 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 				wacom->slots[i] = -1;
 		} else if (current_num_contacts <= 2) {
 
-			/* initialize last touched finger */
-			if (!wacom->id[1])
-				wacom->last_finger = 1;
 			wacom->contacts_to_send = current_num_contacts;
 
 			for (i = 0; i < wacom->contacts_to_send; i++) {
@@ -1145,7 +1142,7 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 				int x = le16_to_cpup((__le16 *)&data[offset + 3]);
 				int y = le16_to_cpup((__le16 *)&data[offset + 5]);
 
-				if (wacom->last_finger != i + 1) {
+				if (wacom->last_finger == id) {
 					if (x == input->abs[ABS_X])
 						x++;
 
@@ -1153,20 +1150,20 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 						y++;
 				}
 
-				wacom->id[1] = (touch << i) | (wacom->id[1] & (1 << (1-i)));
-				if (!wacom->id[1])
+				wacom->id[slot+1] = touch;
+				if (!wacom->id[1] && !wacom->id[2])
 					wacom->id[0] = 0;
 
 				wacom->slots[slot] = touch ? id : -1;
 				input_report_abs(input, ABS_X, x);
 				input_report_abs(input, ABS_Y, y);
 				input_report_abs(input, ABS_MISC, wacom->id[0]);
-				input_report_key(input, wacom->tool[i+1], touch);
-				if (!i)
+				input_report_key(input, wacom->tool[slot+1], touch);
+				if (!slot)
 					input_report_key(input, BTN_TOUCH, touch);
-				input_event(input, EV_MSC, MSC_SERIAL, i + 1);
+				input_event(input, EV_MSC, MSC_SERIAL, slot + 1);
 				input_sync(input);
-				wacom->last_finger = i + 1;
+				wacom->last_finger = id;
 			}
 		}
 	}
