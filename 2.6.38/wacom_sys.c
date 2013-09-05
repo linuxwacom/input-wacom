@@ -221,39 +221,6 @@ static int wacom_calc_hid_res(int logical_extents, int physical_extents,
 	return logical_extents / physical_extents;
 }
 
-/*
- * The physical dimension specified by the HID descriptor is likely not in
- * the "100th of a mm" units expected by wacom_calculate_touch_res. This
- * function adjusts the value of [xy]_phy based on the unit and exponent
- * provided by the HID descriptor. If an error occurs durring conversion
- * (e.g. from the unit being left unspecified) [xy]_phy is not modified.
- */
-static void wacom_fix_phy_from_hid(struct wacom_features *features)
-{
-	int xres = wacom_calc_hid_res(features->x_max, features->x_phy,
-					features->unit, features->unitExpo);
-	int yres = wacom_calc_hid_res(features->y_max, features->y_phy,
-					features->unit, features->unitExpo);
-
-	if (xres > 0 && yres > 0) {
-		features->x_phy = (100 * features->x_max) / xres;
-		features->y_phy = (100 * features->y_max) / yres;
-	}
-}
-
-/*
- * Static values for max X/Y and resolution of Pen interface is stored in
- * features. This mean physical size of active area can be computed.
- * This is useful to do when Pen and Touch have same active area of tablet.
- * This means for Touch device, we only need to find max X/Y value and we
- * have enough information to compute resolution of touch.
- */
-static void wacom_set_phy_from_res(struct wacom_features *features)
-{
-	features->x_phy = (features->x_max * 100) / features->x_resolution;
-	features->y_phy = (features->y_max * 100) / features->y_resolution;
-}
-
 static int wacom_parse_logical_collection(unsigned char *report,
 					  struct wacom_features *features)
 {
@@ -264,8 +231,6 @@ static int wacom_parse_logical_collection(unsigned char *report,
 		/* Logical collection is only used by 3rd gen Bamboo Touch */
 		features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 		features->device_type = BTN_TOOL_FINGER;
-
-		wacom_set_phy_from_res(features);
 
 		features->x_max = features->y_max =
 			get_unaligned_le16(&report[10]);
@@ -640,9 +605,6 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 		}
 	}
 	error = wacom_parse_hid(intf, hid_desc, features);
-	if (error)
-		goto out;
-	wacom_fix_phy_from_hid(features);
 
  out:
 	return error;
@@ -1230,7 +1192,6 @@ static void wacom_wireless_work(struct work_struct *work)
 			*((struct wacom_features *)id->driver_info);
 		wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
 		wacom_wac2->features.device_type = BTN_TOOL_FINGER;
-		wacom_set_phy_from_res(&wacom_wac2->features);
 		wacom_wac2->features.x_max = wacom_wac2->features.y_max = 4096;
 		error = wacom_register_input(wacom2);
 		if (error)
@@ -1251,6 +1212,29 @@ fail2:
 	wacom_wac1->input = NULL;
 fail1:
 	return;
+}
+
+/*
+ * Not all devices report physical dimensions from HID.
+ * Compute the default from hardcoded logical dimension
+ * and resolution before driver overwrites them.
+ */
+static void wacom_set_default_phy(struct wacom_features *features)
+{
+	if (features->x_resolution) {
+		features->x_phy = (features->x_max * 100) / features->x_resolution;
+		features->y_phy = (features->y_max * 100) / features->y_resolution;
+	}
+}
+
+static void wacom_calculate_res(struct wacom_features *features)
+{
+	features->x_resolution = wacom_calc_hid_res(features->x_max,
+				 features->x_phy, features->unit,
+				 features->unitExpo);
+	features->y_resolution = wacom_calc_hid_res(features->y_max,
+				 features->y_phy, features->unit,
+				 features->unitExpo);
 }
 
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -1299,6 +1283,9 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 
+	/* set the default size in case we do not get them from hid */
+	wacom_set_default_phy(features);
+
 	/* Retrieve the physical and logical size for touch devices */
 	error = wacom_retrieve_hid_descriptor(intf, features);
 	if (error)
@@ -1314,8 +1301,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			features->device_type = BTN_TOOL_FINGER;
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 
-			wacom_set_phy_from_res(features);
-
 			features->x_max = 4096;
 			features->y_max = 4096;
 		} else {
@@ -1324,6 +1309,13 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	}
 
 	wacom_setup_device_quirks(features);
+
+	/* set unit to "100th of a mm" for devices not reported by HID */
+	if (!features->unit) {
+		features->unit = 0x11;
+		features->unitExpo = 16-3;
+	}
+	wacom_calculate_res(features);
 
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
 
