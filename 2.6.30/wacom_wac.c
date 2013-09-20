@@ -816,13 +816,13 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			} else {
 				input_report_abs(input, ABS_MISC, 0);
 			}
-		} else if (features->type >= INTUOS5S && features->type <= INTUOS5L) {
+		} else if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
 			int i;
 
 			/* Touch ring mode switch has no capacitive sensor */
 			input_report_key(input, BTN_0, (data[3] & 0x01));
 
-			/* ExpressKeys on Intuos5 have a capacitive sensor in
+			/* ExpressKeys on Intuos5/Intuos Pro have a capacitive sensor in
 			 * addition to the mechanical switch. Switch data is
 			 * stored in data[4], capacitive data in data[5].
 			 */
@@ -909,7 +909,9 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	     features->type == INTUOS4 ||
 	     features->type == INTUOS4S ||
 	     features->type == INTUOS5 ||
-	     features->type == INTUOS5S)) {
+	     features->type == INTUOS5S ||
+	     features->type == INTUOSPM ||
+	     features->type == INTUOSPS)) {
 
 		return 0;
 	}
@@ -962,8 +964,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 
 		} else if (wacom->tool[idx] == BTN_TOOL_MOUSE) {
 			/* I4 mouse */
-			if ((features->type >= INTUOS4S && features->type <= INTUOS4L) ||
-			    (features->type >= INTUOS5S && features->type <= INTUOS5L)) {
+			if (features->type >= INTUOS4S && features->type <= INTUOSPL) {
 				input_report_key(input, BTN_LEFT,   data[6] & 0x01);
 				input_report_key(input, BTN_MIDDLE, data[6] & 0x02);
 				input_report_key(input, BTN_RIGHT,  data[6] & 0x04);
@@ -990,7 +991,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 				}
 			}
 		} else if ((features->type < INTUOS3S || features->type == INTUOS3L ||
-				features->type == INTUOS4L || features->type == INTUOS5L) &&
+				features->type == INTUOS4L || features->type == INTUOS5L ||
+				features->type == INTUOSPL) &&
 			   wacom->tool[idx] == BTN_TOOL_LENS) {
 			/* Lens cursor packets */
 			input_report_key(input, BTN_LEFT,   data[8] & 0x01);
@@ -1319,6 +1321,9 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case INTUOS5S:
 	case INTUOS5:
 	case INTUOS5L:
+	case INTUOSPS:
+	case INTUOSPM:
+	case INTUOSPL:
 	case CINTIQ:
 	case WACOM_BEE:
 	case WACOM_13HD:
@@ -1548,6 +1553,8 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		wacom_setup_intuos(wacom_wac);
 		break;
 
+	case INTUOSPM:
+	case INTUOSPL:
 	case INTUOS5:
 	case INTUOS5L:
 	case INTUOS4:
@@ -1556,6 +1563,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(BTN_8, input_dev->keybit);
 		/* fall through */
 
+	case INTUOSPS:
 	case INTUOS5S:
 	case INTUOS4S:
 		for (i = 0; i < 7; i++)
@@ -1757,6 +1765,12 @@ static const struct wacom_features wacom_features_0x29 =
         { "Wacom Intuos5 S", WACOM_PKGLEN_INTUOS,  31496, 19685, 2047, 63, INTUOS5S };
 static const struct wacom_features wacom_features_0x2A =
         { "Wacom Intuos5 M", WACOM_PKGLEN_INTUOS,  44704, 27940, 2047, 63, INTUOS5 };
+static const struct wacom_features wacom_features_0x314 =
+	{ "Wacom Intuos Pro S", WACOM_PKGLEN_INTUOS,  31496, 19685, 2047, 63, INTUOSPS };
+static const struct wacom_features wacom_features_0x315 =
+	{ "Wacom Intuos Pro M", WACOM_PKGLEN_INTUOS,  44704, 27940, 2047, 63, INTUOSPM };
+static const struct wacom_features wacom_features_0x317 =
+	{ "Wacom Intuos Pro L", WACOM_PKGLEN_INTUOS,  65024, 40640, 2047, 63, INTUOSPL };
 static const struct wacom_features wacom_features_0xF4 =
 	{ "Wacom Cintiq 24HD",       WACOM_PKGLEN_INTUOS, 104480, 65600, 2047, 63, WACOM_24HD };
 static const struct wacom_features wacom_features_0xF8 =
@@ -1931,6 +1945,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x10D) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x304) },
+	{ USB_DEVICE_DETAILED(0x314, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_DETAILED(0x315, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_DETAILED(0x317, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x47) },
 	{ USB_DEVICE_WACOM(0xF4) },
 	{ USB_DEVICE_WACOM(0xF8) },
