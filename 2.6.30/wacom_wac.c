@@ -1318,12 +1318,6 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case INTUOS4S:
 	case INTUOS4:
 	case INTUOS4L:
-	case INTUOS5S:
-	case INTUOS5:
-	case INTUOS5L:
-	case INTUOSPS:
-	case INTUOSPM:
-	case INTUOSPL:
 	case CINTIQ:
 	case WACOM_BEE:
 	case WACOM_13HD:
@@ -1332,6 +1326,18 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case WACOM_24HD:
 	case DTK:
 		sync = wacom_intuos_irq(wacom_wac);
+		break;
+
+	case INTUOS5S:
+	case INTUOS5:
+	case INTUOS5L:
+	case INTUOSPS:
+	case INTUOSPM:
+	case INTUOSPL:
+		if (len == WACOM_PKGLEN_BBTOUCH3)
+			sync = wacom_bpt3_touch(wacom_wac);
+		else
+			sync = wacom_intuos_irq(wacom_wac);
 		break;
 
 	case TABLETPC:
@@ -1553,18 +1559,47 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		wacom_setup_intuos(wacom_wac);
 		break;
 
-	case INTUOSPM:
-	case INTUOSPL:
 	case INTUOS5:
 	case INTUOS5L:
+	case INTUOSPM:
+	case INTUOSPL:
+		if (features->device_type == BTN_TOOL_PEN) {
+			__set_bit(BTN_7, input_dev->keybit);
+			__set_bit(BTN_8, input_dev->keybit);
+		}
+		/* fall through */
+
+	case INTUOS5S:
+	case INTUOSPS:
+		if (features->device_type == BTN_TOOL_PEN) {
+			for (i = 0; i < 7; i++)
+				__set_bit(BTN_0 + i, input_dev->keybit);
+
+			input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+					      features->distance_max,
+					      0, 0);
+
+			input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
+
+			wacom_setup_intuos(wacom_wac);
+		} else if (features->device_type == BTN_TOOL_DOUBLETAP) {
+			__clear_bit(ABS_MISC, input_dev->absbit);
+
+			__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
+			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
+			__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
+			__set_bit(BTN_TOOL_QUADTAP, input_dev->keybit);
+
+			input_set_abs_params(input_dev, ABS_TOOL_WIDTH, 0, 255, 0, 0);
+		}
+		break;
+
 	case INTUOS4:
 	case INTUOS4L:
 		__set_bit(BTN_7, input_dev->keybit);
 		__set_bit(BTN_8, input_dev->keybit);
 		/* fall through */
 
-	case INTUOSPS:
-	case INTUOS5S:
 	case INTUOS4S:
 		for (i = 0; i < 7; i++)
 			__set_bit(BTN_0 + i, input_dev->keybit);
