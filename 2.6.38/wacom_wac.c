@@ -1512,29 +1512,18 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 {
 	struct wacom_features *features = &wacom_wac->features;
 
+	input_set_abs_params(input_dev, ABS_X, 0, features->x_max,
+	                     features->x_fuzz, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, features->y_max,
+	                     features->y_fuzz, 0);
+
+	input_abs_set_res(input_dev, ABS_X, features->x_resolution);
+	input_abs_set_res(input_dev, ABS_Y, features->y_resolution);
+
 	if (features->device_type == BTN_TOOL_PEN) {
-		input_set_abs_params(input_dev, ABS_X, 0, features->x_max,
-				     features->x_fuzz, 0);
-		input_set_abs_params(input_dev, ABS_Y, 0, features->y_max,
-				     features->y_fuzz, 0);
 		input_set_abs_params(input_dev, ABS_PRESSURE, 0,
 			features->pressure_max, features->pressure_fuzz, 0);
-
-		/* penabled devices have fixed resolution for each model */
-		input_abs_set_res(input_dev, ABS_X, features->x_resolution);
-		input_abs_set_res(input_dev, ABS_Y, features->y_resolution);
 	} else {
-		if (features->touch_max <= 2) {
-			input_set_abs_params(input_dev, ABS_X, 0,
-				features->x_max, features->x_fuzz, 0);
-			input_set_abs_params(input_dev, ABS_Y, 0,
-				features->y_max, features->y_fuzz, 0);
-			input_abs_set_res(input_dev, ABS_X,
-				features->x_resolution);
-			input_abs_set_res(input_dev, ABS_Y,
-				features->y_resolution);
-		}
-
 		if (features->touch_max > 1) {
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0,
 				features->x_max, features->x_fuzz, 0);
