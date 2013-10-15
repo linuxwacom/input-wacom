@@ -1395,6 +1395,42 @@ static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_THROTTLE, -1023, 1023, 0, 0);
 }
 
+void wacom_setup_device_quirks(struct wacom_features *features)
+{
+
+	/* touch device found but size is not defined. use default */
+	if (features->device_type == BTN_TOOL_FINGER && !features->x_max) {
+		features->x_max = 1023;
+		features->y_max = 1023;
+	}
+
+	/* these device have multiple inputs */
+	if (features->type >= WIRELESS ||
+	    (features->type >= INTUOS5S && features->type <= INTUOSPL) ||
+	    (features->oVid && features->oPid))
+		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
+
+	/* quirk for bamboo touch with 2 low res touches */
+	if (features->type == BAMBOO_PT &&
+	    features->pktlen == WACOM_PKGLEN_BBTOUCH) {
+		features->x_max <<= 5;
+		features->y_max <<= 5;
+		features->x_fuzz <<= 5;
+		features->y_fuzz <<= 5;
+		features->quirks |= WACOM_QUIRK_BBTOUCH_LOWRES;
+	}
+
+	if (features->type == WIRELESS) {
+
+		/* monitor never has input and pen/touch have delayed create */
+		features->quirks |= WACOM_QUIRK_NO_INPUT;
+
+		/* must be monitor interface if no device_type set */
+		if (!features->device_type)
+			features->quirks |= WACOM_QUIRK_MONITOR;
+	}
+}
+
 static void wacom_abs_set_axis(struct input_dev *input_dev,
 			       struct wacom_wac *wacom_wac)
 {

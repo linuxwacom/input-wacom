@@ -808,9 +808,11 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		}
 	}
 
+	wacom_setup_device_quirks(features);
+
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
 
-	if (features->type >= BAMBOO_PT || (features->type >= INTUOS5S && features->type <= INTUOSPL)) {
+	if (features->quirks & WACOM_QUIRK_MULTI_INPUT) {
 		struct usb_device *other_dev;
 
 		/* Append the device type to the name */
