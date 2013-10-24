@@ -45,6 +45,12 @@
 #define WACOM_REPORT_TPC1FG		6
 #define WACOM_REPORT_TPC2FG		13
 
+/* device quirks */
+#define WACOM_QUIRK_MULTI_INPUT		0x0001
+#define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
+#define WACOM_QUIRK_NO_INPUT		0x0004
+#define WACOM_QUIRK_MONITOR		0x0008
+
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
@@ -73,6 +79,7 @@ enum {
 	WACOM_BEE,
 	WACOM_13HD,
 	WACOM_MO,
+	WIRELESS,
 	BAMBOO_PT,
 	TABLETPC,
 	TABLETPC2FG,
@@ -93,6 +100,14 @@ struct wacom_features {
 	int y_phy;
 	unsigned char unit;
 	unsigned char unitExpo;
+	int x_fuzz;
+	int y_fuzz;
+	int pressure_fuzz;
+	int distance_fuzz;
+	unsigned quirks;
+	unsigned touch_max;
+	int oVid;
+	int oPid;
 };
 
 struct wacom_shared {

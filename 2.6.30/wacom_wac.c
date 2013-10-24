@@ -529,6 +529,9 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Enter report */
 	if ((data[1] & 0xfc) == 0xc0) {
+		if (features->quirks == WACOM_QUIRK_MULTI_INPUT)
+			wacom->shared->stylus_in_proximity = true;
+
 		/* serial number of the tool */
 		wacom->serial[idx] = ((data[3] & 0x0f) << 28) +
 			(data[4] << 20) + (data[5] << 12) +
@@ -631,6 +634,9 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Exit report */
 	if ((data[1] & 0xfe) == 0x80) {
+		if (features->quirks == WACOM_QUIRK_MULTI_INPUT)
+			wacom->shared->stylus_in_proximity = false;
+
 		/*
 		 * Reset all states otherwise we lose the initial states
 		 * when in-prox next time
@@ -1395,6 +1401,65 @@ static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_THROTTLE, -1023, 1023, 0, 0);
 }
 
+void wacom_setup_device_quirks(struct wacom_features *features)
+{
+
+	/* touch device found but size is not defined. use default */
+	if (features->device_type == BTN_TOOL_FINGER && !features->x_max) {
+		features->x_max = 1023;
+		features->y_max = 1023;
+	}
+
+	/* these device have multiple inputs */
+	if (features->type >= WIRELESS ||
+	    (features->type >= INTUOS5S && features->type <= INTUOSPL) ||
+	    (features->oVid && features->oPid))
+		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
+
+	/* quirk for bamboo touch with 2 low res touches */
+	if (features->type == BAMBOO_PT &&
+	    features->pktlen == WACOM_PKGLEN_BBTOUCH) {
+		features->x_max <<= 5;
+		features->y_max <<= 5;
+		features->x_fuzz <<= 5;
+		features->y_fuzz <<= 5;
+		features->quirks |= WACOM_QUIRK_BBTOUCH_LOWRES;
+	}
+
+	if (features->type == WIRELESS) {
+
+		/* monitor never has input and pen/touch have delayed create */
+		features->quirks |= WACOM_QUIRK_NO_INPUT;
+
+		/* must be monitor interface if no device_type set */
+		if (!features->device_type)
+			features->quirks |= WACOM_QUIRK_MONITOR;
+	}
+}
+
+static void wacom_abs_set_axis(struct input_dev *input_dev,
+			       struct wacom_wac *wacom_wac)
+{
+	struct wacom_features *features = &wacom_wac->features;
+
+	input_set_abs_params(input_dev, ABS_X, 0, features->x_max,
+	                     features->x_fuzz, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, features->y_max,
+	                     features->y_fuzz, 0);
+
+	if (features->device_type == BTN_TOOL_PEN) {
+		input_set_abs_params(input_dev, ABS_PRESSURE, 0,
+			features->pressure_max, features->pressure_fuzz, 0);
+	} else {
+		if (features->touch_max > 1) {
+			input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0,
+				features->x_max, features->x_fuzz, 0);
+			input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0,
+				features->y_max, features->y_fuzz, 0);
+		}
+	}
+}
+
 void wacom_setup_input_capabilities(struct input_dev *input_dev,
 				    struct wacom_wac *wacom_wac)
 {
@@ -1404,12 +1469,9 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 	__set_bit(BTN_TOUCH, input_dev->keybit);
-
-	input_set_abs_params(input_dev, ABS_X, 0, features->x_max, 4, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, features->y_max, 4, 0);
-	input_set_abs_params(input_dev, ABS_PRESSURE, 0, features->pressure_max, 0, 0);
-
 	__set_bit(ABS_MISC, input_dev->absbit);
+
+	wacom_abs_set_axis(input_dev, wacom_wac);
 
 	switch (wacom_wac->features.type) {
 	case BAMBOO_PT:
