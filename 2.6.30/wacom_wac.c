@@ -263,7 +263,7 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
 	if (touch) {
 		int x = (data[2] << 4) | (data[4] >> 4);
 		int y = (data[3] << 4) | (data[4] & 0x0f);
-		int w = data[6];
+		int w = data[6] * 100;
 
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
