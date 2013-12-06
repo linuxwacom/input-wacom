@@ -274,10 +274,16 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
 static void wacom_bpt3_button_msg(struct wacom_wac *wacom, unsigned char *data)
 {
 	struct input_dev *input = wacom->input;
+	struct wacom_features *features = &wacom->features;
 
-	input_report_key(input, BTN_LEFT, (data[1] & 0x08) != 0);
+	if (features->type == INTUOSHT) {
+		input_report_key(input, BTN_LEFT, (data[1] & 0x02) != 0);
+		input_report_key(input, BTN_BACK, (data[1] & 0x08) != 0);
+	} else {
+		input_report_key(input, BTN_BACK, (data[1] & 0x02) != 0);
+		input_report_key(input, BTN_LEFT, (data[1] & 0x08) != 0);
+	}
 	input_report_key(input, BTN_FORWARD, (data[1] & 0x04) != 0);
-	input_report_key(input, BTN_BACK, (data[1] & 0x02) != 0);
 	input_report_key(input, BTN_RIGHT, (data[1] & 0x01) != 0);
 }
 
@@ -330,7 +336,7 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	unsigned char *data = wacom->data;
 	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
 
-	if (data[0] != 0x02)
+	if (data[0] != WACOM_REPORT_PENABLED)
 	    return 0;
 
 	prox = (data[1] & 0x20) == 0x20;
@@ -1304,6 +1310,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 
 	case BAMBOO_PT:
+	case INTUOSHT:
 		sync = wacom_bpt_irq(wacom_wac, len);
 		break;
 
@@ -1412,7 +1419,7 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 
 	/* these device have multiple inputs */
 	if (features->type >= WIRELESS ||
-	    (features->type >= INTUOS5S && features->type <= INTUOSPL) ||
+	    (features->type >= INTUOS5S && features->type <= INTUOSHT) ||
 	    (features->oVid && features->oPid))
 		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
 
@@ -1474,6 +1481,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	wacom_abs_set_axis(input_dev, wacom_wac);
 
 	switch (wacom_wac->features.type) {
+	case INTUOSHT:
 	case BAMBOO_PT:
                 __clear_bit(ABS_MISC, input_dev->absbit);
 
@@ -1493,7 +1501,6 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
                                           input_dev->keybit);
 				input_set_abs_params(input_dev, ABS_TOOL_WIDTH,
 						     0, 255, 0, 0);
-
 			}
 		}
 		if (features->device_type == BTN_TOOL_PEN) {
@@ -1786,6 +1793,12 @@ static const struct wacom_features wacom_features_0x300 =
 	{ "Wacom Bamboo One S",    WACOM_PKGLEN_BBPEN,    14720,  9225, 1023, 31, BAMBOO_PT };
 static const struct wacom_features wacom_features_0x301 =
 	{ "Wacom Bamboo One M",    WACOM_PKGLEN_BBPEN,    21648, 13530, 1023, 31, BAMBOO_PT };
+static const struct wacom_features wacom_features_0x302 =
+	{ "Wacom Intuos PT S",     WACOM_PKGLEN_BBPEN,    15200,  9500, 1023, 31, INTUOSHT };
+static const struct wacom_features wacom_features_0x303 =
+	{ "Wacom Intuos PT M",     WACOM_PKGLEN_BBPEN,    21600, 13500, 1023, 31, INTUOSHT };
+static const struct wacom_features wacom_features_0x30E =
+	{ "Wacom Intuos S",        WACOM_PKGLEN_BBPEN,    15200,  9500, 1023, 31, INTUOSHT };
 static const struct wacom_features wacom_features_0x20 =
 	{ "Wacom Intuos 4x5",     WACOM_PKGLEN_INTUOS,    12700, 10600, 1023, 31, INTUOS };
 static const struct wacom_features wacom_features_0x21 =
@@ -2050,6 +2063,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x300) },
 	{ USB_DEVICE_WACOM(0x301) },
+	{ USB_DEVICE_DETAILED(0x302, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_DETAILED(0x303, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_DETAILED(0x30E, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x304) },
 	{ USB_DEVICE_DETAILED(0x314, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x315, USB_CLASS_HID, 0, 0) },

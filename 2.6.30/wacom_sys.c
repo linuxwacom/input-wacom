@@ -796,7 +796,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
          * HID descriptor. If this is the touch interface (wMaxPacketSize
          * of WACOM_PKGLEN_BBTOUCH3), override the table values.
          */
-	if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
+	if (features->type >= INTUOS5S && features->type <= INTUOSHT) {
 		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
                         features->device_type = BTN_TOOL_DOUBLETAP;
                         features->pktlen = WACOM_PKGLEN_BBTOUCH3;
