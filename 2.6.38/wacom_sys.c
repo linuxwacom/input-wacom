@@ -1199,6 +1199,8 @@ static void wacom_wireless_work(struct work_struct *work)
 		wacom_wac1->features.device_type = BTN_TOOL_PEN;
 		snprintf(wacom_wac1->name, WACOM_NAME_MAX, "%s (WL) Pen",
 			 wacom_wac1->features.name);
+		wacom_wac1->shared->touch_max = wacom_wac1->features.touch_max;
+		wacom_wac1->shared->type = wacom_wac1->features.type;
 		error = wacom_register_input(wacom1);
 		if (error)
 			goto fail;
@@ -1220,6 +1222,10 @@ static void wacom_wireless_work(struct work_struct *work)
 			error = wacom_register_input(wacom2);
 			if (error)
 				goto fail;
+
+			if (wacom_wac1->features.type == INTUOSHT &&
+			    wacom_wac1->features.touch_max)
+				wacom_wac->shared->touch_input = wacom_wac2->input;
 		}
 
 		error = wacom_initialize_battery(wacom);
@@ -1393,6 +1399,11 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			error = -EIO;
 			goto fail5;
 		}
+	}
+
+	if (wacom_wac->features.type == INTUOSHT && wacom_wac->features.touch_max) {
+		if (wacom_wac->features.device_type == BTN_TOOL_FINGER)
+			wacom_wac->shared->touch_input = wacom_wac->input;
 	}
 
 	return 0;
