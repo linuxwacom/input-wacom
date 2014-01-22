@@ -26,12 +26,12 @@
 #define HID_USAGE_PAGE_DIGITIZER	0x0d
 #define HID_USAGE_PAGE_DESKTOP		0x01
 #define HID_USAGE			0x09
-#define HID_USAGE_X			0x30
-#define HID_USAGE_Y			0x31
-#define HID_USAGE_X_TILT		0x3d
-#define HID_USAGE_Y_TILT		0x3e
-#define HID_USAGE_FINGER		0x22
-#define HID_USAGE_STYLUS		0x20
+#define HID_USAGE_X			((HID_USAGE_PAGE_DESKTOP << 16) | 0x30)
+#define HID_USAGE_Y			((HID_USAGE_PAGE_DESKTOP << 16) | 0x31)
+#define HID_USAGE_X_TILT		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x3d)
+#define HID_USAGE_Y_TILT		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x3e)
+#define HID_USAGE_FINGER		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x22)
+#define HID_USAGE_STYLUS		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x20)
 #define HID_COLLECTION			0xa1
 #define HID_COLLECTION_LOGICAL		0x02
 #define HID_COLLECTION_END		0xc0
@@ -190,7 +190,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 	char limit = 0;
 	/* result has to be defined as int for some devices */
 	int result = 0;
-	int i = 0, usage = WCM_UNDEFINED, finger = 0, pen = 0;
+	int i = 0, page = 0, finger = 0, pen = 0;
 	unsigned char *report;
 
 	report = kzalloc(hid_desc->wDescriptorLength, GFP_KERNEL);
@@ -217,101 +217,81 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 
 		switch (report[i]) {
 		case HID_USAGE_PAGE:
-			switch (report[i + 1]) {
-			case HID_USAGE_PAGE_DIGITIZER:
-				usage = WCM_DIGITIZER;
-				i++;
-				break;
-
-			case HID_USAGE_PAGE_DESKTOP:
-				usage = WCM_DESKTOP;
-				i++;
-				break;
-			}
+			page = report[i + 1];
+			i++;
 			break;
 
 		case HID_USAGE:
-			switch (report[i + 1]) {
+			switch (page << 16 | report[i + 1]) {
 			case HID_USAGE_X:
-				if (usage == WCM_DESKTOP) {
-					if (finger) {
-						features->device_type = BTN_TOOL_DOUBLETAP;
-						if (features->type == TABLETPC2FG ||
-								 features->type == MTTPC) {
-							/* need to reset back */
-							features->pktlen = WACOM_PKGLEN_TPC2FG;
-							if (features->type == MTTPC)
-								features->pktlen = WACOM_PKGLEN_MTTPC;
-							features->device_type = BTN_TOOL_TRIPLETAP;
-						}
-						if (features->type == BAMBOO_PT) {
-							/* need to reset back */
-							features->pktlen = WACOM_PKGLEN_BBTOUCH;
-							features->device_type = BTN_TOOL_TRIPLETAP;
-							features->x_phy =
-								get_unaligned_le16(&report[i + 5]);
-							features->x_max =
-								get_unaligned_le16(&report[i + 8]);
-							i += 15;
-						} else {
-							features->x_max =
-								get_unaligned_le16(&report[i + 3]);
-							features->x_phy =
-								get_unaligned_le16(&report[i + 6]);
-							features->unit = report[i + 9];
-							features->unitExpo = report[i + 11];
-							i += 12;
-						}
-					} else if (pen) {
-						/* penabled only accepts exact bytes of data */
-						if (features->type == TABLETPC2FG ||
-								features->type == MTTPC)
-							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
-						if (features->type == BAMBOO_PT)
-							features->pktlen = WACOM_PKGLEN_BBFUN;
-						features->device_type = BTN_TOOL_PEN;
+				if (finger) {
+					features->device_type = BTN_TOOL_DOUBLETAP;
+					if (features->type == TABLETPC2FG ||
+							 features->type == MTTPC) {
+						/* need to reset back */
+						features->pktlen = WACOM_PKGLEN_TPC2FG;
+						if (features->type == MTTPC)
+							features->pktlen = WACOM_PKGLEN_MTTPC;
+						features->device_type = BTN_TOOL_TRIPLETAP;
+					}
+					if (features->type == BAMBOO_PT) {
+						/* need to reset back */
+						features->pktlen = WACOM_PKGLEN_BBTOUCH;
+						features->device_type = BTN_TOOL_TRIPLETAP;
+						features->x_phy =
+							get_unaligned_le16(&report[i + 5]);
+						features->x_max =
+							get_unaligned_le16(&report[i + 8]);
+						i += 15;
+					} else {
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
-						i += 4;
+						features->x_phy =
+							get_unaligned_le16(&report[i + 6]);
+						features->unit = report[i + 9];
+						features->unitExpo = report[i + 11];
+						i += 12;
 					}
-				} else if (usage == WCM_DIGITIZER) {
-					/* max pressure isn't reported
-					features->pressure_max = (unsigned short)
-							(report[i+4] << 8  | report[i + 3]);
-					*/
-					features->pressure_max = 255;
+				} else if (pen) {
+					/* penabled only accepts exact bytes of data */
+					if (features->type == TABLETPC2FG ||
+							features->type == MTTPC)
+						features->pktlen = WACOM_PKGLEN_GRAPHIRE;
+					if (features->type == BAMBOO_PT)
+						features->pktlen = WACOM_PKGLEN_BBFUN;
+					features->device_type = BTN_TOOL_PEN;
+					features->x_max =
+						get_unaligned_le16(&report[i + 3]);
 					i += 4;
 				}
 				break;
 
 			case HID_USAGE_Y:
-				if (usage == WCM_DESKTOP) {
-					if (finger) {
-						if (features->type == TABLETPC2FG ||
-								features->type == MTTPC) {
-							features->y_max =
-								get_unaligned_le16(&report[i + 3]);
-							features->y_phy =
-								get_unaligned_le16(&report[i + 6]);
-							i += 7;
-						} else if (features->type == BAMBOO_PT) {
-							features->y_phy =
-								get_unaligned_le16(&report[i + 3]);
-							features->y_max =
-								get_unaligned_le16(&report[i + 6]);
-							i += 12;
-						} else {
-							features->y_max =
-								features->x_max;
-							features->y_phy =
-								get_unaligned_le16(&report[i + 3]);
-							i += 4;
-						}
-					} else if (pen) {
+				if (finger) {
+					if (features->type == TABLETPC2FG ||
+							features->type == MTTPC) {
 						features->y_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->y_phy =
+							get_unaligned_le16(&report[i + 6]);
+						i += 7;
+					} else if (features->type == BAMBOO_PT) {
+						features->y_phy =
+							get_unaligned_le16(&report[i + 3]);
+						features->y_max =
+							get_unaligned_le16(&report[i + 6]);
+						i += 12;
+					} else {
+						features->y_max =
+							features->x_max;
+						features->y_phy =
 							get_unaligned_le16(&report[i + 3]);
 						i += 4;
 					}
+				} else if (pen) {
+					features->y_max =
+						get_unaligned_le16(&report[i + 3]);
+					i += 4;
 				}
 				break;
 
@@ -324,19 +304,12 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				pen = 1;
 				i++;
 				break;
-
-			case HID_USAGE_UNDEFINED:
-				if (usage == WCM_DESKTOP && finger) /* capacity */
-					features->pressure_max =
-						get_unaligned_le16(&report[i + 3]);
-				i += 4;
-				break;
 			}
 			break;
 
 		case HID_COLLECTION_END:
 			/* reset UsagePage and Finger */
-			finger = usage = 0;
+			finger = page = 0;
 			break;
 		case HID_COLLECTION:
 			i++;
