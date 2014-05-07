@@ -1193,10 +1193,15 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 	int current_num_contacts = data[2];
 	int i = 0;
+	int x_offset = 0;
 
 	wacom->tool[1] = BTN_TOOL_DOUBLETAP;
 	wacom->id[0] = TOUCH_DEVICE_ID;
 	wacom->tool[2] = BTN_TOOL_TRIPLETAP;
+
+	/* MTTPC does not support Height and Width */
+	if (wacom->features.type == MTTPC || wacom->features.type == MTTPC_B)
+		x_offset = -4;
 
 	/*
 	 * First packet resets the counter since only the first
@@ -1219,12 +1224,12 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 			wacom->contacts_to_send = current_num_contacts;
 
 			for (i = 0; i < wacom->contacts_to_send; i++) {
-				int offset = (WACOM_BYTES_PER_MT_PACKET * i) + 3;
+				int offset = (WACOM_BYTES_PER_MT_PACKET + x_offset) * i + 3;
 				bool touch = data[offset] & 0x1;
 				int id = le16_to_cpup((__le16 *)&data[offset + 1]);
 				int slot = find_slot_from_contactid(wacom, id);
-				int x = le16_to_cpup((__le16 *)&data[offset + 3]);
-				int y = le16_to_cpup((__le16 *)&data[offset + 5]);
+				int x = le16_to_cpup((__le16 *)&data[offset + x_offset + 7]);
+				int y = le16_to_cpup((__le16 *)&data[offset + x_offset + 9]);
 
 				if (wacom->last_finger == id) {
 					if (x == input->abs[ABS_X])
@@ -1318,7 +1323,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 		}
 		/* keep prox bit to send proper out-prox event */
 		wacom->id[1] = prox;
-	} else if (data[0] == WACOM_REPORT_PENABLED) { /* Penabled */
+	} else if (data[0] == WACOM_REPORT_PENABLED || len == WACOM_PKGLEN_PENABLED) { /* Penabled */
 		prox = data[1] & 0x20;
 
 		if (!wacom->shared->stylus_in_proximity) { /* first in prox */
@@ -1419,6 +1424,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case TABLETPC:
 	case TABLETPC2FG:
 	case MTTPC:
+	case MTTPC_B:
 		sync = wacom_tpc_irq(wacom_wac, len);
 		break;
 
@@ -1741,6 +1747,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case MTTPC:
+	case MTTPC_B:
 		if (features->device_type == BTN_TOOL_TRIPLETAP) {
 			for (i = 0; i < 10; i++)
 				wacom_wac->slots[i] = -1;
@@ -2008,10 +2015,16 @@ static const struct wacom_features wacom_features_0x10D =
 	{ "Wacom ISDv4 10D",      WACOM_PKGLEN_MTTPC,     26202, 16325,  255,  0, MTTPC };
 static const struct wacom_features wacom_features_0x10F =
        { "Wacom ISDv4 10F",       WACOM_PKGLEN_MTTPC,     27760, 15694,  255,  0, MTTPC };
-static const struct wacom_features wacom_features_0x10F =
+static const struct wacom_features wacom_features_0x116 =
        { "Wacom ISDv4 116",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,  0, TABLETPC };
 static const struct wacom_features wacom_features_0x4001 =
 	{ "Wacom ISDv4 4001",       WACOM_PKGLEN_MTTPC,   26202, 16325,  255,  0, MTTPC };
+static const struct wacom_features wacom_features_0x4004 =
+	{ "Wacom ISDv4 4001",       WACOM_PKGLEN_MTTPC,   11060, 6220,  255,  0, MTTPC_B };
+static const struct wacom_features wacom_features_0x5000 =
+	{ "Wacom ISDv4 4001",       WACOM_PKGLEN_MTTPC,   27848, 15752,  255,  0, MTTPC_B };
+static const struct wacom_features wacom_features_0x5002 =
+	{ "Wacom ISDv4 4001",       WACOM_PKGLEN_MTTPC,   29576, 16724,  1023,  0, MTTPC_B };
 static const struct wacom_features wacom_features_0x47 =
 	{ "Wacom Intuos2 6x8",    WACOM_PKGLEN_INTUOS,    20320, 16240, 1023, 31, INTUOS };
 static const struct wacom_features wacom_features_0x6004 =
@@ -2135,6 +2148,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x10F) },
 	{ USB_DEVICE_WACOM(0x116) },
 	{ USB_DEVICE_WACOM(0x4001) },
+	{ USB_DEVICE_WACOM(0x4004) },
+	{ USB_DEVICE_WACOM(0x5000) },
+	{ USB_DEVICE_WACOM(0x5002) },
 	{ USB_DEVICE_WACOM(0x300) },
 	{ USB_DEVICE_WACOM(0x301) },
 	{ USB_DEVICE_DETAILED(0x302, USB_CLASS_HID, 0, 0) },

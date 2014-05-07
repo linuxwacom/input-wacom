@@ -27,9 +27,10 @@
 #define WACOM_PKGLEN_MTTPC	40
 #define WACOM_PKGLEN_BBPEN      10
 #define WACOM_PKGLEN_DTUS	68
+#define WACOM_PKGLEN_PENABLED	8
 
 /* wacom data size per MT contact */
-#define WACOM_BYTES_PER_MT_PACKET	7
+#define WACOM_BYTES_PER_MT_PACKET	11
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -47,6 +48,7 @@
 #define WACOM_REPORT_DTUSPAD		21
 #define WACOM_REPORT_TPC1FG		6
 #define WACOM_REPORT_TPC2FG		13
+#define WACOM_REPORT_TPCMT2		3
 #define WACOM_REPORT_DTUS		17
 
 /* device quirks */
@@ -90,6 +92,7 @@ enum {
 	TABLETPC,
 	TABLETPC2FG,
 	MTTPC,
+	MTTPC_B,
 	MAX_TYPE
 };
 

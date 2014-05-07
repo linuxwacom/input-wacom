@@ -228,10 +228,11 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				if (finger) {
 					features->device_type = BTN_TOOL_DOUBLETAP;
 					if (features->type == TABLETPC2FG ||
-							 features->type == MTTPC) {
+							 features->type == MTTPC ||
+							 features->type == MTTPC_B) {
 						/* need to reset back */
 						features->pktlen = WACOM_PKGLEN_TPC2FG;
-						if (features->type == MTTPC)
+						if (features->type == MTTPC || features->type == MTTPC_B)
 							features->pktlen = WACOM_PKGLEN_MTTPC;
 						features->device_type = BTN_TOOL_TRIPLETAP;
 					}
@@ -244,6 +245,14 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						features->x_max =
 							get_unaligned_le16(&report[i + 8]);
 						i += 15;
+					} else if (features->type == MTTPC_B) {
+						features->x_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->x_phy =
+							get_unaligned_le16(&report[i + 6]);
+						features->unit = report[i - 5];
+						features->unitExpo = report[i - 3];
+						i += 9;
 					} else {
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
@@ -276,6 +285,12 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						features->y_phy =
 							get_unaligned_le16(&report[i + 6]);
 						i += 7;
+					} else if (features->type == MTTPC_B) {
+						features->y_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->y_phy =
+							get_unaligned_le16(&report[i + 6]);
+						i += 9;
 					} else if (features->type == BAMBOO_PT) {
 						features->y_phy =
 							get_unaligned_le16(&report[i + 3]);
