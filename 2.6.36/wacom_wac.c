@@ -876,7 +876,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	contacts_to_send = min(5, (int)features->num_contacts_left);
 
 	for (i = 0; i < contacts_to_send; i++) {
-		id = le16_to_cpup((__le16 *)&data[k]);
+		id = get_unaligned_le16(&data[k]);
 
 		/* is there an existing slot for this contact? */
 		for (j = 0; j < features->touch_max; j++) {
@@ -897,8 +897,8 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 		touch = data[k - 1] & 0x1;
 		input_mt_slot(input, j);
 		if (touch) {
-			x = le16_to_cpup((__le16 *)&data[k + 6]);
-			y = le16_to_cpup((__le16 *)&data[k + 8]);
+			x = get_unaligned_le16(&data[k + 6]);
+			y = get_unaligned_le16(&data[k + 8]);
 
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);

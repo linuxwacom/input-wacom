@@ -1226,10 +1226,10 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 			for (i = 0; i < wacom->contacts_to_send; i++) {
 				int offset = (WACOM_BYTES_PER_MT_PACKET + x_offset) * i + 3;
 				bool touch = data[offset] & 0x1;
-				int id = le16_to_cpup((__le16 *)&data[offset + 1]);
+				int id = get_unaligned_le16(&data[offset + 1]);
 				int slot = find_slot_from_contactid(wacom, id);
-				int x = le16_to_cpup((__le16 *)&data[offset + x_offset + 7]);
-				int y = le16_to_cpup((__le16 *)&data[offset + x_offset + 9]);
+				int x = get_unaligned_le16(&data[offset + x_offset + 7]);
+				int y = get_unaligned_le16(&data[offset + x_offset + 9]);
 
 				if (wacom->last_finger == id) {
 					if (x == input->abs[ABS_X])
