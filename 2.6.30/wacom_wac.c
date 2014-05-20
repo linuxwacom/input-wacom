@@ -1258,7 +1258,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 
 	dbg("wacom_tpc_irq: received report #%d", data[0]);
 
-	if (features->device_type != BTN_TOOL_PEN) {
+	if (wacom->features.device_type != BTN_TOOL_PEN) {
 	
 		if (wacom->shared->stylus_in_proximity) {
 			if (wacom->id[1] & 0x01)
