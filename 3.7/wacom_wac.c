@@ -695,11 +695,11 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			input_report_key(input, BTN_3, (data[4] & 0x04));
 			input_report_key(input, BTN_4, (data[4] & 0x08));
 
-			input_report_key(input, BTN_5, (data[4] & 0x10)); /* Right  */
-			input_report_key(input, BTN_6, (data[4] & 0x20)); /* Up     */
-			input_report_key(input, BTN_7, (data[4] & 0x40)); /* Left   */
-			input_report_key(input, BTN_8, (data[4] & 0x80)); /* Down   */
-			input_report_key(input, BTN_0, (data[3] & 0x01)); /* Center */
+			input_report_key(input, BTN_5, (data[4] & 0x10));  /* Right  */
+			input_report_key(input, BTN_6, (data[4] & 0x20));  /* Up     */
+			input_report_key(input, BTN_7, (data[4] & 0x40));  /* Left   */
+			input_report_key(input, BTN_8, (data[4] & 0x80));  /* Down   */
+			input_report_key(input, BTN_0, (data[3] & 0x01));  /* Center */
 		} else if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
 			int i;
 
@@ -1595,9 +1595,9 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 			input_set_abs_params(input_dev, ABS_Y, 0,
 				features->y_max, features->y_fuzz, 0);
 			input_abs_set_res(input_dev, ABS_X,
-				features->x_resolution);
+					  features->x_resolution);
 			input_abs_set_res(input_dev, ABS_Y,
-				features->y_resolution);
+					  features->y_resolution);
 		}
 
 		if (features->touch_max > 1) {
@@ -1606,9 +1606,9 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 			input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0,
 				features->y_max, features->y_fuzz, 0);
 			input_abs_set_res(input_dev, ABS_MT_POSITION_X,
-				features->x_resolution);
+					  features->x_resolution);
 			input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
-				features->y_resolution);
+					  features->y_resolution);
 		}
 	}
 }

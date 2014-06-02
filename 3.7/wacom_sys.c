@@ -336,7 +336,6 @@ static int wacom_parse_hid(struct usb_interface *intf,
 			case HID_USAGE_X:
 				if (finger) {
 					features->device_type = BTN_TOOL_FINGER;
-
 					/* touch device at least supports one touch point */
 					touch_max = 1;
 					switch (features->type) {
@@ -729,7 +728,7 @@ static int wacom_led_control(struct wacom *wacom)
 		return -ENOMEM;
 
 	if (wacom->wacom_wac.features.type >= INTUOS5S &&
-	    wacom->wacom_wac.features.type <= INTUOSPL)	{
+	    wacom->wacom_wac.features.type <= INTUOSPL) {
 		/*
 		 * Touch Ring and crop mark LED luminance may take on
 		 * one of four values:
@@ -1264,19 +1263,23 @@ fail:
 static void wacom_set_default_phy(struct wacom_features *features)
 {
 	if (features->x_resolution) {
-		features->x_phy = (features->x_max * 100) / features->x_resolution;
-		features->y_phy = (features->y_max * 100) / features->y_resolution;
+		features->x_phy = (features->x_max * 100) /
+					features->x_resolution;
+		features->y_phy = (features->y_max * 100) /
+					features->y_resolution;
 	}
 }
 
 static void wacom_calculate_res(struct wacom_features *features)
 {
 	features->x_resolution = wacom_calc_hid_res(features->x_max,
-				 features->x_phy, features->unit,
-				 features->unitExpo);
+						    features->x_phy,
+						    features->unit,
+						    features->unitExpo);
 	features->y_resolution = wacom_calc_hid_res(features->y_max,
-				 features->y_phy, features->unit,
-				 features->unitExpo);
+						    features->y_phy,
+						    features->unit,
+						    features->unitExpo);
 }
 
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -1355,7 +1358,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	/* set unit to "100th of a mm" for devices not reported by HID */
 	if (!features->unit) {
 		features->unit = 0x11;
-		features->unitExpo = 16-3;
+		features->unitExpo = 16 - 3;
 	}
 	wacom_calculate_res(features);
 
