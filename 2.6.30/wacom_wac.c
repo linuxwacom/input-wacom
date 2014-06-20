@@ -1340,7 +1340,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 		}
 		input_report_key(input, BTN_STYLUS, data[1] & 0x02);
 		input_report_key(input, BTN_STYLUS2, data[1] & 0x10);
-		input_report_abs(input, ABS_PRESSURE, ((data[7] & 0x03) << 8) | data[6]);
+		input_report_abs(input, ABS_PRESSURE, ((data[7] & 0x07) << 8) | data[6]);
 		input_report_key(input, BTN_TOUCH, data[1] & 0x05);
 		if (!prox) { /* out-prox */
 			wacom->id[0] = 0;
