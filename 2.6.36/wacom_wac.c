@@ -1854,6 +1854,9 @@ static const struct wacom_features wacom_features_0xE6 =
 static const struct wacom_features wacom_features_0x116 =
 	{ "Wacom ISDv4 116",      WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
 	  0, TABLETPCE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x12C =
+	{ "Wacom ISDv4 12C",      WACOM_PKGLEN_GRAPHIRE,  27848, 15752,  2047,
+	  0, TABLETPCE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x47 =
 	{ "Wacom Intuos2 6x8",    WACOM_PKGLEN_INTUOS,    20320, 16240, 1023,
 	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2014,6 +2017,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xFA) },
 	{ USB_DEVICE_WACOM(0xFB) },
 	{ USB_DEVICE_WACOM(0x116) },
+	{ USB_DEVICE_WACOM(0x12C) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };
