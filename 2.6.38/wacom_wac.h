@@ -72,6 +72,7 @@
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
 #define WACOM_QUIRK_NO_INPUT		0x0004
 #define WACOM_QUIRK_MONITOR		0x0008
+#define WACOM_QUIRK_BATTERY		0x0010
 
 enum {
 	PENPARTNER = 0,
@@ -170,6 +171,8 @@ struct wacom_wac {
 	int battery_capacity;
 	int num_contacts_left;
 	int *slots;
+	int bat_charging;
+	int ps_connected;
 };
 
 #endif
