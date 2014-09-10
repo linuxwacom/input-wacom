@@ -1,6 +1,6 @@
 AC_PREREQ(2.60)
 AC_INIT([input-wacom],
-	[0.23.0])
+	[0.24.0])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
@@ -114,7 +114,9 @@ if test -n "$WCM_KERNEL_DIR"; then
 			fi
 		elif echo $MODUTS | grep "^3." >/dev/null; then
 			MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.\([[0-9]]*\).*/\1/'`
-			if test $MINOR -ge 7; then
+			if test $MINOR -ge 17; then
+				WCM_KERNEL_VER="3.17"
+			elif test $MINOR -ge 7; then
 				WCM_KERNEL_VER="3.7"
 			else
 				WCM_KERNEL_VER="2.6.38"
@@ -137,7 +139,8 @@ AC_CONFIG_FILES([Makefile
                  2.6.30/Makefile
                  2.6.36/Makefile
                  2.6.38/Makefile
-                 3.7/Makefile])
+                 3.7/Makefile
+                 3.17/Makefile])
 AC_OUTPUT
 
 make
