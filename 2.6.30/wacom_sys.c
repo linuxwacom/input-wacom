@@ -600,7 +600,8 @@ static ssize_t wacom_led##SET_ID##_select_show(struct device *dev,     \
 	struct device_attribute *attr, char *buf)                      \
 {                                                                      \
 	struct wacom *wacom = dev_get_drvdata(dev);                    \
-	return snprintf(buf, 2, "%d\n", wacom->led.select[SET_ID]);    \
+	return snprintf(buf, PAGE_SIZE, "%d\n",                        \
+			wacom->led.select[SET_ID]);                    \
 }                                                                      \
 static DEVICE_ATTR(status_led##SET_ID##_select, S_IWUSR | S_IRUSR,     \
 		   wacom_led##SET_ID##_select_show,                    \
