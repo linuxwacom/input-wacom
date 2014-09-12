@@ -47,6 +47,7 @@ struct hid_descriptor {
 #define WAC_HID_FEATURE_REPORT	0x03
 #define WAC_MSG_RETRIES		5
 
+#define WAC_CMD_WL_LED_CONTROL	0x03
 #define WAC_CMD_LED_CONTROL	0x20
 #define WAC_CMD_ICON_START	0x21
 #define WAC_CMD_ICON_XFER	0x23
@@ -477,8 +478,14 @@ static int wacom_led_control(struct wacom *wacom)
 {
 	unsigned char *buf;
 	int retval;
+	unsigned char report_id = WAC_CMD_LED_CONTROL;
+	int buf_size = 9;
 
-	buf = kzalloc(9, GFP_KERNEL);
+	if (wacom->wacom_wac.pid) { /* wireless connected */
+		report_id = WAC_CMD_WL_LED_CONTROL;
+		buf_size = 13;
+	}
+	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -492,8 +499,16 @@ static int wacom_led_control(struct wacom *wacom)
 		int ring_lum = (((wacom->led.llv & 0x60) >> 5) - 1) & 0x03;
 		int crop_lum = 0;
 
-		buf[0] = WAC_CMD_LED_CONTROL;
-		buf[1] = (crop_lum << 4) | (ring_lum << 2) | (ring_led);
+		unsigned char led_bits = (crop_lum << 4) | (ring_lum << 2) | (ring_led);
+
+		buf[0] = report_id;
+		if (wacom->wacom_wac.pid) {
+			wacom_get_report(wacom->hdev, HID_FEATURE_REPORT,
+					 buf, buf_size, WAC_CMD_RETRIES);
+			buf[0] = report_id;
+			buf[4] = led_bits;
+		} else
+			buf[1] = led_bits;
 	}
 	else {
 		int led = wacom->led.select[0] | 0x4;
@@ -502,15 +517,15 @@ static int wacom_led_control(struct wacom *wacom)
 		    wacom->wacom_wac.features.type == WACOM_24HD)
 			led |= (wacom->led.select[1] << 4) | 0x40;
 
-		buf[0] = WAC_CMD_LED_CONTROL;
+		buf[0] = report_id;
 		buf[1] = led;
 		buf[2] = wacom->led.llv;
 		buf[3] = wacom->led.hlv;
 		buf[4] = wacom->led.img_lum;
 	}
 
-	retval = wacom_set_report(wacom->intf, 0x03, WAC_CMD_LED_CONTROL,
-				  buf, 9, WAC_CMD_RETRIES);
+	retval = wacom_set_report(wacom->intf, 0x03, report_id,
+				  buf, buf_size, WAC_CMD_RETRIES);
 	kfree(buf);
 
 	return retval;
@@ -720,6 +735,9 @@ static int wacom_initialize_leds(struct wacom *wacom)
 {
 	int error;
 
+	if (wacom->wacom_wac.features.device_type != BTN_TOOL_PEN)
+		return 0;
+
 	/* Initialize default values */
 	switch (wacom->wacom_wac.features.type) {
 	case INTUOS4S:
@@ -751,17 +769,14 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	case INTUOSPS:
 	case INTUOSPM:
 	case INTUOSPL:
-		if (wacom->wacom_wac.features.device_type == BTN_TOOL_PEN) {
-			wacom->led.select[0] = 0;
-			wacom->led.select[1] = 0;
-			wacom->led.llv = 32;
-			wacom->led.hlv = 0;
-			wacom->led.img_lum = 0;
+		wacom->led.select[0] = 0;
+		wacom->led.select[1] = 0;
+		wacom->led.llv = 32;
+		wacom->led.hlv = 0;
+		wacom->led.img_lum = 0;
 
-			error = sysfs_create_group(&wacom->intf->dev.kobj,
-						  &intuos5_led_attr_group);
-		} else
-			return 0;
+		error = sysfs_create_group(&wacom->intf->dev.kobj,
+					   &intuos5_led_attr_group);
 		break;
 
 	default:
@@ -780,6 +795,9 @@ static int wacom_initialize_leds(struct wacom *wacom)
 
 static void wacom_destroy_leds(struct wacom *wacom)
 {
+	if (wacom->wacom_wac.features.device_type != BTN_TOOL_PEN)
+		return;
+
 	switch (wacom->wacom_wac.features.type) {
 	case INTUOS4S:
 	case INTUOS4:
@@ -800,9 +818,8 @@ static void wacom_destroy_leds(struct wacom *wacom)
 	case INTUOSPS:
 	case INTUOSPM:
 	case INTUOSPL:
-		if (wacom->wacom_wac.features.device_type == BTN_TOOL_PEN)
-			sysfs_remove_group(&wacom->intf->dev.kobj,
-					   &intuos5_led_attr_group);
+		sysfs_remove_group(&wacom->intf->dev.kobj,
+				   &intuos5_led_attr_group);
 		break;
 	}
 }

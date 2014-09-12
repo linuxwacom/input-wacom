@@ -645,6 +645,9 @@ static int wacom_initialize_leds(struct wacom *wacom)
 {
 	int error;
 
+	if (wacom->wacom_wac.features.device_type != BTN_TOOL_PEN)
+		return 0;
+
 	/* Initialize default values */
 	switch (wacom->wacom_wac.features.type) {
 	case INTUOS4S:
@@ -674,16 +677,13 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	case INTUOSPS:
 	case INTUOSPM:
 	case INTUOSPL:
-		if (wacom->wacom_wac.features.device_type == BTN_TOOL_PEN) {
-			wacom->led.select[0] = 0;
-			wacom->led.select[1] = 0;
-			wacom->led.llv = 32;
-			wacom->led.hlv = 0;
+		wacom->led.select[0] = 0;
+		wacom->led.select[1] = 0;
+		wacom->led.llv = 32;
+		wacom->led.hlv = 0;
 
-			error = sysfs_create_group(&wacom->intf->dev.kobj,
-						   &intuos5_led_attr_group);
-		} else
-			return 0;
+		error = sysfs_create_group(&wacom->intf->dev.kobj,
+					   &intuos5_led_attr_group);
 		break;
 
 	default:
@@ -702,6 +702,9 @@ static int wacom_initialize_leds(struct wacom *wacom)
 
 static void wacom_destroy_leds(struct wacom *wacom)
 {
+	if (wacom->wacom_wac.features.device_type != BTN_TOOL_PEN)
+		return;
+
 	switch (wacom->wacom_wac.features.type) {
 	case INTUOS4S:
 	case INTUOS4:
@@ -722,9 +725,8 @@ static void wacom_destroy_leds(struct wacom *wacom)
 	case INTUOSPS:
 	case INTUOSPM:
 	case INTUOSPL:
-		if (wacom->wacom_wac.features.device_type == BTN_TOOL_PEN)
-			sysfs_remove_group(&wacom->intf->dev.kobj,
-					   &intuos5_led_attr_group);
+		sysfs_remove_group(&wacom->intf->dev.kobj,
+				   &intuos5_led_attr_group);
 		break;
 	}
 }
