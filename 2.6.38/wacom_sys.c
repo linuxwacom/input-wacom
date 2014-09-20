@@ -11,6 +11,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/spinlock.h>
 #include "wacom_wac.h"
 #include "wacom.h"
 
@@ -1106,13 +1107,24 @@ static int wacom_battery_get_property(struct power_supply *psy,
 
 static int wacom_initialize_battery(struct wacom *wacom)
 {
+	static atomic_t battery_no = ATOMIC_INIT(0);
+	static DEFINE_SPINLOCK(ps_lock);
+	unsigned long flags;
 	int error = 0;
 
+	spin_lock_irqsave(&ps_lock, flags); /* Prevent potential race for the "wacom_battery" name */
 	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_MONITOR) {
+		unsigned long n = atomic_inc_return(&battery_no) - 1;
+
+		if (power_supply_get_by_name("wacom_battery"))
+			sprintf(wacom->wacom_wac.bat_name, "wacom_battery_%ld", n);
+		else
+			sprintf(wacom->wacom_wac.bat_name, "wacom_battery");
+
 		wacom->battery.properties = wacom_battery_props;
 		wacom->battery.num_properties = ARRAY_SIZE(wacom_battery_props);
 		wacom->battery.get_property = wacom_battery_get_property;
-		wacom->battery.name = "wacom_battery";
+		wacom->battery.name = wacom->wacom_wac.bat_name;
 		wacom->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 		wacom->battery.use_for_apm = 0;
 
@@ -1125,6 +1137,7 @@ static int wacom_initialize_battery(struct wacom *wacom)
 					    &wacom->usbdev->dev);
 #endif
 	}
+	spin_unlock_irqrestore(&ps_lock, flags);
 
 	return error;
 }

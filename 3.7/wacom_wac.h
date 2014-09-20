@@ -150,6 +150,7 @@ struct wacom_shared {
 
 struct wacom_wac {
 	char name[WACOM_NAME_MAX];
+	char bat_name[WACOM_NAME_MAX];
 	unsigned char *data;
 	int tool[2];
 	int id[2];
