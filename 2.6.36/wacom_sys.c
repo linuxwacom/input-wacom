@@ -503,8 +503,8 @@ static int wacom_led_control(struct wacom *wacom)
 
 		buf[0] = report_id;
 		if (wacom->wacom_wac.pid) {
-			wacom_get_report(wacom->hdev, HID_FEATURE_REPORT,
-					 buf, buf_size, WAC_CMD_RETRIES);
+			wacom_get_report(wacom->intf, HID_FEATURE_REPORT,
+					 buf[0], buf, buf_size, WAC_CMD_RETRIES);
 			buf[0] = report_id;
 			buf[4] = led_bits;
 		} else

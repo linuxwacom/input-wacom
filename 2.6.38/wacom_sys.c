@@ -755,8 +755,8 @@ static int wacom_led_control(struct wacom *wacom)
 
 		buf[0] = report_id;
 		if (wacom->wacom_wac.pid) {
-			wacom_get_report(wacom->hdev, HID_FEATURE_REPORT,
-					 buf, buf_size, WAC_CMD_RETRIES);
+			wacom_get_report(wacom->intf, WAC_HID_FEATURE_REPORT,
+					 buf[0], buf, buf_size, WAC_CMD_RETRIES);
 			buf[0] = report_id;
 			buf[4] = led_bits;
 		} else
@@ -854,7 +854,7 @@ static ssize_t wacom_led##SET_ID##_select_show(struct device *dev,	\
 	struct device_attribute *attr, char *buf)			\
 {									\
 	struct wacom *wacom = dev_get_drvdata(dev);			\
-	return snprintf(buf, PAGE_SIZE, "%d\n",
+	return snprintf(buf, PAGE_SIZE, "%d\n",				\
 			wacom->led.select[SET_ID]);			\
 }									\
 static DEVICE_ATTR(status_led##SET_ID##_select, DEV_ATTR_RW_PERM,	\
