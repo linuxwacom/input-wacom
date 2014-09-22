@@ -1967,7 +1967,6 @@ static const struct wacom_features wacom_features_0xF4 =
 	{ "Wacom Cintiq 24HD",       WACOM_PKGLEN_INTUOS, 104280, 65400, 2047, 63, WACOM_24HD, 200, 200 };
 static const struct wacom_features wacom_features_0xF8 =
 	{ "Wacom Cintiq 24HD touch", WACOM_PKGLEN_INTUOS, 104280, 65400, 2047, 63, WACOM_24HD, 200, 200 };
-	{ "Wacom Cintiq 24HD touch", WACOM_PKGLEN_INTUOS, 104480, 65600, 2047, 63, WACOM_24HD };
 static const struct wacom_features wacom_features_0x3F =
 	{ "Wacom Cintiq 21UX",    WACOM_PKGLEN_INTUOS,    87200, 65600, 1023, 63, CINTIQ };
 static const struct wacom_features wacom_features_0xC5 =
@@ -1987,7 +1986,7 @@ static const struct wacom_features wacom_features_0xFB =
 static const struct wacom_features wacom_features_0x57 =
 	{ "Wacom DTK2241",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047, 63, DTK, 200, 200 };
 static const struct wacom_features wacom_features_0x59 =
-	{ "Wacom DTH2242",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047, 63, DTK, 200, 200,
+	{ "Wacom DTH2242",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047, 63, DTK, 200, 200 };
 static const struct wacom_features wacom_features_0xCC =
 	{ "Wacom Cintiq 21UX2",   WACOM_PKGLEN_INTUOS,    87000, 65400, 2047, 63, WACOM_21UX2, 200, 200 };
 static const struct wacom_features wacom_features_0xFA =
