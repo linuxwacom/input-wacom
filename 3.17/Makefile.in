@@ -4,13 +4,13 @@ ifneq ($(KERNELRELEASE),)
 # Do NOT indent stuff in this part! It has to be like this to make the
 # $(error ... ) stuff work
 
-ifneq ($(CONFIG_USB_WACOM),y)
+ifneq ($(CONFIG_HID_WACOM),y)
 wacom-objs := wacom_wac.o wacom_sys.o
 obj-m += wacom.o
 obj-m += wacom_w8001.o
 else
 $(error You requested to build wacom with configure, but wacom is configured as built-in in your kernel config)
-endif # CONFIG_USB_WACOM
+endif # CONFIG_HID_WACOM
 
 else  # We were called from command line
 PWD  := $(shell pwd)
