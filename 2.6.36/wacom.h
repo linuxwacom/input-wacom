@@ -133,6 +133,7 @@ struct wacom {
 		u8 hlv;       /* status led brightness button pressed */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
+	bool led_initialized;
 };
 
 extern const struct usb_device_id wacom_ids[];

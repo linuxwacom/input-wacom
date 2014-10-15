@@ -789,12 +789,18 @@ static int wacom_initialize_leds(struct wacom *wacom)
 		return error;
 	}
 	wacom_led_control(wacom);
+	wacom->led_initialized = true;
 
 	return 0;
 }
 
 static void wacom_destroy_leds(struct wacom *wacom)
 {
+	if (!wacom->led_initialized)
+		return;
+
+	wacom->led_initialized = false;
+
 	if (wacom->wacom_wac.features.device_type != BTN_TOOL_PEN)
 		return;
 
