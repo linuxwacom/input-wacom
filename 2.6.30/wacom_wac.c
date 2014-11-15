@@ -1877,6 +1877,8 @@ static const struct wacom_features wacom_features_0x303 =
 	{ "Wacom Intuos PT M",     WACOM_PKGLEN_BBPEN,    21600, 13500, 1023, 31, INTUOSHT };
 static const struct wacom_features wacom_features_0x30E =
 	{ "Wacom Intuos S",        WACOM_PKGLEN_BBPEN,    15200,  9500, 1023, 31, INTUOSHT };
+static const struct wacom_features wacom_features_0x323 =
+	{ "Wacom Intuos P M",      WACOM_PKGLEN_BBPEN,    21600, 13500, 1023, 31, INTUOSHT };
 static const struct wacom_features wacom_features_0x20 =
 	{ "Wacom Intuos 4x5",     WACOM_PKGLEN_INTUOS,    12700, 10600, 1023, 31, INTUOS };
 static const struct wacom_features wacom_features_0x21 =
@@ -2162,6 +2164,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x303, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x30E, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x304) },
+	{ USB_DEVICE_DETAILED(0x323, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x314, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x315, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x317, USB_CLASS_HID, 0, 0) },
