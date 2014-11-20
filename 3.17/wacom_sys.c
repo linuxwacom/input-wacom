@@ -1455,7 +1455,11 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom_query_tablet_data(hdev, features);
 
 	if (features->type == HID_GENERIC)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,18,0)
+		hdev->claimed |= 8; /* HID_CLAIMED_DRIVER */
+#else
 		connect_mask |= HID_CONNECT_DRIVER;
+#endif
 
 	/* Regular HID work starts now */
 	error = hid_hw_start(hdev, connect_mask);
