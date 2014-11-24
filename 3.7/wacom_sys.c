@@ -341,8 +341,17 @@ static int wacom_parse_hid(struct usb_interface *intf,
 			case HID_USAGE_X:
 				if (finger) {
 					features->device_type = BTN_TOOL_FINGER;
-					/* touch device at least supports one touch point */
-					touch_max = 1;
+
+					/*
+					 * Bamboo Pen only descriptor contains touch
+					 * but it should not...
+					 */
+					if (features->type != BAMBOO_PT)
+						/*
+						 * ISDv4 touch devices at least 
+						 * supports one touch point
+						 */
+						touch_max = 1;
 					switch (features->type) {
 					case TABLETPC2FG:
 						features->pktlen = WACOM_PKGLEN_TPC2FG;

@@ -1954,6 +1954,14 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 				__clear_bit(ABS_X, input_dev->absbit);
 				__clear_bit(ABS_Y, input_dev->absbit);
 				__clear_bit(BTN_TOUCH, input_dev->keybit);
+
+				/* For Bamboo, buttons are supported only when touch is supported */
+				if (features->type == BAMBOO_PT) {
+					__clear_bit(BTN_LEFT, input_dev->keybit);
+					__clear_bit(BTN_FORWARD, input_dev->keybit);
+					__clear_bit(BTN_BACK, input_dev->keybit);
+					__clear_bit(BTN_RIGHT, input_dev->keybit);
+				}
 			}
 		} else if (features->device_type == BTN_TOOL_PEN) {
 			__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
