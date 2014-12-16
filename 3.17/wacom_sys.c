@@ -1321,6 +1321,14 @@ static void wacom_calculate_res(struct wacom_features *features)
 						    features->unitExpo);
 }
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,19,0)
+static int wacom_hid_report_len(struct hid_report *report)
+{
+	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
+	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
+}
+#endif
+
 static size_t wacom_compute_pktlen(struct hid_device *hdev)
 {
 	struct hid_report_enum *report_enum;
@@ -1330,7 +1338,11 @@ static size_t wacom_compute_pktlen(struct hid_device *hdev)
 	report_enum = hdev->report_enum + HID_INPUT_REPORT;
 
 	list_for_each_entry(report, &report_enum->report_list, list) {
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,18,0)
+		size_t report_size = wacom_hid_report_len(report);
+#else
 		size_t report_size = hid_report_len(report);
+#endif
 		if (report_size > size)
 			size = report_size;
 	}
