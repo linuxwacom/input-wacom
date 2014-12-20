@@ -1192,6 +1192,10 @@ static int wacom_register_input(struct wacom *wacom)
 	input_dev->open = wacom_open;
 	input_dev->close = wacom_close;
 	usb_to_input_id(dev, &input_dev->id);
+	if (wacom_wac->pid != 0) {
+		/* copy PID of wireless device */
+		input_dev->id.product = wacom_wac->pid;
+	}
 	input_set_drvdata(input_dev, wacom);
 
 	wacom_wac->input = input_dev;
