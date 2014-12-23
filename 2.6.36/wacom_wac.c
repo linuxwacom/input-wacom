@@ -1790,7 +1790,7 @@ static const struct wacom_features wacom_features_0x57 =
 	  63, DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
 static const struct wacom_features wacom_features_0x59 =
 	{ "Wacom DTH2242",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047,
-	  63, DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
+	  63, DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
 static const struct wacom_features wacom_features_0x3F =
 	{ "Wacom Cintiq 21UX",    WACOM_PKGLEN_INTUOS,    87200, 65600, 1023,
 	  63, CINTIQ, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
