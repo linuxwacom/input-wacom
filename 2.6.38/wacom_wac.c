@@ -2406,6 +2406,13 @@ static const struct wacom_features wacom_features_0x0307 =
 static const struct wacom_features wacom_features_0x0309 =
 	{ "Wacom ISDv5 309", .type = WACOM_24HDT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x0307, .touch_max = 10 };
+static const struct wacom_features wacom_features_0x30A =
+	{ "Wacom ISDv5 30A", 59352, 33648, 2047, 63,
+	  CINTIQ_HYBRID, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x30C };
+static const struct wacom_features wacom_features_0x30C =
+	{ "Wacom ISDv5 30C", .type = WACOM_24HDT, /* Touch */
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x30A, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x323 =
 	{ "Wacom Intuos P M",      WACOM_PKGLEN_BBPEN,    21600, 13500, 1023,
 	  31, INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2556,6 +2563,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xFA) },
 	{ USB_DEVICE_WACOM(0xFB) },
 	{ USB_DEVICE_WACOM(0x0307) },
+	{ USB_DEVICE_WACOM(0x30A) },
+	{ USB_DEVICE_WACOM(0x30C) },
 	{ USB_DEVICE_DETAILED(0x0309, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x323, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_LENOVO(0x6004) },
