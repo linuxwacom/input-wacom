@@ -1225,6 +1225,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 
 	case DTUS:
+	case DTUSX:
 		sync = wacom_dtus_irq(wacom_wac);
 		break;
 
@@ -1539,6 +1540,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case DTUS:
+	case DTUSX:
 	case PL:
 	case PTU:
 	case DTU:
@@ -1825,6 +1827,10 @@ static const struct wacom_features wacom_features_0xFB =
 	{ "Wacom DTU1031",        WACOM_PKGLEN_DTUS,      21896, 13760,  511,
 	  0, DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
+static const struct wacom_features wacom_features_0x32F =
+	{ "Wacom DTU1031X",       WACOM_PKGLEN_DTUS,      22472, 12728, 511,
+	  0, DTUSX, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0xCC =
 	{ "Wacom Cintiq 21UX2",   WACOM_PKGLEN_INTUOS,    86800, 65200, 2047,
 	  63, WACOM_21UX2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
@@ -2031,6 +2037,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xFB) },
 	{ USB_DEVICE_WACOM(0x116) },
 	{ USB_DEVICE_WACOM(0x12C) },
+	{ USB_DEVICE_WACOM(0x32F) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };

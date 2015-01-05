@@ -65,6 +65,7 @@ enum {
 	PL,
 	DTU,
 	DTUS,
+	DTUSX,
 	BAMBOO_PT,
 	INTUOS,
 	INTUOS3S,
