@@ -24,6 +24,9 @@ all:
 clean:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) clean
 
+install modules_install:
+	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) modules_install
+
 endif  # End kbuild check
 
 ######################### Version independent targets ##########################
@@ -37,7 +40,7 @@ distdir:
 	    cp -fpR ./$$file "$(distdir)" || exit 1; \
 	done
 
-EMPTY_AUTOMAKE_TARGETS = install install-data install-exec uninstall install-info
+EMPTY_AUTOMAKE_TARGETS = install-data install-exec uninstall install-info
 EMPTY_AUTOMAKE_TARGETS += installdirs check dvi pdf ps info html tags ctags mostlyclean maintainer-clean
 .PHONY: $(EMPTY_AUTOMAKE_TARGETS)
 	$(EMPTY_AUTOMAKE_TARGETS):
