@@ -81,46 +81,44 @@ package and try again.])
 fi
 
 dnl Check which version of the driver we should compile
-if test -n "$WCM_KERNEL_DIR"; then
-	AC_MSG_CHECKING(kernel version)
-	MODUTS=
-	for a in "$WCM_KERNEL_DIR/include/linux/version.h" \
-		"$WCM_KERNEL_DIR/include/generated/utsrelease.h" \
-		"$WCM_KERNEL_DIR/include/linux/utsrelease.h"; do
-		if test -f $a; then
-			MODUTS=`grep UTS_RELEASE $a | sed -e 's/^[[^"]]*"\([[^"]]*\).*$/\1/g'`
-		fi
-		test -n "$MODUTS" && break
-	done
-	if test -z "$MODUTS"; then
-		AC_MSG_WARN(unable to identify kernel version)
-	else
-		AC_MSG_RESULT([$MODUTS])
-		MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.[[0-9]]*\.\([[0-9]]*\).*/\1/'`
-		if echo $MODUTS | grep "^2.4" >/dev/null; then
-			AC_MSG_WARN([kernel 2.4.x is not supported])
-		elif echo $MODUTS | grep "^2.6" >/dev/null; then
-			if test $MINOR -ge 26; then
-				case $MINOR in
-					26|27|28|29|30|31|32|33|34|35) WCM_KERNEL_VER="2.6.30";;
-					36|37) WCM_KERNEL_VER="2.6.36";;
-					*) WCM_KERNEL_VER="2.6.38";;
-				esac
-			else
-				AC_MSG_WARN([kernels older than 2.6.26 is supported by linuxwacom])
-			fi
-		elif echo $MODUTS | grep "^3." >/dev/null; then
-			MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.\([[0-9]]*\).*/\1/'`
-			if test $MINOR -ge 17; then
-				WCM_KERNEL_VER="3.17"
-			elif test $MINOR -ge 7; then
-				WCM_KERNEL_VER="3.7"
-			else
-				WCM_KERNEL_VER="2.6.38"
-			fi
+AC_MSG_CHECKING(kernel version)
+MODUTS=
+for a in "$WCM_KERNEL_DIR/include/linux/version.h" \
+	"$WCM_KERNEL_DIR/include/generated/utsrelease.h" \
+	"$WCM_KERNEL_DIR/include/linux/utsrelease.h"; do
+	if test -f $a; then
+		MODUTS=`grep UTS_RELEASE $a | sed -e 's/^[[^"]]*"\([[^"]]*\).*$/\1/g'`
+	fi
+	test -n "$MODUTS" && break
+done
+if test -z "$MODUTS"; then
+	AC_MSG_WARN(unable to identify kernel version)
+else
+	AC_MSG_RESULT([$MODUTS])
+	MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.[[0-9]]*\.\([[0-9]]*\).*/\1/'`
+	if echo $MODUTS | grep "^2.4" >/dev/null; then
+		AC_MSG_WARN([kernel 2.4.x is not supported])
+	elif echo $MODUTS | grep "^2.6" >/dev/null; then
+		if test $MINOR -ge 26; then
+			case $MINOR in
+				26|27|28|29|30|31|32|33|34|35) WCM_KERNEL_VER="2.6.30";;
+				36|37) WCM_KERNEL_VER="2.6.36";;
+				*) WCM_KERNEL_VER="2.6.38";;
+			esac
 		else
-			AC_MSG_WARN(kernel version $MODUTS not supported)
+			AC_MSG_WARN([kernels older than 2.6.26 is supported by linuxwacom])
 		fi
+	elif echo $MODUTS | grep "^3." >/dev/null; then
+		MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.\([[0-9]]*\).*/\1/'`
+		if test $MINOR -ge 17; then
+			WCM_KERNEL_VER="3.17"
+		elif test $MINOR -ge 7; then
+			WCM_KERNEL_VER="3.7"
+		else
+			WCM_KERNEL_VER="2.6.38"
+		fi
+	else
+		AC_MSG_WARN(kernel version $MODUTS not supported)
 	fi
 fi
 
@@ -148,18 +146,16 @@ echo "       linux kernel - $WCM_ISLINUX $WCM_KERNEL_VER"
 echo "      kernel source - $WCM_ENV_KERNEL $WCM_KERNEL_DIR"
 echo ""
 
-if test "$WCM_ENV_KERNEL" = "yes"; then
-	echo "Your wacom.ko is available under "
-	echo "    `pwd`/$WCM_KERNEL_VER"
-	echo "If you have an USB device, you can copy the driver by:"
-	echo "	cp $WCM_KERNEL_VER/wacom.ko /lib/modules/`uname -r`/kernel/drivers/input/tablet"
-	echo "If you have a serial device, please copy the driver by:"
-	echo "	cp $WCM_KERNEL_VER/wacom_w8001.ko /lib/modules/`uname -r`/kernel/drivers/input/touchscreen"
-	echo ""
-	echo "NOTE: The kernel drivers included in this package are only"
-	echo "tested with the X Wacom driver built from xf86-input-wacom."
-	echo " If you are running an X server version older than 1.7, "
-	echo "please use the drivers provided by linuxwacom package."
-fi
+echo "Your wacom.ko is available under "
+echo "    `pwd`/$WCM_KERNEL_VER"
+echo "If you have an USB device, you can copy the driver by:"
+echo "	cp $WCM_KERNEL_VER/wacom.ko /lib/modules/`uname -r`/kernel/drivers/input/tablet"
+echo "If you have a serial device, please copy the driver by:"
+echo "	cp $WCM_KERNEL_VER/wacom_w8001.ko /lib/modules/`uname -r`/kernel/drivers/input/touchscreen"
+echo ""
+echo "NOTE: The kernel drivers included in this package are only"
+echo "tested with the X Wacom driver built from xf86-input-wacom."
+echo " If you are running an X server version older than 1.7, "
+echo "please use the drivers provided by linuxwacom package."
 echo ""
 
