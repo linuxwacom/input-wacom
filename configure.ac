@@ -37,8 +37,9 @@ AC_MSG_CHECKING(for kernel source/headers)
 if test "$WCM_KERNEL_DIR" = "yes" -o -z "$WCM_KERNEL_DIR"; then
 	WCM_KERNEL_DIR=
 	dnl Kernel source not specified, guess where it is
-	for i in /lib/modules/`uname -r`/build /usr/src/linux \
-		/usr/src/linux-`uname -r` /usr/src/linux-2.6; do
+	for i in /lib/modules/`uname -r`/source /lib/modules/`uname -r`/build \
+		/usr/src/linux /usr/src/linux-`uname -r` \
+		/usr/src/linux-2.6; do
 		if test -f "$i/.config"; then
 			WCM_KERNEL_DIR=$i
 			WCM_ENV_KERNEL=yes
