@@ -69,15 +69,15 @@ if test "$WCM_KERNEL_DIR" = "yes" -o -z "$WCM_KERNEL_DIR"; then
 		AC_MSG_NOTICE([Unable to find headers in any of: SEARCH_DIRECTORIES])
 	fi
 elif test "$WCM_KERNEL_DIR" != "no"; then
+	AC_MSG_RESULT([$WCM_KERNEL_DIR])
 	if test -f "$WCM_KERNEL_DIR/include/linux/input.h"; then
 		WCM_ENV_KERNEL=yes
-		AC_MSG_RESULT([yes, $WCM_KERNEL_DIR])
-	else
-		AC_MSG_ERROR([Provided kernel path is invalid])
 	fi
-else
-	WCM_KERNEL_DIR=
-	AC_MSG_RESULT(no)
+fi
+if test "$WCM_ENV_KERNEL" = "no"; then
+	AC_MSG_ERROR([We could not find the kernel development environment dnl
+to build the driver. Please install the kernel source or the kernel development dnl
+package and try again.])
 fi
 
 dnl Check which version of the driver we should compile
@@ -160,9 +160,6 @@ if test "$WCM_ENV_KERNEL" = "yes"; then
 	echo "tested with the X Wacom driver built from xf86-input-wacom."
 	echo " If you are running an X server version older than 1.7, "
 	echo "please use the drivers provided by linuxwacom package."
-else
-	echo "We could not find the kernel development environment to build the driver."
-	echo "Please install the kernel source or the kernel development package and try again."
 fi
 echo ""
 
