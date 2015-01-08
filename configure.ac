@@ -35,42 +35,38 @@ AC_ARG_WITH(kernel,
 
 AC_MSG_CHECKING(for kernel source/headers)
 if test "$WCM_KERNEL_DIR" = "yes" -o -z "$WCM_KERNEL_DIR"; then
+	AC_DEFUN([SEARCH_DIRECTORIES], [[
+	  [/lib/modules/`uname -r`/source],
+	  [/lib/modules/`uname -r`/build],
+	  [/usr/src/linux],
+	  [/usr/src/linux-`uname -r`],
+	  [/usr/src/linux-2.6]
+	]])
 	WCM_KERNEL_DIR=
 	dnl Kernel source not specified, guess where it is
-	for i in /lib/modules/`uname -r`/source /lib/modules/`uname -r`/build \
-		/usr/src/linux /usr/src/linux-`uname -r` \
-		/usr/src/linux-2.6; do
-		if test -f "$i/.config"; then
-			WCM_KERNEL_DIR=$i
-			WCM_ENV_KERNEL=yes
-			AC_MSG_RESULT($WCM_KERNEL_DIR)
-			break
-		fi
-	done
-
-	if test "$WCM_ENV_KERNEL" != "yes"; then
-		for i in /lib/modules/`uname -r`/source /lib/modules/`uname -r`/build \
-			/usr/src/linux /usr/src/linux-`uname -r` \
-			/usr/src/linux-2.6; do
-			if test -f "$i/include/linux/input.h"; then
-				WCM_KERNEL_DIR=$i
+	m4_foreach([ROOTDIR], SEARCH_DIRECTORIES, [
+		if test "$WCM_ENV_KERNEL" = "no"; then
+			if test -f "ROOTDIR/.config"; then
+				WCM_KERNEL_DIR="ROOTDIR"
 				WCM_ENV_KERNEL=yes
 				AC_MSG_RESULT($WCM_KERNEL_DIR)
-				break
 			fi
-		done
-	fi
+		fi
+	])
+
+	m4_foreach([ROOTDIR], SEARCH_DIRECTORIES, [
+		if test "$WCM_ENV_KERNEL" = "no"; then
+			if test -f "ROOTDIR/include/linux/input.h"; then
+				WCM_KERNEL_DIR="ROOTDIR"
+				WCM_ENV_KERNEL=yes
+				AC_MSG_RESULT($WCM_KERNEL_DIR)
+			fi
+		fi
+	])
 
 	if test -z "$WCM_KERNEL_DIR"; then
-		AC_MSG_RESULT(not found)
-		echo "***"
-		echo "*** WARNING:"
-		echo "*** Unable to guess kernel source directory"
-		echo "***   Looked at /lib/modules/`uname -r`/source, /lib/modules/`uname -r`/build,"
-		echo "***     /usr/src/linux, /usr/src/linux-`uname -r`, and"
-		echo "***     /usr/src/linux-2.6"
-		echo "*** Kernel modules will not be built"
-		echo "***"
+		AC_MSG_RESULT([not found])
+		AC_MSG_NOTICE([Unable to find headers in any of: SEARCH_DIRECTORIES])
 	fi
 elif test "$WCM_KERNEL_DIR" != "no"; then
 	if test -f "$WCM_KERNEL_DIR/include/linux/input.h"; then
