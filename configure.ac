@@ -137,25 +137,16 @@ AC_CONFIG_FILES([Makefile
                  3.17/Makefile])
 AC_OUTPUT
 
-make
+AC_MSG_NOTICE([
+----------------------------------------
+  BUILD ENVIRONMENT:
+       linux kernel - $WCM_ISLINUX $WCM_KERNEL_VER
+      kernel source - $WCM_ENV_KERNEL $WCM_KERNEL_DIR
 
-echo ""
-echo "----------------------------------------"
-echo "  BUILD ENVIRONMENT:"
-echo "       linux kernel - $WCM_ISLINUX $WCM_KERNEL_VER"
-echo "      kernel source - $WCM_ENV_KERNEL $WCM_KERNEL_DIR"
-echo ""
+NOTE: The kernel drivers included in this package are only tested with the
+X Wacom driver built from xf86-input-wacom. If you are running an X server
+version older than 1.7, please use the drivers provided by the linuxwacom
+package.
 
-echo "Your wacom.ko is available under "
-echo "    `pwd`/$WCM_KERNEL_VER"
-echo "If you have an USB device, you can copy the driver by:"
-echo "	cp $WCM_KERNEL_VER/wacom.ko /lib/modules/`uname -r`/kernel/drivers/input/tablet"
-echo "If you have a serial device, please copy the driver by:"
-echo "	cp $WCM_KERNEL_VER/wacom_w8001.ko /lib/modules/`uname -r`/kernel/drivers/input/touchscreen"
-echo ""
-echo "NOTE: The kernel drivers included in this package are only"
-echo "tested with the X Wacom driver built from xf86-input-wacom."
-echo " If you are running an X server version older than 1.7, "
-echo "please use the drivers provided by linuxwacom package."
-echo ""
+Please run 'make && make install'.])
 
