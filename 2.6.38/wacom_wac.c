@@ -954,7 +954,7 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 
 	for (i = 0; i < contacts_to_send; i++) {
 		int offset = (WACOM_BYTES_PER_24HDT_PACKET * i) + 1;
-		bool touch = data[offset] & 0x1 && !wacom->shared->stylus_in_proximity;
+		bool touch = (data[offset] & 0x1) && !wacom->shared->stylus_in_proximity;
 		int id = data[offset + 1];
 		int slot = find_slot_from_contactid(wacom, id);
 
@@ -986,6 +986,7 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 	wacom->num_contacts_left -= contacts_to_send;
 	if (wacom->num_contacts_left <= 0)
 		wacom->num_contacts_left = 0;
+	wacom->shared->touch_down = (wacom->num_contacts_left > 0);
 
 	return 1;
 }
@@ -1015,7 +1016,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 
 	for (i = 0; i < contacts_to_send; i++) {
 		int offset = (WACOM_BYTES_PER_MT_PACKET + x_offset) * i + 3;
-		bool touch = data[offset] & 0x1;
+		bool touch = (data[offset] & 0x1) && !wacom->shared->stylus_in_proximity;
 		int id = get_unaligned_le16(&data[offset + 1]);
 		int slot = find_slot_from_contactid(wacom, id);
 
@@ -1038,6 +1039,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	wacom->num_contacts_left -= contacts_to_send;
 	if (wacom->num_contacts_left < 0)
 		wacom->num_contacts_left = 0;
+	wacom->shared->touch_down = (wacom->num_contacts_left > 0);
 
 	return 1;
 }

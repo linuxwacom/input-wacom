@@ -900,7 +900,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 			}
 		}
 
-		touch = data[k - 1] & 0x1;
+		touch = (data[k - 1] & 0x1) && !wacom->shared->stylus_in_proximity;
 		input_mt_slot(input, j);
 		if (touch) {
 			x = get_unaligned_le16(&data[k + 6]);
@@ -929,6 +929,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	features->num_contacts_left -= contacts_to_send;
 	if (features->num_contacts_left < 0)
 		features->num_contacts_left = 0;
+	wacom->shared->touch_down = (wacom->num_contacts_left > 0);
 	return 1;
 }
 
