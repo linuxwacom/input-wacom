@@ -1340,7 +1340,7 @@ static void wacom_calculate_res(struct wacom_features *features)
 						    features->unitExpo);
 }
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,19,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 static int wacom_hid_report_len(struct hid_report *report)
 {
 	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
@@ -1357,7 +1357,7 @@ static size_t wacom_compute_pktlen(struct hid_device *hdev)
 	report_enum = hdev->report_enum + HID_INPUT_REPORT;
 
 	list_for_each_entry(report, &report_enum->report_list, list) {
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,18,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 		size_t report_size = wacom_hid_report_len(report);
 #else
 		size_t report_size = hid_report_len(report);
@@ -1510,7 +1510,7 @@ static int wacom_probe(struct hid_device *hdev,
 	}
 
 	if (features->type == HID_GENERIC)
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,18,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,18,0)
 		hdev->claimed |= 8; /* HID_CLAIMED_DRIVER */
 #else
 		connect_mask |= HID_CONNECT_DRIVER;
