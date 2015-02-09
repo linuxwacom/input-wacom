@@ -484,17 +484,23 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	   (features->type == CINTIQ && !(data[1] & 0x40)))
 		return 1;
 
-	/* Range Report */
-	if ((data[1] & 0xfe) == 0x20) {
+	if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
+		wacom->shared->stylus_in_proximity = true;
+
+	/* in Range Report while exiting */
+	if (((data[1] & 0xfe) == 0x20) && wacom->reporting_data) {
 		input_report_key(input, BTN_TOUCH, 0);
 		input_report_abs(input, ABS_PRESSURE, 0);
 		input_report_abs(input, ABS_DISTANCE, features->distance_max);
-		if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
-			wacom->shared->stylus_in_proximity = true;
+		return 2;
 	}
 
 	/* Exit report */
 	if ((data[1] & 0xfe) == 0x80) {
+		if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
+			wacom->shared->stylus_in_proximity = false;
+		wacom->reporting_data = false;
+
 		/* don't report exit if we don't know the ID */
 		if (!wacom->id[idx])
 			return 1;
@@ -859,6 +865,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	input_report_abs(input, ABS_MISC, wacom->id[idx]); /* report tool id */
 	input_report_key(input, wacom->tool[idx], 1);
 	input_event(input, EV_MSC, MSC_SERIAL, wacom->serial[idx]);
+	wacom->reporting_data = true;
 	return 1;
 }
 
