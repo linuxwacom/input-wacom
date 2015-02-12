@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 /* maximum packet length for USB devices */
-#define WACOM_PKGLEN_MAX	68
+#define WACOM_PKGLEN_MAX	192
 
 /* packet length for individual models */
 #define WACOM_PKGLEN_PENPRTN	 7
@@ -50,6 +50,8 @@
 #define WACOM_REPORT_TPC2FG		13
 #define WACOM_REPORT_TPCMT2		3
 #define WACOM_REPORT_DTUS		17
+#define WACOM_REPORT_CINTIQ		16
+#define WACOM_REPORT_CINTIQPAD		17
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
@@ -82,6 +84,7 @@ enum {
 	INTUOSHT,
 	WACOM_21UX2,
 	WACOM_22HD,
+	WACOM_27QHD,
 	DTK,
 	WACOM_24HD,
 	CINTIQ,
