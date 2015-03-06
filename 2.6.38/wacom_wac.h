@@ -33,6 +33,7 @@
 #define WACOM_PKGLEN_DTUS	68
 #define WACOM_PKGLEN_PENABLED	 8
 #define WACOM_PKGLEN_27QHDT	64
+#define WACOM_PKGLEN_STATUS	10
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
