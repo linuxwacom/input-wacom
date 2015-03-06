@@ -38,6 +38,24 @@
  */
 #define WACOM_CONTACT_AREA_SCALE 2607
 
+static void wacom_notify_battery(struct wacom_wac *wacom_wac,
+	int bat_capacity, bool bat_charging, bool ps_connected)
+{
+	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	bool changed = wacom_wac->battery_capacity != bat_capacity  ||
+		       wacom_wac->bat_charging     != bat_charging  ||
+		       wacom_wac->ps_connected     != ps_connected;
+
+	if (changed) {
+		wacom_wac->battery_capacity = bat_capacity;
+		wacom_wac->bat_charging = bat_charging;
+		wacom_wac->ps_connected = ps_connected;
+
+		if (wacom->battery.dev)
+			power_supply_changed(&wacom->battery);
+	}
+}
+
 static int wacom_penpartner_irq(struct wacom_wac *wacom)
 {
 	unsigned char *data = wacom->data;
@@ -1411,7 +1429,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 
 	connected = data[1] & 0x01;
 	if (connected) {
-		int pid, battery, ps_connected;
+		int pid, battery, ps_connected, charging;
 
 		if ((wacom->shared->type == INTUOSHT) &&
 		    wacom->shared->touch_input &&
@@ -1424,27 +1442,21 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 		pid = get_unaligned_be16(&data[6]);
 		battery = (data[5] & 0x3f) * 100 / 31;
 		ps_connected = !!(data[5] & 0x80);
+		charging = ps_connected && wacom->battery_capacity < 100;
 		if (wacom->pid != pid) {
 			wacom->pid = pid;
 			wacom_schedule_work(wacom);
 		}
 
-		if (wacom->shared->type &&
-		    (battery != wacom->battery_capacity ||
-		     ps_connected != wacom->ps_connected)) {
-			wacom->battery_capacity = battery;
-			wacom->ps_connected = ps_connected;
-			wacom->bat_charging = ps_connected &&
-						wacom->battery_capacity < 100;
-			wacom_notify_battery(wacom);
-		}
+		if (wacom->shared->type)
+			wacom_notify_battery(wacom, battery, charging,
+					     ps_connected);
+
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
 		wacom->pid = 0;
 		wacom_schedule_work(wacom);
-		wacom->battery_capacity = 0;
-		wacom->bat_charging = 0;
-		wacom->ps_connected = 0;
+		wacom_notify_battery(wacom, 0, 0, 0);
 	}
 
 	return 0;
