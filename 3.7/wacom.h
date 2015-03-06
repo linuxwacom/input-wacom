@@ -137,4 +137,5 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len);
 void wacom_setup_device_quirks(struct wacom_features *features);
 int wacom_setup_input_capabilities(struct input_dev *input_dev,
 				   struct wacom_wac *wacom_wac);
+void wacom_battery_work(struct work_struct *work);
 #endif
