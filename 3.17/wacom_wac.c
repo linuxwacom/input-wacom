@@ -3241,6 +3241,14 @@ static const struct wacom_features wacom_features_0x318 =
 static const struct wacom_features wacom_features_0x319 =
 	{ "Wacom Wireless Bamboo PAD", 4095, 4095, /* Touch */
 	  .type = BAMBOO_PAD, 35, 48, .touch_max = 4 };
+static const struct wacom_features wacom_features_0x325 =
+	{ "Wacom ISDv5 325", 59552, 33848, 2047, 63,
+	  CINTIQ_HYBRID, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x326 };
+static const struct wacom_features wacom_features_0x326 = /* Touch */
+	{ "Wacom ISDv5 326", .type = HID_GENERIC, .oVid = USB_VENDOR_ID_WACOM,
+	  .oPid = 0x325 };
 static const struct wacom_features wacom_features_0x323 =
 	{ "Wacom Intuos P M", 21600, 13500, 1023, 31,
 	  INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
@@ -3396,6 +3404,8 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x318) },
 	{ USB_DEVICE_WACOM(0x319) },
 	{ USB_DEVICE_WACOM(0x323) },
+	{ USB_DEVICE_WACOM(0x325) },
+	{ USB_DEVICE_WACOM(0x326) },
 	{ USB_DEVICE_WACOM(0x32A) },
 	{ USB_DEVICE_WACOM(0x32B) },
 	{ USB_DEVICE_WACOM(0x32C) },
