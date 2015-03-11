@@ -171,6 +171,7 @@ struct wacom_wac {
 	int battery_capacity;
 	int num_contacts_left;
 	int bat_charging;
+	int bat_connected;
 	int ps_connected;
 };
 

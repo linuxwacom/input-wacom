@@ -39,16 +39,19 @@
 #define WACOM_CONTACT_AREA_SCALE 2607
 
 static void wacom_notify_battery(struct wacom_wac *wacom_wac,
-	int bat_capacity, bool bat_charging, bool ps_connected)
+	int bat_capacity, bool bat_charging, bool bat_connected,
+	bool ps_connected)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 	bool changed = wacom_wac->battery_capacity != bat_capacity  ||
 		       wacom_wac->bat_charging     != bat_charging  ||
+		       wacom_wac->bat_connected    != bat_connected ||
 		       wacom_wac->ps_connected     != ps_connected;
 
 	if (changed) {
 		wacom_wac->battery_capacity = bat_capacity;
 		wacom_wac->bat_charging = bat_charging;
+		wacom_wac->bat_connected = bat_connected;
 		wacom_wac->ps_connected = ps_connected;
 
 		if (wacom->battery.dev)
@@ -1448,13 +1451,13 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 		}
 
 		if (wacom->shared->type)
-			wacom_notify_battery(wacom, battery, charging, 0);
+			wacom_notify_battery(wacom, battery, charging, 1, 0);
 
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
 		wacom->pid = 0;
 		wacom_schedule_work(wacom);
-		wacom_notify_battery(wacom, 0, 0, 0);
+		wacom_notify_battery(wacom, 0, 0, 0, 0);
 	}
 
 	return 0;
@@ -1482,7 +1485,7 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 		bool charging = !!(data[8] & 0x80);
 
 		wacom_notify_battery(wacom_wac, battery, charging,
-				     1);
+				     battery || charging, 1);
 
 		if (!wacom->battery.dev &&
 		    !(features->quirks & WACOM_QUIRK_BATTERY)) {
@@ -1496,7 +1499,7 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 		features->quirks &= ~WACOM_QUIRK_BATTERY;
 		INIT_WORK(&wacom->work, wacom_battery_work);
 		wacom_schedule_work(wacom_wac);
-		wacom_notify_battery(wacom_wac, 0, 0, 0);
+		wacom_notify_battery(wacom_wac, 0, 0, 0, 0);
 	}
 	return 0;
 }
