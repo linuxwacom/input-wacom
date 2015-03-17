@@ -9,7 +9,7 @@ announce_list="linuxwacom-announce@lists.sourceforge.net"
 module=input-wacom
 user=${USER}@
 host=shell.sourceforge.net
-srv_path=/home/frs/project/l/li/linuxwacom/xf86-input-wacom/$module
+srv_path=/home/frs/project/linuxwacom/$module
 webpath=sourceforge.net/projects/linuxwacom/files/xf86-input-wacom/$module
 remote=origin
 
