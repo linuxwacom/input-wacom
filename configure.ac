@@ -1,11 +1,11 @@
 AC_PREREQ(2.60)
 AC_INIT([input-wacom],
-	[0.26.0])
+	[0.27.0])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
 
-AM_INIT_AUTOMAKE([dist-bzip2])
+AM_INIT_AUTOMAKE([dist-bzip2 no-dist-gzip])
 AM_MAINTAINER_MODE
 
 AC_PROG_CC
