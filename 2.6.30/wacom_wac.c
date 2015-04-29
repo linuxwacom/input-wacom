@@ -2071,6 +2071,8 @@ static const struct wacom_features wacom_features_0x5000 =
 	{ "Wacom ISDv4 5000",       WACOM_PKGLEN_MTTPC,   27848, 15752,  255,  0, MTTPC_B };
 static const struct wacom_features wacom_features_0x5002 =
 	{ "Wacom ISDv4 5002",       WACOM_PKGLEN_MTTPC,   29576, 16724,  1023,  0, MTTPC_B };
+static const struct wacom_features wacom_features_0x5010 =
+	{ "Wacom ISDv4 5010",       WACOM_PKGLEN_MTTPC,   13756, 7736,  1023,  0, MTTPC_B };
 static const struct wacom_features wacom_features_0x47 =
 	{ "Wacom Intuos2 6x8",    WACOM_PKGLEN_INTUOS,    20320, 16240, 1023, 31, INTUOS };
 static const struct wacom_features wacom_features_0x6004 =
@@ -2198,6 +2200,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
 	{ USB_DEVICE_WACOM(0x5002) },
+	{ USB_DEVICE_WACOM(0x5010) },
 	{ USB_DEVICE_WACOM(0x300) },
 	{ USB_DEVICE_WACOM(0x301) },
 	{ USB_DEVICE_DETAILED(0x302, USB_CLASS_HID, 0, 0) },
