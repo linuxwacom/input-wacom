@@ -66,6 +66,12 @@ else
 fi
 
 dnl Check for kernel build environment
+AC_DEFUN([WCM_ISBUILDDIR], [\
+    \( -f "$1/.config" -o \
+       -f "$1/include/config/auto.conf" -o \
+       -f "$1/include/generated/autoconf.h" \) \
+])
+
 AC_ARG_WITH(kernel,
 	AS_HELP_STRING([--with-kernel=dir], [Specify kernel source directory]),
 	[WCM_KERNEL_DIR="$withval"])
@@ -83,16 +89,7 @@ if test "$WCM_KERNEL_DIR" = "yes" -o -z "$WCM_KERNEL_DIR"; then
 	dnl Kernel source not specified, guess where it is
 	m4_foreach([ROOTDIR], SEARCH_DIRECTORIES, [
 		if test -z "$WCM_KERNEL_DIR"; then
-			if test -f "ROOTDIR/.config"; then
-				WCM_KERNEL_DIR="ROOTDIR"
-				AC_MSG_RESULT($WCM_KERNEL_DIR)
-			fi
-		fi
-	])
-
-	m4_foreach([ROOTDIR], SEARCH_DIRECTORIES, [
-		if test -z "$WCM_KERNEL_DIR"; then
-			if test -f "ROOTDIR/include/linux/input.h"; then
+			if test WCM_ISBUILDDIR(ROOTDIR); then
 				WCM_KERNEL_DIR="ROOTDIR"
 				AC_MSG_RESULT($WCM_KERNEL_DIR)
 			fi
@@ -101,12 +98,12 @@ if test "$WCM_KERNEL_DIR" = "yes" -o -z "$WCM_KERNEL_DIR"; then
 
 	if test -z "$WCM_KERNEL_DIR"; then
 		AC_MSG_RESULT([not found])
-		AC_MSG_NOTICE([Unable to find headers in any of: SEARCH_DIRECTORIES])
+		AC_MSG_NOTICE([Unable to find build config in any of: SEARCH_DIRECTORIES])
 	fi
 elif test "$WCM_KERNEL_DIR" != "no"; then
 	AC_MSG_RESULT([$WCM_KERNEL_DIR])
-	if test \! -f "$WCM_KERNEL_DIR/include/linux/input.h"; then
-		AC_MSG_NOTICE([Kernel directory does not appear to contain headers])
+	if test \! WCM_ISBUILDDIR($WCM_KERNEL_DIR); then
+		AC_MSG_NOTICE([Kernel directory does not appear to have needed config files])
 	fi
 fi
 
