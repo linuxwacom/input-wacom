@@ -39,7 +39,7 @@ AC_MSG_CHECKING(kernel version)
 AC_MSG_RESULT([$MODUTS])
 MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.[[0-9]]*\.\([[0-9]]*\).*/\1/'`
 if echo $MODUTS | grep "^2.4" >/dev/null; then
-	AC_MSG_WARN([kernel 2.4.x is not supported])
+	AC_MSG_ERROR([kernel 2.4.x is not supported])
 elif echo $MODUTS | grep "^2.6" >/dev/null; then
 	if test $MINOR -ge 26; then
 		case $MINOR in
@@ -48,7 +48,7 @@ elif echo $MODUTS | grep "^2.6" >/dev/null; then
 			*) WCM_KERNEL_VER="2.6.38";;
 		esac
 	else
-		AC_MSG_WARN([kernels older than 2.6.26 is supported by linuxwacom])
+		AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.26])
 	fi
 elif echo $MODUTS | grep "^3." >/dev/null; then
 	MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.\([[0-9]]*\).*/\1/'`
@@ -62,7 +62,7 @@ elif echo $MODUTS | grep "^3." >/dev/null; then
 elif echo $MODUTS | grep "^4." >/dev/null; then
 	WCM_KERNEL_VER="3.17"
 else
-	AC_MSG_WARN(kernel version $MODUTS not supported)
+	AC_MSG_ERROR(kernel version $MODUTS not supported)
 fi
 
 dnl Check for kernel build environment
