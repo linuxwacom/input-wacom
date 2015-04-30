@@ -938,7 +938,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	features->num_contacts_left -= contacts_to_send;
 	if (features->num_contacts_left < 0)
 		features->num_contacts_left = 0;
-	wacom->shared->touch_down = (wacom->num_contacts_left > 0);
+	wacom->shared->touch_down = (features->num_contacts_left > 0);
 	return 1;
 }
 
