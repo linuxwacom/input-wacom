@@ -117,6 +117,8 @@ else
 		else
 			WCM_KERNEL_VER="2.6.38"
 		fi
+	elif echo $MODUTS | grep "^4." >/dev/null; then
+		WCM_KERNEL_VER="3.17"
 	else
 		AC_MSG_WARN(kernel version $MODUTS not supported)
 	fi
