@@ -1214,6 +1214,7 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 	int current_num_contacts = data[2];
 	int i = 0;
 	int x_offset = 0;
+	int number_touch = 0;
 
 	wacom->tool[1] = BTN_TOOL_DOUBLETAP;
 	wacom->id[0] = TOUCH_DEVICE_ID;
@@ -1239,6 +1240,7 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 			wacom->contacts_to_send = 0;
 			for (i = 0; i < 10; i++)
 				wacom->slots[i] = -1;
+			wacom->shared->touch_down = 0;
 		} else if (current_num_contacts <= 2) {
 
 			wacom->contacts_to_send = current_num_contacts;
@@ -1273,9 +1275,11 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 				input_event(input, EV_MSC, MSC_SERIAL, slot + 1);
 				input_sync(input);
 				wacom->last_finger = id;
+				number_touch += touch;
 			}
 		}
 	}
+	wacom->shared->touch_down = number_touch > 0;
 
 	/* There are at most 5 contacts per packet */
 	wacom->num_contacts_left -= min(5, wacom->num_contacts_left);
@@ -1302,6 +1306,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 				wacom_tpc_touch_out(wacom, 1);
 
 			wacom->id[1] = 0;
+			wacom->shared->touch_down = false;
 			return 0;
 		}
 
@@ -1343,6 +1348,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 		}
 		/* keep prox bit to send proper out-prox event */
 		wacom->id[1] = prox;
+		wacom->shared->touch_down = prox;
 	} else if (data[0] == WACOM_REPORT_PENABLED || len == WACOM_PKGLEN_PENABLED) { /* Penabled */
 		prox = data[1] & 0x20;
 
@@ -1354,15 +1360,19 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 			else
 				wacom->id[0] = ERASER_DEVICE_ID;
 
-			wacom->shared->stylus_in_proximity = true;
 		}
+
+		wacom->shared->stylus_in_proximity = prox;
+
+		if (wacom->shared->touch_down)
+			return 0;
+
 		input_report_key(input, BTN_STYLUS, data[1] & 0x02);
 		input_report_key(input, BTN_STYLUS2, data[1] & 0x10);
 		input_report_abs(input, ABS_PRESSURE, ((data[7] & 0x07) << 8) | data[6]);
 		input_report_key(input, BTN_TOUCH, data[1] & 0x05);
 		if (!prox) { /* out-prox */
 			wacom->id[0] = 0;
-			wacom->shared->stylus_in_proximity = false;
 			input_report_abs(input, ABS_X, 0);
 			input_report_abs(input, ABS_Y, 0);
 		} else {

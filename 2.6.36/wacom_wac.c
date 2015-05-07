@@ -883,7 +883,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 
 	/* reset the counter by the first packet */
 	if (current_num_contacts) {
-		features->num_contacts = current_num_contacts;
+		features->num_contacts = 0;
 		features->num_contacts_left = current_num_contacts;
 	}
 
@@ -917,6 +917,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
+			features->num_contacts++;
 		} else
 			id = -1;
 		input_report_abs(input, ABS_MT_TRACKING_ID, id);
@@ -936,9 +937,10 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	input_report_abs(input, ABS_Y, sy);
 
 	features->num_contacts_left -= contacts_to_send;
-	if (features->num_contacts_left < 0)
+	if (features->num_contacts_left <= 0) {
 		features->num_contacts_left = 0;
-	wacom->shared->touch_down = (features->num_contacts_left > 0);
+		wacom->shared->touch_down = (features->num_contacts > 0);
+	}
 	return 1;
 }
 
@@ -975,7 +977,7 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
 
 	if (!wacom->shared->stylus_in_proximity) {
-		input_report_key(input, BTN_TOUCH, contact_with_no_pen_down_count == 1);
+		input_report_key(input, BTN_TOUCH, contact_with_no_pen_down_count > 1);
 
 		input_report_abs(input, ABS_X, sx);
 		input_report_abs(input, ABS_Y, sy);
@@ -988,30 +990,26 @@ static int wacom_tpc_single_touch(struct wacom_wac *wacom, size_t len)
 {
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
-	bool prox;
+	bool prox = !wacom->shared->stylus_in_proximity;
 	int x = 0, y = 0;
 
 	if ((wacom->features.touch_max > 1) ||
 				(len > WACOM_PKGLEN_TPC2FG))
 		return 0;
 
-	if (!wacom->shared->stylus_in_proximity) {
-		if (len == WACOM_PKGLEN_TPC1FG) {
-			prox = data[0] & 0x01;
-			x = get_unaligned_le16(&data[1]);
-			y = get_unaligned_le16(&data[3]);
-		} else if (len == WACOM_PKGLEN_TPC1FG_B) {
-			prox = data[2] & 0x01;
-			x = get_unaligned_le16(&data[3]);
-			y = get_unaligned_le16(&data[5]);
-		} else { /* with capacity */
-			prox = data[1] & 0x01;
-			x = le16_to_cpup((__le16 *)&data[2]);
-			y = le16_to_cpup((__le16 *)&data[4]);
-		}
-	} else
-		/* force touch out when pen is in prox */
-		prox = 0;
+	if (len == WACOM_PKGLEN_TPC1FG) {
+		prox = prox && (data[0] & 0x01);
+		x = get_unaligned_le16(&data[1]);
+		y = get_unaligned_le16(&data[3]);
+	} else if (len == WACOM_PKGLEN_TPC1FG_B) {
+		prox = prox && (data[2] & 0x01);
+		x = get_unaligned_le16(&data[3]);
+		y = get_unaligned_le16(&data[5]);
+	} else {
+		prox = prox && (data[1] & 0x01);
+		x = le16_to_cpup((__le16 *)&data[2]);
+		y = le16_to_cpup((__le16 *)&data[4]);
+	}
 
 	if (prox) {
 		input_report_abs(input, ABS_X, x);
@@ -1129,24 +1127,34 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 	input_report_key(input, BTN_FORWARD, (data[1] & 0x04) != 0);
 	input_report_key(input, BTN_BACK, (data[1] & 0x02) != 0);
 	input_report_key(input, BTN_RIGHT, (data[1] & 0x01) != 0);
+	wacom->shared->touch_down = (count > 0);
 
-	input_sync(input);
-
-	return 0;
+	return 1;
 }
 
 static int wacom_bpt_pen(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
-	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
+	bool prox = (data[1] & 0x20) == 0x20;
+	int x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
 
-	/*
-	 * Similar to Graphire protocol, data[1] & 0x20 is proximity and
-	 * data[1] & 0x18 is tool ID.  0x30 is safety check to ignore
-	 * 2 unused tool ID's.
-	 */
-	prox = (data[1] & 0x30) == 0x30;
+	if (data[0] != WACOM_REPORT_PENABLED)
+	    return 0;
+
+	if (!wacom->shared->stylus_in_proximity) {
+		if (data[1] & 0x08) {
+			wacom->tool[0] = BTN_TOOL_RUBBER;
+			wacom->id[0] = ERASER_DEVICE_ID;
+		} else {
+			wacom->tool[0] = BTN_TOOL_PEN;
+			wacom->id[0] = STYLUS_DEVICE_ID;
+		}
+	}
+	wacom->shared->stylus_in_proximity = prox;
+
+	if (wacom->shared->touch_down)
+		return 0;
 
 	/*
 	 * All reports shared between PEN and RUBBER tool must be
@@ -1159,16 +1167,6 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	 * Hardware does report zero in most out-of-prox cases but not all.
 	 */
 	if (prox) {
-		if (!wacom->shared->stylus_in_proximity) {
-			if (data[1] & 0x08) {
-				wacom->tool[0] = BTN_TOOL_RUBBER;
-				wacom->id[0] = ERASER_DEVICE_ID;
-			} else {
-				wacom->tool[0] = BTN_TOOL_PEN;
-				wacom->id[0] = STYLUS_DEVICE_ID;
-			}
-			wacom->shared->stylus_in_proximity = true;
-		}
 		x = le16_to_cpup((__le16 *)&data[2]);
 		y = le16_to_cpup((__le16 *)&data[4]);
 		p = le16_to_cpup((__le16 *)&data[6]);
@@ -1176,6 +1174,8 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 		pen = data[1] & 0x01;
 		btn1 = data[1] & 0x02;
 		btn2 = data[1] & 0x04;
+	} else {
+		wacom->id[0] = 0;
 	}
 
 	input_report_key(input, BTN_TOUCH, pen);
@@ -1186,11 +1186,6 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	input_report_abs(input, ABS_Y, y);
 	input_report_abs(input, ABS_PRESSURE, p);
 	input_report_abs(input, ABS_DISTANCE, d);
-
-	if (!prox) {
-		wacom->id[0] = 0;
-		wacom->shared->stylus_in_proximity = false;
-	}
 
 	input_report_key(input, wacom->tool[0], prox); /* PEN or RUBBER */
 
