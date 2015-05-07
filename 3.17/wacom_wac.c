@@ -585,12 +585,9 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	   (features->type == CINTIQ && !(data[1] & 0x40)))
 		return 1;
 
-	if (wacom->shared) {
-		wacom->shared->stylus_in_proximity = true;
-
-		if (wacom->shared->touch_down)
-			return 1;
-	}
+	wacom->shared->stylus_in_proximity = true;
+	if (wacom->shared->touch_down)
+		return 1;
 
 	/* in Range while exiting */
 	if (((data[1] & 0xfe) == 0x20) && wacom->reporting_data) {
@@ -602,8 +599,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Exit report */
 	if ((data[1] & 0xfe) == 0x80) {
-		if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
-			wacom->shared->stylus_in_proximity = false;
+		wacom->shared->stylus_in_proximity = false;
 		wacom->reporting_data = false;
 
 		/* don't report exit if we don't know the ID */
@@ -1073,6 +1069,28 @@ static int wacom_intuos_bt_irq(struct wacom_wac *wacom, size_t len)
 	return 0;
 }
 
+static int wacom_wac_finger_count_touches(struct wacom_wac *wacom)
+{
+	struct input_dev *input = wacom->input;
+	unsigned touch_max = wacom->features.touch_max;
+	int count = 0;
+	int i;
+
+	/* non-HID_GENERIC single touch input doesn't call this routine */
+	if ((touch_max == 1) && (wacom->features.type == HID_GENERIC))
+		return wacom->hid_data.tipswitch &&
+		       !wacom->shared->stylus_in_proximity;
+
+	for (i = 0; i < input->mt->num_slots; i++) {
+		struct input_mt_slot *ps = &input->mt->slots[i];
+		int id = input_mt_get_value(ps, ABS_MT_TRACKING_ID);
+		if (id >= 0)
+			count++;
+	}
+
+	return count;
+}
+
 static int wacom_24hdt_irq(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
@@ -1083,7 +1101,6 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 	int num_contacts_left = 4; /* maximum contacts per packet */
 	int byte_per_packet = WACOM_BYTES_PER_24HDT_PACKET;
 	int y_offset = 2;
-	static int contact_with_no_pen_down_count = 0;
 
 	if (wacom->features.type == WACOM_27QHDT) {
 		current_num_contacts = data[63];
@@ -1096,10 +1113,8 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 	 * First packet resets the counter since only the first
 	 * packet in series will have non-zero current_num_contacts.
 	 */
-	if (current_num_contacts) {
+	if (current_num_contacts)
 		wacom->num_contacts_left = current_num_contacts;
-		contact_with_no_pen_down_count = 0;
-	}
 
 	contacts_to_send = min(num_contacts_left, wacom->num_contacts_left);
 
@@ -1132,7 +1147,6 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 				input_report_abs(input, ABS_MT_WIDTH_MINOR, min(w, h));
 				input_report_abs(input, ABS_MT_ORIENTATION, w > h);
 			}
-			contact_with_no_pen_down_count++;
 		}
 	}
 	input_mt_report_pointer_emulation(input, true);
@@ -1140,7 +1154,7 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 	wacom->num_contacts_left -= contacts_to_send;
 	if (wacom->num_contacts_left <= 0) {
 		wacom->num_contacts_left = 0;
-		wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+		wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 	}
 	return 1;
 }
@@ -1153,7 +1167,6 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	int current_num_contacts = data[2];
 	int contacts_to_send = 0;
 	int x_offset = 0;
-	static int contact_with_no_pen_down_count = 0;
 
 	/* MTTPC does not support Height and Width */
 	if (wacom->features.type == MTTPC || wacom->features.type == MTTPC_B)
@@ -1163,10 +1176,8 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	 * First packet resets the counter since only the first
 	 * packet in series will have non-zero current_num_contacts.
 	 */
-	if (current_num_contacts) {
+	if (current_num_contacts)
 		wacom->num_contacts_left = current_num_contacts;
-		contact_with_no_pen_down_count = 0;
-	}
 
 	/* There are at most 5 contacts per packet */
 	contacts_to_send = min(5, wacom->num_contacts_left);
@@ -1187,7 +1198,6 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 			int y = get_unaligned_le16(&data[offset + x_offset + 9]);
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
-			contact_with_no_pen_down_count++;
 		}
 	}
 	input_mt_report_pointer_emulation(input, true);
@@ -1195,7 +1205,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	wacom->num_contacts_left -= contacts_to_send;
 	if (wacom->num_contacts_left <= 0) {
 		wacom->num_contacts_left = 0;
-		wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+		wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 	}
 	return 1;
 }
@@ -1204,7 +1214,6 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
-	int contact_with_no_pen_down_count = 0;
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -1219,13 +1228,12 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
-			contact_with_no_pen_down_count++;
 		}
 	}
 	input_mt_report_pointer_emulation(input, true);
 
 	/* keep touch state for pen event */
-	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+	wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 
 	return 1;
 }
@@ -1553,29 +1561,6 @@ static int wacom_wac_finger_event(struct hid_device *hdev,
 	return 0;
 }
 
-static int wacom_wac_finger_count_touches(struct hid_device *hdev)
-{
-	struct wacom *wacom = hid_get_drvdata(hdev);
-	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
-	struct input_dev *input = wacom_wac->input;
-	unsigned touch_max = wacom_wac->features.touch_max;
-	int count = 0;
-	int i;
-
-	if (touch_max == 1)
-		return wacom_wac->hid_data.tipswitch &&
-		       !wacom_wac->shared->stylus_in_proximity;
-
-	for (i = 0; i < input->mt->num_slots; i++) {
-		struct input_mt_slot *ps = &input->mt->slots[i];
-		int id = input_mt_get_value(ps, ABS_MT_TRACKING_ID);
-		if (id >= 0)
-			count++;
-	}
-
-	return count;
-}
-
 static void wacom_wac_finger_report(struct hid_device *hdev,
 		struct hid_report *report)
 {
@@ -1590,7 +1575,7 @@ static void wacom_wac_finger_report(struct hid_device *hdev,
 	input_sync(input);
 
 	/* keep touch state for pen event */
-	wacom_wac->shared->touch_down = wacom_wac_finger_count_touches(hdev);
+	wacom_wac->shared->touch_down = wacom_wac_finger_count_touches(wacom_wac);
 }
 
 void wacom_wac_usage_mapping(struct hid_device *hdev,
@@ -1650,7 +1635,6 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 	struct input_dev *pad_input = wacom->pad_input;
 	unsigned char *data = wacom->data;
 	int i;
-	int contact_with_no_pen_down_count = 0;
 
 	if (data[0] != 0x02)
 	    return 0;
@@ -1678,7 +1662,6 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 			}
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
-			contact_with_no_pen_down_count++;
 		}
 	}
 
@@ -1688,12 +1671,12 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 	input_report_key(pad_input, BTN_FORWARD, (data[1] & 0x04) != 0);
 	input_report_key(pad_input, BTN_BACK, (data[1] & 0x02) != 0);
 	input_report_key(pad_input, BTN_RIGHT, (data[1] & 0x01) != 0);
-	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+	wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 
 	return 1;
 }
 
-static int wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data, int last_touch_count)
+static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
 {
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
@@ -1701,7 +1684,7 @@ static int wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data, in
 	int slot = input_mt_get_slot_by_key(input, data[0]);
 
 	if (slot < 0)
-		return 0;
+		return;
 
 	touch = touch && !wacom->shared->stylus_in_proximity;
 
@@ -1733,9 +1716,7 @@ static int wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data, in
 		input_report_abs(input, ABS_MT_POSITION_Y, y);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, width);
 		input_report_abs(input, ABS_MT_TOUCH_MINOR, height);
-		last_touch_count++;
 	}
-	return last_touch_count;
 }
 
 static void wacom_bpt3_button_msg(struct wacom_wac *wacom, unsigned char *data)
@@ -1760,7 +1741,6 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 	unsigned char *data = wacom->data;
 	int count = data[1] & 0x07;
 	int i;
-	int contact_with_no_pen_down_count = 0;
 
 	if (data[0] != 0x02)
 	    return 0;
@@ -1771,15 +1751,13 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 		int msg_id = data[offset];
 
 		if (msg_id >= 2 && msg_id <= 17)
-			contact_with_no_pen_down_count = 
-			    wacom_bpt3_touch_msg(wacom, data + offset,
-						 contact_with_no_pen_down_count);
+			wacom_bpt3_touch_msg(wacom, data + offset);
 		else if (msg_id == 128)
 			wacom_bpt3_button_msg(wacom, data + offset);
 
 	}
 	input_mt_report_pointer_emulation(input, true);
-	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+	wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 
 	return 1;
 }
@@ -1794,9 +1772,6 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	if (data[0] != WACOM_REPORT_PENABLED)
 	    return 0;
 
-	if (wacom->shared->touch_down)
-		return 0;
-
 	prox = (data[1] & 0x20) == 0x20;
 
 	/*
@@ -1809,17 +1784,21 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	 *
 	 * Hardware does report zero in most out-of-prox cases but not all.
 	 */
-	if (prox) {
-		if (!wacom->shared->stylus_in_proximity) {
-			if (data[1] & 0x08) {
-				wacom->tool[0] = BTN_TOOL_RUBBER;
-				wacom->id[0] = ERASER_DEVICE_ID;
-			} else {
-				wacom->tool[0] = BTN_TOOL_PEN;
-				wacom->id[0] = STYLUS_DEVICE_ID;
-			}
-			wacom->shared->stylus_in_proximity = true;
+	if (!wacom->shared->stylus_in_proximity) {
+		if (data[1] & 0x08) {
+			wacom->tool[0] = BTN_TOOL_RUBBER;
+			wacom->id[0] = ERASER_DEVICE_ID;
+		} else {
+			wacom->tool[0] = BTN_TOOL_PEN;
+			wacom->id[0] = STYLUS_DEVICE_ID;
 		}
+	}
+
+	wacom->shared->stylus_in_proximity = prox;
+	if (wacom->shared->touch_down)
+		return 0;
+
+	if (prox) {
 		x = le16_to_cpup((__le16 *)&data[2]);
 		y = le16_to_cpup((__le16 *)&data[4]);
 		p = le16_to_cpup((__le16 *)&data[6]);
@@ -1835,6 +1814,8 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 		pen = data[1] & 0x01;
 		btn1 = data[1] & 0x02;
 		btn2 = data[1] & 0x04;
+	} else {
+		wacom->id[0] = 0;
 	}
 
 	input_report_key(input, BTN_TOUCH, pen);
@@ -1845,11 +1826,6 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	input_report_abs(input, ABS_Y, y);
 	input_report_abs(input, ABS_PRESSURE, p);
 	input_report_abs(input, ABS_DISTANCE, d);
-
-	if (!prox) {
-		wacom->id[0] = 0;
-		wacom->shared->stylus_in_proximity = false;
-	}
 
 	input_report_key(input, wacom->tool[0], prox); /* PEN or RUBBER */
 	input_report_abs(input, ABS_MISC, wacom->id[0]); /* TOOL ID */
@@ -2200,12 +2176,6 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 		features->x_max = 1023;
 		features->y_max = 1023;
 	}
-
-	/* these device have multiple inputs */
-	if (features->type >= WIRELESS ||
-	    (features->type >= INTUOS5S && features->type <= INTUOSHT) ||
-	    (features->oVid && features->oPid))
-		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
 
 	/* quirk for bamboo touch with 2 low res touches */
 	if (features->type == BAMBOO_PT &&
@@ -2926,6 +2896,15 @@ static const struct wacom_features wacom_features_0x304 =
 	{ "Wacom Cintiq 13HD", 59152, 33448, 1023, 63,
 	  WACOM_13HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x333 =
+	{ "Wacom Cintiq 13HD touch", 59152, 33448, 2047, 63,
+	  WACOM_13HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x335 };
+static const struct wacom_features wacom_features_0x335 =
+	{ "Wacom Cintiq 13HD touch", .type = WACOM_24HDT, /* Touch */
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x333, .touch_max = 10,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0xC7 =
 	{ "Wacom DTU1931", 37832, 30305, 511, 0,
 	  PL, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -3295,6 +3274,8 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x32B) },
 	{ USB_DEVICE_WACOM(0x32C) },
 	{ USB_DEVICE_WACOM(0x32F) },
+	{ USB_DEVICE_WACOM(0x333) },
+	{ USB_DEVICE_WACOM(0x335) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
