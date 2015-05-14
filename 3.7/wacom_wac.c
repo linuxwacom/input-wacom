@@ -951,6 +951,27 @@ static int int_dist(int x1, int y1, int x2, int y2)
 	return int_sqrt(x*x + y*y);
 }
 
+static int wacom_wac_finger_count_touches(struct wacom_wac *wacom)
+{
+	struct input_dev *input = wacom->input;
+	unsigned touch_max = wacom->features.touch_max;
+	int count = 0;
+	int i;
+
+	if (touch_max == 1)
+		return test_bit(BTN_TOUCH, input->key) &&
+		       !wacom->shared->stylus_in_proximity;
+
+	for (i = 0; i < input->mt->num_slots; i++) {
+		struct input_mt_slot *ps = &input->mt->slots[i];
+		int id = input_mt_get_value(ps, ABS_MT_TRACKING_ID);
+		if (id >= 0)
+			count++;
+	}
+
+	return count;
+}
+
 static int wacom_24hdt_irq(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
@@ -961,7 +982,6 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 	int num_contacts_left = 4; /* maximum contacts per packet */
 	int byte_per_packet = WACOM_BYTES_PER_24HDT_PACKET;
 	int y_offset = 2;
-	static int contact_with_no_pen_down_count = 0;
 
 	if (wacom->features.type == WACOM_27QHDT) {
 		current_num_contacts = data[63];
@@ -974,10 +994,8 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 	 * First packet resets the counter since only the first
 	 * packet in series will have non-zero current_num_contacts.
 	 */
-	if (current_num_contacts) {
+	if (current_num_contacts)
 		wacom->num_contacts_left = current_num_contacts;
-		contact_with_no_pen_down_count = 0;
-	}
 
 	contacts_to_send = min(num_contacts_left, wacom->num_contacts_left);
 
@@ -1010,7 +1028,6 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 				input_report_abs(input, ABS_MT_WIDTH_MINOR, min(w, h));
 				input_report_abs(input, ABS_MT_ORIENTATION, w > h);
 			}
-			contact_with_no_pen_down_count++;
 		}
 	}
 	input_mt_report_pointer_emulation(input, true);
@@ -1018,7 +1035,7 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 	wacom->num_contacts_left -= contacts_to_send;
 	if (wacom->num_contacts_left <= 0) {
 		wacom->num_contacts_left = 0;
-		wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+		wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 	}
 	return 1;
 }
@@ -1031,7 +1048,6 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	int current_num_contacts = data[2];
 	int contacts_to_send = 0;
 	int x_offset = 0;
-	static int contact_with_no_pen_down_count = 0;
 
 	/* MTTPC does not support Height and Width */
 	if (wacom->features.type == MTTPC || wacom->features.type == MTTPC_B)
@@ -1041,10 +1057,8 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	 * First packet resets the counter since only the first
 	 * packet in series will have non-zero current_num_contacts.
 	 */
-	if (current_num_contacts) {
+	if (current_num_contacts)
 		wacom->num_contacts_left = current_num_contacts;
-		contact_with_no_pen_down_count = 0;
-	}
 
 	/* There are at most 5 contacts per packet */
 	contacts_to_send = min(5, wacom->num_contacts_left);
@@ -1065,7 +1079,6 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 			int y = get_unaligned_le16(&data[offset + x_offset + 9]);
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
-			contact_with_no_pen_down_count++;
 		}
 	}
 	input_mt_report_pointer_emulation(input, true);
@@ -1073,7 +1086,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	wacom->num_contacts_left -= contacts_to_send;
 	if (wacom->num_contacts_left < 0) {
 		wacom->num_contacts_left = 0;
-		wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+		wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 	}
 
 	return 1;
@@ -1083,7 +1096,6 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
-	int contact_with_no_pen_down_count = 0;
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -1098,13 +1110,12 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
-			contact_with_no_pen_down_count++;
 		}
 	}
 	input_mt_report_pointer_emulation(input, true);
 
 	/* keep touch state for pen event */
-	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+	wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 
 	return 1;
 }
@@ -1216,7 +1227,6 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
 	int i;
-	int contact_with_no_pen_down_count = 0;
 
 	if (data[0] != 0x02)
 	    return 0;
@@ -1244,7 +1254,6 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 			}
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
-			contact_with_no_pen_down_count++;
 		}
 	}
 
@@ -1254,12 +1263,12 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 	input_report_key(input, BTN_FORWARD, (data[1] & 0x04) != 0);
 	input_report_key(input, BTN_BACK, (data[1] & 0x02) != 0);
 	input_report_key(input, BTN_RIGHT, (data[1] & 0x01) != 0);
-	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+	wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 
 	return 1;
 }
 
-static int wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data, int last_touch_count)
+static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
 {
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
@@ -1267,7 +1276,7 @@ static int wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data, in
 	int slot = input_mt_get_slot_by_key(input, data[0]);
 
 	if (slot < 0)
-		return 0;
+		return;
 
 	touch = touch && !wacom->shared->stylus_in_proximity;
 
@@ -1299,9 +1308,7 @@ static int wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data, in
 		input_report_abs(input, ABS_MT_POSITION_Y, y);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, width);
 		input_report_abs(input, ABS_MT_TOUCH_MINOR, height);
-		last_touch_count++;
 	}
-	return last_touch_count;
 }
 
 static void wacom_bpt3_button_msg(struct wacom_wac *wacom, unsigned char *data)
@@ -1326,7 +1333,6 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 	unsigned char *data = wacom->data;
 	int count = data[1] & 0x07;
 	int i;
-	int contact_with_no_pen_down_count = 0;
 
 	if (data[0] != 0x02)
 	    return 0;
@@ -1337,15 +1343,13 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 		int msg_id = data[offset];
 
 		if (msg_id >= 2 && msg_id <= 17)
-			contact_with_no_pen_down_count =
-			    wacom_bpt3_touch_msg(wacom, data + offset,
-						 contact_with_no_pen_down_count);
+			    wacom_bpt3_touch_msg(wacom, data + offset);
 		else if (msg_id == 128)
 			wacom_bpt3_button_msg(wacom, data + offset);
 
 	}
 	input_mt_report_pointer_emulation(input, true);
-	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+	wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 
 	return 1;
 }
