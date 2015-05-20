@@ -958,6 +958,9 @@ static int wacom_wac_finger_count_touches(struct wacom_wac *wacom)
 	int count = 0;
 	int i;
 
+	if (!touch_max)
+		return 0;
+
 	if (touch_max == 1)
 		return test_bit(BTN_TOUCH, input->key) &&
 		       !wacom->shared->stylus_in_proximity;
