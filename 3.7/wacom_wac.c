@@ -1362,25 +1362,12 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
-	bool prox = (data[1] & 0x20) == 0x20;
-	int x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
+	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
 
 	if (data[0] != WACOM_REPORT_PENABLED)
 	    return 0;
 
-	if (!wacom->shared->stylus_in_proximity) {
-		if (data[1] & 0x08) {
-			wacom->tool[0] = BTN_TOOL_RUBBER;
-			wacom->id[0] = ERASER_DEVICE_ID;
-		} else {
-			wacom->tool[0] = BTN_TOOL_PEN;
-			wacom->id[0] = STYLUS_DEVICE_ID;
-		}
-	}
-	wacom->shared->stylus_in_proximity = prox;
-
-	if (wacom->shared->touch_down)
-		return 0;
+	prox = (data[1] & 0x20) == 0x20;
 
 	/*
 	 * All reports shared between PEN and RUBBER tool must be
@@ -1392,6 +1379,20 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	 *
 	 * Hardware does report zero in most out-of-prox cases but not all.
 	 */
+	if (!wacom->shared->stylus_in_proximity) {
+		if (data[1] & 0x08) {
+			wacom->tool[0] = BTN_TOOL_RUBBER;
+			wacom->id[0] = ERASER_DEVICE_ID;
+		} else {
+			wacom->tool[0] = BTN_TOOL_PEN;
+			wacom->id[0] = STYLUS_DEVICE_ID;
+		}
+	}
+
+	wacom->shared->stylus_in_proximity = prox;
+	if (wacom->shared->touch_down)
+		return 0;
+
 	if (prox) {
 		x = le16_to_cpup((__le16 *)&data[2]);
 		y = le16_to_cpup((__le16 *)&data[4]);
