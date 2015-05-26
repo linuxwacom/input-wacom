@@ -16,6 +16,7 @@ else  # We were called from command line
 PWD  := $(shell pwd)
 
 WCM_KERNEL_DIR := @WCM_KERNEL_DIR@
+MODUTS := @MODUTS@
 
 all:
 	@echo '    Building input-wacom drivers for 2.6 kernel.'
@@ -26,6 +27,7 @@ clean:
 
 install modules_install:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) modules_install
+	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 
 endif  # End kbuild check
 
