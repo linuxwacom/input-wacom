@@ -746,6 +746,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct wacom_features *features;
 	struct input_dev *input_dev;
 	int error;
+	struct usb_device *other_dev;
 
 	if (!id->driver_info)
 		return -EINVAL;
@@ -818,22 +819,17 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
 
-	if (features->quirks & WACOM_QUIRK_MULTI_INPUT) {
-		struct usb_device *other_dev;
+	/* Append the device type to the name */
+	strlcat(wacom_wac->name,
+		features->device_type == BTN_TOOL_PEN ? " Pen" : " Finger",
+		sizeof(wacom_wac->name));
 
-		/* Append the device type to the name */
-		strlcat(wacom_wac->name,
-			features->device_type == BTN_TOOL_PEN ?
-				" Pen" : " Finger",
-			sizeof(wacom_wac->name));
-
-		other_dev = wacom_get_sibling(dev, features->oVid, features->oPid);
-		if (other_dev == NULL || wacom_get_usbdev_data(other_dev) == NULL)
-			other_dev = dev;
-		error = wacom_add_shared_data(wacom_wac, dev);
-		if (error)
-			goto fail3;
-	}
+	other_dev = wacom_get_sibling(dev, features->oVid, features->oPid);
+	if (other_dev == NULL || wacom_get_usbdev_data(other_dev) == NULL)
+		other_dev = dev;
+	error = wacom_add_shared_data(wacom_wac, dev);
+	if (error)
+		goto fail3;
 
 	input_dev->name = wacom_wac->name;
 	input_dev->dev.parent = &intf->dev;

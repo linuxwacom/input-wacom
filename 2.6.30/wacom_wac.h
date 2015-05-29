@@ -54,10 +54,9 @@
 #define WACOM_REPORT_CINTIQPAD		17
 
 /* device quirks */
-#define WACOM_QUIRK_MULTI_INPUT		0x0001
-#define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
-#define WACOM_QUIRK_NO_INPUT		0x0004
-#define WACOM_QUIRK_MONITOR		0x0008
+#define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
+#define WACOM_QUIRK_NO_INPUT		0x0002
+#define WACOM_QUIRK_MONITOR		0x0004
 
 enum {
 	PENPARTNER = 0,
@@ -127,6 +126,7 @@ struct wacom_features {
 
 struct wacom_shared {
 	bool stylus_in_proximity;
+	bool touch_down;
 };
 
 struct wacom_wac {
