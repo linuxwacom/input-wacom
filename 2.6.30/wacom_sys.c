@@ -799,23 +799,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail2;
 
-        /* Intuos5 has no useful data about its touch interface in its
-         * HID descriptor. If this is the touch interface (wMaxPacketSize
-         * of WACOM_PKGLEN_BBTOUCH3), override the table values.
-         */
-	if (features->type >= INTUOS5S && features->type <= INTUOSHT) {
-		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
-                        features->device_type = BTN_TOOL_DOUBLETAP;
-                        features->pktlen = WACOM_PKGLEN_BBTOUCH3;
-
-                        features->x_max = 4096;
-                        features->y_max = 4096;
-		} else {
-			features->device_type = BTN_TOOL_PEN;
-		}
-	}
-
-	wacom_setup_device_quirks(features);
+	wacom_setup_device_quirks(wacom);
 
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
 

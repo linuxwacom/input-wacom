@@ -1681,13 +1681,35 @@ static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_THROTTLE, -1023, 1023, 0, 0);
 }
 
-void wacom_setup_device_quirks(struct wacom_features *features)
+void wacom_setup_device_quirks(struct wacom *wacom)
 {
+	struct wacom_features *features = &wacom->wacom_wac.features;
+	struct usb_endpoint_descriptor *endpoint =
+			&(wacom->intf)->cur_altsetting->endpoint[0].desc;
 
 	/* touch device found but size is not defined. use default */
 	if (features->device_type == BTN_TOOL_FINGER && !features->x_max) {
 		features->x_max = 1023;
 		features->y_max = 1023;
+	}
+
+	/*
+	 * Intuos5/Pro and Bamboo 3rd gen have no useful data about its
+	 * touch interface in its HID descriptor. If this is the touch
+	 * interface (wMaxPacketSize of WACOM_PKGLEN_BBTOUCH3), override
+	 * the tablet values.
+	 */
+	if ((features->type >= INTUOS5S && features->type <= INTUOSHT) ||
+		(features->type == BAMBOO_PT)) {
+		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
+			features->device_type = BTN_TOOL_FINGER;
+			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
+
+			features->x_max = 4096;
+			features->y_max = 4096;
+		} else {
+			features->device_type = BTN_TOOL_PEN;
+		}
 	}
 
 	/* quirk for bamboo touch with 2 low res touches */
