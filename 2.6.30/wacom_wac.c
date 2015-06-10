@@ -2054,6 +2054,8 @@ static const struct wacom_features wacom_features_0xFB =
 	{ "Wacom DTU1031",        WACOM_PKGLEN_DTUS,      21896, 13760,  511, 0, DTUS, WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x32F =
 	{ "Wacom DTU1031X",       WACOM_PKGLEN_DTUS,      22472, 12728, 511,  0, DTUSX, WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
+static const struct wacom_features wacom_features_0x336 =
+	{ "Wacom DTU1141",         WACOM_PKGLEN_DTUS,      23472, 13203, 1023, 0, DTUS };
 static const struct wacom_features wacom_features_0x57 =
 	{ "Wacom DTK2241",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047, 63, DTK, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x59 =
@@ -2241,6 +2243,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x315, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x317, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x333) },
+	{ USB_DEVICE_WACOM(0x336) },
 	{ USB_DEVICE_WACOM(0x47) },
 	{ USB_DEVICE_WACOM(0xF4) },
 	{ USB_DEVICE_WACOM(0xF8) },
