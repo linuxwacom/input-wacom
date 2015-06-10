@@ -18,10 +18,7 @@
 #define WACOM_NAME_MAX		64
 
 /* packet length for individual models */
-#define WACOM_PKGLEN_PENPRTN	 7
-#define WACOM_PKGLEN_GRAPHIRE	 8
 #define WACOM_PKGLEN_BBFUN	 9
-#define WACOM_PKGLEN_INTUOS	10
 #define WACOM_PKGLEN_TPC1FG	 5
 #define WACOM_PKGLEN_TPC1FG_B	10
 #define WACOM_PKGLEN_TPC2FG	14
@@ -29,9 +26,6 @@
 #define WACOM_PKGLEN_BBTOUCH3	64
 #define WACOM_PKGLEN_BBPEN	10
 #define WACOM_PKGLEN_WIRELESS	32
-#define WACOM_PKGLEN_MTOUCH	62
-#define WACOM_PKGLEN_MTTPC	40
-#define WACOM_PKGLEN_DTUS	68
 #define WACOM_PKGLEN_PENABLED	 8
 #define WACOM_PKGLEN_BPAD_TOUCH	32
 #define WACOM_PKGLEN_BPAD_TOUCH_USB	64
@@ -78,10 +72,14 @@
 #define WACOM_QUIRK_MONITOR		0x0004
 #define WACOM_QUIRK_BATTERY		0x0008
 
+#define WACOM_VENDORDEFINED_PEN		0xff0d0001
+
 #define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
 				 ((f)->physical == HID_DG_STYLUS) || \
 				 ((f)->physical == HID_DG_PEN) || \
-				 ((f)->application == HID_DG_PEN))
+				 ((f)->application == HID_DG_PEN) || \
+				 ((f)->application == HID_DG_DIGITIZER) || \
+				 ((f)->application == WACOM_VENDORDEFINED_PEN))
 #define WACOM_FINGER_FIELD(f)	(((f)->logical == HID_DG_FINGER) || \
 				 ((f)->physical == HID_DG_FINGER) || \
 				 ((f)->application == HID_DG_TOUCHSCREEN))
