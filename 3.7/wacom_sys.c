@@ -74,8 +74,11 @@ static int wacom_get_report(struct usb_interface *intf, u8 type, u8 id,
 				(type << 8) + id,
 				intf->altsetting[0].desc.bInterfaceNumber,
 				buf, size, 100);
-	} while ((retval == -ETIMEDOUT || retval == -EPIPE) && --retries);
+	} while ((retval == -ETIMEDOUT || retval == -EAGAIN) && --retries);
 
+	if (retval < 0)
+		dev_err(&intf->dev, "%s - ran out of retries (last error = %d)\n",
+			__func__, retval);
 	return retval;
 }
 
@@ -92,8 +95,11 @@ static int wacom_set_report(struct usb_interface *intf, u8 type, u8 id,
 				(type << 8) + id,
 				intf->altsetting[0].desc.bInterfaceNumber,
 				buf, size, 1000);
-	} while ((retval == -ETIMEDOUT || retval == -EPIPE) && --retries);
+	} while ((retval == -ETIMEDOUT || retval == -EAGAIN) && --retries);
 
+	if (retval < 0)
+		dev_err(&intf->dev, "%s - ran out of retries (last error = %d\n",
+			__func__, retval);
 	return retval;
 }
 
