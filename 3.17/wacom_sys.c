@@ -1159,7 +1159,7 @@ static struct input_dev *wacom_allocate_input(struct wacom *wacom)
 	if (!input_dev)
 		return NULL;
 
-	input_dev->name = wacom_wac->pen_name;
+	input_dev->name = wacom_wac->features.name;
 	input_dev->phys = hdev->phys;
 	input_dev->dev.parent = &hdev->dev;
 	input_dev->open = wacom_open;
@@ -1212,6 +1212,7 @@ static int wacom_allocate_inputs(struct wacom *wacom)
 		return -ENOMEM;
 	}
 
+	wacom_wac->pen_input->name = wacom_wac->pen_name;
 	wacom_wac->touch_input->name = wacom_wac->touch_name;
 	wacom_wac->pad_input->name = wacom_wac->pad_name;
 
