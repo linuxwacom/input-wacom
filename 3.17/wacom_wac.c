@@ -1441,6 +1441,12 @@ static int wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 	return 0;
 }
 
+static void wacom_wac_pen_pre_report(struct hid_device *hdev,
+		struct hid_report *report)
+{
+	return;
+}
+
 static void wacom_wac_pen_report(struct hid_device *hdev,
 		struct hid_report *report)
 {
@@ -1568,6 +1574,12 @@ static int wacom_wac_finger_event(struct hid_device *hdev,
 	return 0;
 }
 
+static void wacom_wac_finger_pre_report(struct hid_device *hdev,
+		struct hid_report *report)
+{
+	return;
+}
+
 static void wacom_wac_finger_report(struct hid_device *hdev,
 		struct hid_report *report)
 {
@@ -1619,6 +1631,25 @@ int wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 	return 0;
 }
 
+static void wacom_report_events(struct hid_device *hdev, struct hid_report *report)
+{
+	int r;
+
+	for (r = 0; r < report->maxfield; r++) {
+		struct hid_field *field;
+		unsigned count, n;
+
+		field = report->field[r];
+		count = field->report_count;
+
+		if (!(HID_MAIN_ITEM_VARIABLE & field->flags))
+			continue;
+
+		for (n = 0; n < count; n++)
+			wacom_wac_event(hdev, field, &field->usage[n], field->value[n]);
+	}
+}
+
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
@@ -1627,6 +1658,14 @@ void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
 
 	if (wacom_wac->features.type != HID_GENERIC)
 		return;
+
+	if (WACOM_PEN_FIELD(field))
+		wacom_wac_pen_pre_report(hdev, report);
+
+	if (WACOM_FINGER_FIELD(field))
+		wacom_wac_finger_pre_report(hdev, report);
+
+	wacom_report_events(hdev, report);
 
 	if (WACOM_PEN_FIELD(field))
 		return wacom_wac_pen_report(hdev, report);
