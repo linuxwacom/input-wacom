@@ -5,6 +5,8 @@ ifneq ($(KERNELRELEASE),)
 # $(error ... ) stuff work
 
 ifneq ($(CONFIG_HID_WACOM),y)
+WCM_VERSION := $(shell cd $(KBUILD_EXTMOD)/.. && ./git-version-gen)
+ccflags-y := -DWACOM_VERSION_SUFFIX=\"-$(WCM_VERSION)\"
 wacom-objs := wacom_wac.o wacom_sys.o
 obj-m += wacom.o
 obj-m += wacom_w8001.o

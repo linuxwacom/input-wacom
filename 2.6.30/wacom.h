@@ -93,7 +93,10 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v1.52-input-wacom-0.4"
+#ifndef WACOM_VERSION_SUFFIX
+#define WACOM_VERSION_SUFFIX ""
+#endif
+#define DRIVER_VERSION "v1.52"WACOM_VERSION_SUFFIX
 #define DRIVER_AUTHOR "Vojtech Pavlik <vojtech@ucw.cz>"
 #define DRIVER_DESC "USB Wacom tablet driver"
 #define DRIVER_LICENSE "GPL"

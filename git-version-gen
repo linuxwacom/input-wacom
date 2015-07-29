@@ -1,0 +1,32 @@
+#!/bin/sh
+
+DEF_VER=UNKNOWN
+TAG_PREFIX="input-wacom-"
+LF='
+'
+
+# First see if we're in a git directory and try git-describe, then
+# try the 'version' file if present (included in release tarballs),
+# and finally the default.
+if test -d ${GIT_DIR:-.git} -o -f .git &&
+	VN=$(git describe --match "${TAG_PREFIX}*" --abbrev=7 HEAD 2>/dev/null) &&
+	case "$VN" in
+	*$LF*) (exit 1) ;;
+	${TAG_PREFIX}*)
+		git update-index -q --refresh
+		test -z "$(git diff-index --name-only HEAD --)" ||
+		VN="$VN-dirty" ;;
+	esac
+then
+	VN=$(echo "$VN" | sed -e "s/${TAG_PREFIX}//");
+	VN=$(echo "$VN" | sed -e 's/-/./g');
+elif test -f version
+then
+	VN=$(cat version) || VN="$DEF_VER"
+else
+	VN="$DEF_VER"
+fi
+
+VN=$(expr "$VN" : v*'\(.*\)')
+
+echo $VN
