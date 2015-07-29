@@ -951,3 +951,8 @@ static void __exit wacom_exit(void)
 
 module_init(wacom_init);
 module_exit(wacom_exit);
+
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE(DRIVER_LICENSE);

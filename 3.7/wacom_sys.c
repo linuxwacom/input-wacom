@@ -1797,3 +1797,8 @@ static struct usb_driver wacom_driver = {
 };
 
 module_usb_driver(wacom_driver);
+
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE(DRIVER_LICENSE);
