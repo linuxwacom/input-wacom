@@ -893,6 +893,17 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail3;
 
+	/* Ignore Intuos5/Pro and Bamboo 3rd gen touch interface until
+	 * BPT3 touch support backported
+	 */
+	if ((features->type >= INTUOS5S && features->type <= INTUOSPL) ||
+		(features->type == BAMBOO_PT)) {
+		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
+			error = -ENODEV;
+			goto fail2;
+		}
+	}
+
 	wacom_setup_device_quirks(wacom);
 
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));

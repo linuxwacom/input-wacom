@@ -1336,10 +1336,7 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	 */
 	if ((features->type >= INTUOS5S && features->type <= INTUOSPL) ||
 		(features->type == BAMBOO_PT)) {
-		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
-			error = -ENODEV;
-			goto fail2;
-		} else {
+		if (endpoint->wMaxPacketSize != WACOM_PKGLEN_BBTOUCH3) {
 			features->device_type = BTN_TOOL_PEN;
 		}
 	}
