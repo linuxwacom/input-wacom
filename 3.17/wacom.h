@@ -124,7 +124,7 @@ struct wacom {
 	struct mutex lock;
 	struct work_struct work;
 	struct wacom_led {
-		u8 select[2]; /* status led selector (0..3) */
+		u8 select[5]; /* status led selector (0..3) */
 		u8 llv;       /* status led brightness no button (1..127) */
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
@@ -139,6 +139,8 @@ struct wacom {
 	struct power_supply battery;
 	struct power_supply ac;
 #endif
+	struct kobject *remote_dir;
+	struct attribute_group remote_group[5];
 };
 
 static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
@@ -163,4 +165,7 @@ int wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value);
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
 void wacom_battery_work(struct work_struct *work);
+int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial,
+				   int index);
+void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial);
 #endif
