@@ -2715,7 +2715,7 @@ int wacom_setup_touch_input_capabilities(struct input_dev *input_dev,
 	return 0;
 }
 
-void wacom_setup_numbered_buttons(struct input_dev *input_dev,
+static void wacom_setup_numbered_buttons(struct input_dev *input_dev,
 				int button_count)
 {
 	int i;
