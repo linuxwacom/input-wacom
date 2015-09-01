@@ -451,8 +451,11 @@ process_module() {
 	    echo "       the diff does not contain the string \"$pkg_version\"."
 	    local_top_commit_descr=`git log --oneline --max-count=1 $local_top_commit_sha`
 	    echo "       the local top commit is: \"$local_top_commit_descr\""
-	    cd $top_src
-	    return 1
+
+	    if [ x"$DRY_RUN" = x ]; then
+	        cd $top_src
+	        return 1
+	    fi
 	fi
     fi
 
@@ -467,8 +470,11 @@ process_module() {
 	echo "Error: the local top commit has not been pushed to the remote."
 	local_top_commit_descr=`git log --oneline --max-count=1 $local_top_commit_sha`
 	echo "       the local top commit is: \"$local_top_commit_descr\""
-	cd $top_src
-	return 1
+
+	if [ x"$DRY_RUN" = x ]; then
+	    cd $top_src
+	    return 1
+	fi
     fi
 
     # If a tag exists with the the tar name, ensure it is tagging the top commit
