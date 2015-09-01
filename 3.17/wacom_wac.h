@@ -72,6 +72,12 @@
 #define WACOM_QUIRK_MONITOR		0x0004
 #define WACOM_QUIRK_BATTERY		0x0008
 
+/* device types */
+#define WACOM_DEVICETYPE_NONE           0x0000
+#define WACOM_DEVICETYPE_PEN            0x0001
+#define WACOM_DEVICETYPE_TOUCH          0x0002
+#define WACOM_DEVICETYPE_PAD            0x0004
+
 #define WACOM_VENDORDEFINED_PEN		0xff0d0001
 
 #define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
@@ -190,7 +196,8 @@ struct hid_data {
 };
 
 struct wacom_wac {
-	char name[WACOM_NAME_MAX];
+	char pen_name[WACOM_NAME_MAX];
+	char touch_name[WACOM_NAME_MAX];
 	char pad_name[WACOM_NAME_MAX];
 	char bat_name[WACOM_NAME_MAX];
 	char ac_name[WACOM_NAME_MAX];
@@ -201,9 +208,11 @@ struct wacom_wac {
 	bool reporting_data;
 	struct wacom_features features;
 	struct wacom_shared *shared;
-	struct input_dev *input;
+	struct input_dev *pen_input;
+	struct input_dev *touch_input;
 	struct input_dev *pad_input;
-	bool input_registered;
+	bool pen_registered;
+	bool touch_registered;
 	bool pad_registered;
 	int pid;
 	int battery_capacity;
