@@ -698,7 +698,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 			wacom->led.select[i] = touch_ring_mode;
 	}
 
-	if (!wacom->battery &&
+	if (!WACOM_POWERSUPPLY_DEVICE(wacom->battery) &&
 	    !(features->quirks & WACOM_QUIRK_BATTERY)) {
 		features->quirks |= WACOM_QUIRK_BATTERY;
 		INIT_WORK(&wacom->work, wacom_battery_work);
