@@ -1892,7 +1892,7 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 	}
 }
 
-void wacom_setup_numbered_buttons(struct input_dev *input_dev,
+static void wacom_setup_numbered_buttons(struct input_dev *input_dev,
 				int button_count)
 {
 	int i;
