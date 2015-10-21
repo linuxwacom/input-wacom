@@ -698,7 +698,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 			wacom->led.select[i] = touch_ring_mode;
 	}
 
-	if (!wacom->battery &&
+	if (!WACOM_POWERSUPPLY_DEVICE(wacom->battery) &&
 	    !(features->quirks & WACOM_QUIRK_BATTERY)) {
 		features->quirks |= WACOM_QUIRK_BATTERY;
 		INIT_WORK(&wacom->work, wacom_battery_work);
@@ -1632,6 +1632,7 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 		wacom_map_usage(input, usage, field, EV_KEY, BTN_TOUCH, 0);
 		break;
 	case HID_DG_CONTACTCOUNT:
+		wacom_wac->hid_data.cc_report = field->report->id;
 		wacom_wac->hid_data.cc_index = field->index;
 		wacom_wac->hid_data.cc_value_index = usage->usage_index;
 		break;
@@ -1719,7 +1720,32 @@ static void wacom_wac_finger_pre_report(struct hid_device *hdev,
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct hid_data* hid_data = &wacom_wac->hid_data;
 
-	if (hid_data->cc_index >= 0) {
+	if (hid_data->cc_report != 0 &&
+	    hid_data->cc_report != report->id) {
+		int i;
+
+		hid_data->cc_report = report->id;
+		hid_data->cc_index = -1;
+		hid_data->cc_value_index = -1;
+
+		for (i = 0; i < report->maxfield; i++) {
+			struct hid_field *field = report->field[i];
+			int j;
+
+			for (j = 0; j < field->maxusage; j++) {
+				if (field->usage[j].hid == HID_DG_CONTACTCOUNT) {
+					hid_data->cc_index = i;
+					hid_data->cc_value_index = j;
+
+					/* break */
+					i = report->maxfield;
+					j = field->maxusage;
+				}
+			}
+		}
+	}
+	if (hid_data->cc_report != 0 &&
+	    hid_data->cc_index >= 0) {
 		struct hid_field *field = report->field[hid_data->cc_index];
 		int value = field->value[hid_data->cc_value_index];
 		if (value)
