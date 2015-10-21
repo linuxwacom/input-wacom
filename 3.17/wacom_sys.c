@@ -1046,9 +1046,10 @@ static int wacom_ac_get_property(struct power_supply *psy,
 static int wacom_initialize_battery(struct wacom *wacom)
 {
 	static atomic_t battery_no = ATOMIC_INIT(0);
-	int error;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
 	struct power_supply_config psy_cfg = { .drv_data = wacom, };
+#else
+	int error;
 #endif
 	unsigned long n;
 
