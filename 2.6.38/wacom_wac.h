@@ -15,6 +15,8 @@
 #define WACOM_PKGLEN_MAX	192
 
 #define WACOM_NAME_MAX		64
+#define WACOM_MAX_REMOTES	5
+#define WACOM_STATUS_UNKNOWN	255
 
 /* packet length for individual models */
 #define WACOM_PKGLEN_PENPRTN	 7
@@ -66,6 +68,8 @@
 #define WACOM_REPORT_24HDT		1
 #define WACOM_REPORT_WL			128
 #define WACOM_REPORT_USB		192
+#define WACOM_REPORT_DEVICE_LIST	16
+#define WACOM_REPORT_REMOTE		17
 
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
@@ -110,6 +114,7 @@ enum {
 	BAMBOO_PT,
 	WACOM_24HDT,
 	WACOM_27QHDT,
+	REMOTE,
 	TABLETPC,   /* add new TPC below */
 	TABLETPCE,
 	TABLETPC2FG,
@@ -162,7 +167,7 @@ struct wacom_wac {
 	unsigned char *data;
 	int tool[2];
 	int id[2];
-	__u32 serial[2];
+	__u32 serial[5];
 	bool reporting_data;
 	struct wacom_features features;
 	struct wacom_shared *shared;
@@ -172,6 +177,7 @@ struct wacom_wac {
 	int num_contacts_left;
 	int *slots;
 	int bat_charging;
+	int bat_connected;
 	int ps_connected;
 };
 

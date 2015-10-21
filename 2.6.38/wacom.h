@@ -120,13 +120,15 @@ struct wacom {
 	bool open;
 	char phys[32];
 	struct wacom_led {
-		u8 select[2]; /* status led selector (0..3) */
+		u8 select[5]; /* status led selector (0..3) */
 		u8 llv;       /* status led brightness no button (1..127) */
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
 	bool led_initialized;
 	struct power_supply battery;
+	struct kobject *remote_dir;
+	struct attribute_group remote_group[5];
 };
 
 static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
@@ -142,4 +144,7 @@ void wacom_setup_device_quirks(struct wacom *wacom);
 int wacom_setup_input_capabilities(struct input_dev *input_dev,
 				   struct wacom_wac *wacom_wac);
 void wacom_battery_work(struct work_struct *work);
+int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial,
+				   int index);
+void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial);
 #endif
