@@ -1567,7 +1567,8 @@ static void wacom_wireless_work(struct work_struct *work)
 
 		/* Touch interface */
 		if (wacom_wac1->features.touch_max ||
-		    wacom_wac1->features.type == INTUOSHT) {
+		    (wacom_wac1->features.type >= INTUOSHT &&
+		    wacom_wac1->features.type <= BAMBOO_PT)) {
 			wacom_wac2->features =
 				*((struct wacom_features *)id->driver_info);
 			wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
@@ -1586,7 +1587,8 @@ static void wacom_wireless_work(struct work_struct *work)
 			if (error)
 				goto fail;
 
-			if (wacom_wac1->features.type == INTUOSHT &&
+			if ((wacom_wac1->features.type == INTUOSHT ||
+			    wacom_wac1->features.type == INTUOSHT2) &&
 			    wacom_wac1->features.touch_max)
 				wacom_wac->shared->touch_input = wacom_wac2->input;
 		}
@@ -1718,7 +1720,9 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		}
 	}
 
-	if (wacom_wac->features.type == INTUOSHT && wacom_wac->features.touch_max) {
+	if ((wacom_wac->features.type == INTUOSHT ||
+	    wacom_wac->features.type == INTUOSHT2) &&
+	    wacom_wac->features.touch_max) {
 		if (wacom_wac->features.device_type == BTN_TOOL_FINGER)
 			wacom_wac->shared->touch_input = wacom_wac->input;
 	}
