@@ -715,7 +715,7 @@ static void wacom_intuos_general(struct wacom_wac *wacom)
 	/* general pen packet */
 	if ((data[1] & 0xb8) == 0xa0) {
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
-		if (features->type >= INTUOS4S && features->type <= CINTIQ_HYBRID) {
+		if (features->type >= INTUOS4S && features->type <= CINTIQ_COMPANION_2) {
 			t = (t << 1) | (data[1] & 1);
 		}
 		input_report_abs(input, ABS_PRESSURE, t);
@@ -890,6 +890,25 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			input_report_key(input, BTN_7, (data[4] & 0x40));  /* Left   */
 			input_report_key(input, BTN_8, (data[4] & 0x80));  /* Down   */
 			input_report_key(input, BTN_0, (data[3] & 0x01));  /* Center */
+
+			if (data[4] | (data[3] & 0x01)) {
+				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
+			} else {
+				input_report_abs(input, ABS_MISC, 0);
+			}
+		} else if (features->type == CINTIQ_COMPANION_2) {
+			input_report_key(input, BTN_1, (data[1] & 0x02));
+			input_report_key(input, BTN_2, (data[2] & 0x01));
+			input_report_key(input, BTN_3, (data[2] & 0x02));
+			input_report_key(input, BTN_4, (data[2] & 0x04));
+			input_report_key(input, BTN_5, (data[2] & 0x08));
+			input_report_key(input, BTN_6, (data[1] & 0x04));
+
+			input_report_key(input, BTN_7, (data[2] & 0x10));  /* Right  */
+			input_report_key(input, BTN_8, (data[2] & 0x20));  /* Up	 */
+			input_report_key(input, BTN_9, (data[2] & 0x40));  /* Left   */
+			input_report_key(input, BTN_A, (data[2] & 0x80));  /* Down   */
+			input_report_key(input, BTN_0, (data[1] & 0x01));  /* Center */
 
 			if (data[4] | (data[3] & 0x01)) {
 				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
@@ -1707,6 +1726,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case WACOM_27QHD:
 	case DTK:
 	case CINTIQ_HYBRID:
+	case CINTIQ_COMPANION_2:
 		sync = wacom_intuos_irq(wacom_wac);
 		break;
 
@@ -1986,8 +2006,13 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(KEY_PROG2, input_dev->keybit);
 		__set_bit(KEY_PROG3, input_dev->keybit);
 
-		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		input_set_abs_params(input_dev, ABS_THROTTLE, 0, 71, 0, 0);
+		/* fall through */
+
+	case WACOM_13HD:
+	case CINTIQ_HYBRID:
+	case CINTIQ_COMPANION_2:
+		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		/* fall through */
 
 	case DTK:
@@ -2018,15 +2043,8 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
 		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
-
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 
-		wacom_setup_cintiq(wacom_wac);
-		break;
-
-	case WACOM_13HD:
-		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
-		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 		wacom_setup_cintiq(wacom_wac);
 		break;
 
@@ -2196,13 +2214,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 					      0, 0);
 			}
 		}
-		break;
-
-	case CINTIQ_HYBRID:
-		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
-		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
-
-		wacom_setup_cintiq(wacom_wac);
 		break;
 	}
 	return 0;
@@ -2672,6 +2683,14 @@ static const struct wacom_features wacom_features_0x30C =
 static const struct wacom_features wacom_features_0x323 =
 	{ "Wacom Intuos P M", WACOM_PKGLEN_BBPEN,    21600, 13500, 1023,
 	  31, INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x325 =
+	{ "Wacom ISDv5 325", WACOM_PKGLEN_INTUOS,    59552, 33848, 2047,
+	  63, CINTIQ_COMPANION_2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 11,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x326 };
+static const struct wacom_features wacom_features_0x326 = /* Touch */
+	{ "Wacom ISDv5 326", .type = WACOM_24HDT,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x325, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x331 =
 	{ "Wacom Express Key Remote", WACOM_PKGLEN_WIRELESS,
 	  .type = REMOTE, .numbered_buttons = 18 };
@@ -2844,6 +2863,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x309, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x323, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x331, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x325) },
+	{ USB_DEVICE_WACOM(0x326) },
 	{ USB_DEVICE_WACOM(0x333) },
 	{ USB_DEVICE_WACOM(0x335) },
 	{ USB_DEVICE_WACOM(0x336) },
