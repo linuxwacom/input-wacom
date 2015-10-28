@@ -33,6 +33,16 @@ install modules_install:
 	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 
+uninstall:
+	@# Debian uses symlinks in the path to WCM_KERNEL_DIR
+	@# which causes trouble for tools like 'rm' which don't
+	@# see the path how you might think. As a workaround,
+	@# first cd into the directory and then remove.
+	cd $(WCM_KERNEL_DIR)/../extra; rm wacom.ko*
+	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_w8001.ko*
+	rm -f /etc/depmod.d/input-wacom.conf
+	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
+
 endif  # End kbuild check
 
 ######################### Version independent targets ##########################
