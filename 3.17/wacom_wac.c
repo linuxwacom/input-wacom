@@ -3416,8 +3416,8 @@ static const struct wacom_features wacom_features_0x325 =
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x326 };
 static const struct wacom_features wacom_features_0x326 = /* Touch */
-	{ "Wacom ISDv5 326", .type = HID_GENERIC, .oVid = USB_VENDOR_ID_WACOM,
-	  .oPid = 0x325 };
+	{ "Wacom ISDv5 326", .type = WACOM_24HDT,
+	 .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x325, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x323 =
 	{ "Wacom Intuos P M", 21600, 13500, 1023, 31,
 	  INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
