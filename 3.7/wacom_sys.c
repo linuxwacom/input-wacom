@@ -1402,8 +1402,7 @@ static void wacom_unregister_inputs(struct wacom *wacom)
 {
 	if (wacom->wacom_wac.input)
 		input_unregister_device(wacom->wacom_wac.input);
-	if (wacom->remote_dir)
-		kobject_put(wacom->remote_dir);
+	kobject_put(wacom->remote_dir);
 	wacom->wacom_wac.input = NULL;
 	wacom_destroy_leds(wacom);
 }
