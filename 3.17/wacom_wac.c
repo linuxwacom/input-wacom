@@ -970,7 +970,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			input_report_key(input, BTN_A, (data[2] & 0x80));  /* Down   */
 			input_report_key(input, BTN_0, (data[1] & 0x01));  /* Center */
 
-			if (data[4] | (data[3] & 0x01)) {
+			if (data[2] | (data[1] & 0x07)) {
 				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
 			} else {
 				input_report_abs(input, ABS_MISC, 0);
@@ -2096,7 +2096,6 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 	struct wacom_features *features = &wacom->features;
 
 	if ((features->type == INTUOSHT2) &&
-	    (wacom->data[0] == WACOM_REPORT_INTUOS_PEN) &&
 	    (features->device_type & WACOM_DEVICETYPE_PEN))
 		return wacom_intuos_irq(wacom);
 	else if (len == WACOM_PKGLEN_BBTOUCH)
@@ -2486,7 +2485,7 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 		if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
 			if (features->touch_max)
 				features->device_type |= WACOM_DEVICETYPE_TOUCH;
-			if (features->type >= INTUOSHT || features->type <= BAMBOO_PT)
+			if (features->type >= INTUOSHT && features->type <= BAMBOO_PT)
 				features->device_type |= WACOM_DEVICETYPE_PAD;
 
 			features->x_max = 4096;
@@ -3218,7 +3217,8 @@ static const struct wacom_features wacom_features_0x32F =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x336 =
 	{ "Wacom DTU1141", 23472, 13203, 1023, 0,
-	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
+	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x57 =
 	{ "Wacom DTK2241", 95640, 54060, 2047, 63,
 	  DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 6,

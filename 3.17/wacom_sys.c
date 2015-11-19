@@ -422,7 +422,7 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 			/* MT Tablet PC touch */
 			return wacom_set_device_mode(hdev, 3, 4, 4);
 		}
-		else if (features->type == WACOM_24HDT || features->type == CINTIQ_HYBRID || features->type == CINTIQ_COMPANION_2) {
+		else if (features->type == WACOM_24HDT) {
 			return wacom_set_device_mode(hdev, 18, 3, 2);
 		}
 		else if (features->type == WACOM_27QHDT) {
@@ -432,7 +432,7 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 			return wacom_set_device_mode(hdev, 2, 2, 2);
 		}
 	} else if (features->device_type & WACOM_DEVICETYPE_PEN) {
-		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
+		if (features->type <= BAMBOO_PT) {
 			return wacom_set_device_mode(hdev, 2, 2, 2);
 		}
 	}
@@ -1820,24 +1820,6 @@ static int wacom_probe(struct hid_device *hdev,
 		features->device_type |= WACOM_DEVICETYPE_PEN;
 	}
 
-	/* Note that if query fails it is not a hard failure */
-	wacom_query_tablet_data(hdev, features);
-
-	/* touch only Bamboo doesn't support pen */
-	if ((features->type == BAMBOO_TOUCH) &&
-	    (features->device_type & WACOM_DEVICETYPE_PEN)) {
-		error = -ENODEV;
-		goto fail_shared_data;
-	}
-
-	/* pen only Bamboo neither support touch nor pad */
-	if ((features->type == BAMBOO_PEN) &&
-	    ((features->device_type & WACOM_DEVICETYPE_TOUCH) ||
-	    (features->device_type & WACOM_DEVICETYPE_PAD))) {
-		error = -ENODEV;
-		goto fail_shared_data;
-	}
-
 	wacom_calculate_res(features);
 
 	wacom_update_name(wacom);
@@ -1876,6 +1858,24 @@ static int wacom_probe(struct hid_device *hdev,
 	error = hid_hw_start(hdev, connect_mask);
 	if (error) {
 		hid_err(hdev, "hw start failed\n");
+		goto fail_hw_start;
+	}
+
+	/* Note that if query fails it is not a hard failure */
+	wacom_query_tablet_data(hdev, features);
+
+	/* touch only Bamboo doesn't support pen */
+	if ((features->type == BAMBOO_TOUCH) &&
+	    (features->device_type & WACOM_DEVICETYPE_PEN)) {
+		error = -ENODEV;
+		goto fail_hw_start;
+	}
+
+	/* pen only Bamboo neither support touch nor pad */
+	if ((features->type == BAMBOO_PEN) &&
+	    ((features->device_type & WACOM_DEVICETYPE_TOUCH) ||
+	    (features->device_type & WACOM_DEVICETYPE_PAD))) {
+		error = -ENODEV;
 		goto fail_hw_start;
 	}
 
