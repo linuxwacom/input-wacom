@@ -1858,7 +1858,8 @@ static const struct wacom_features wacom_features_0x32F =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x336 =
 	{ "Wacom DTU1141",        WACOM_PKGLEN_DTUS,      23472, 13203, 1023,
-	  0, DTUS,  WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  0, DTUS,  WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0xCC =
 	{ "Wacom Cintiq 21UX2",   WACOM_PKGLEN_INTUOS,    86800, 65200, 2047,
 	  63, WACOM_21UX2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
