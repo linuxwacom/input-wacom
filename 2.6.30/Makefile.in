@@ -1,4 +1,4 @@
-############################ 2.6 kernel compile ###############################
+############################ kernel specific compile ###############################
 ifneq ($(KERNELRELEASE),)
 # We were called by kbuild
 # Do NOT indent stuff in this part! It has to be like this to make the
@@ -19,9 +19,10 @@ PWD  := $(shell pwd)
 
 WCM_KERNEL_DIR := @WCM_KERNEL_DIR@
 MODUTS := @MODUTS@
+WCM_KERNEL_VER := @WCM_KERNEL_VER@
 
 all:
-	@echo '    Building input-wacom drivers for 2.6 kernel.'
+	@echo '    Building input-wacom drivers for $(WCM_KERNEL_VER) kernel.'
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD)
 
 clean:
