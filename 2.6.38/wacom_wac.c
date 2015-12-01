@@ -971,8 +971,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	int result;
 
 	if (data[0] != WACOM_REPORT_PENABLED &&
-	    data[0] != WACOM_REPORT_INTUOSREAD &&
-	    data[0] != WACOM_REPORT_INTUOSWRITE &&
+	    data[0] != WACOM_REPORT_INTUOS_ID1 &&
+	    data[0] != WACOM_REPORT_INTUOS_ID2 &&
 	    data[0] != WACOM_REPORT_INTUOSPAD &&
 	    data[0] != WACOM_REPORT_INTUOS_PEN &&
 	    data[0] != WACOM_REPORT_CINTIQ &&
