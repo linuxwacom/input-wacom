@@ -24,19 +24,90 @@ fi
 AC_MSG_RESULT($WCM_ISLINUX)
 
 dnl  kernel source, module versioning, etc
-WCM_ENV_KERNEL=no
+WCM_ENV_KERNEL=
 WCM_KERNEL_DIR=
 WCM_KERNEL_VER=
 MODUTS=
 
-dnl Check which version of the driver we should compile
+AC_DEFUN([WCM_ISBUILDDIR], [\
+    \( -f "$1/.config" -o \
+       -f "$1/include/config/auto.conf" -o \
+       -f "$1/include/generated/autoconf.h" \) \
+])
+
+AC_ARG_WITH(kernel,
+	AS_HELP_STRING([--with-kernel=dir], [Specify kernel source directory]),
+	[WCM_KERNEL_DIR="$withval"])
+
 AC_ARG_WITH(kernel-version,
 	AS_HELP_STRING([--with-kernel-version=version], [Specify kernel version]),
-	[MODUTS="$withval"],
-	[MODUTS=`uname -r`])
+	[MODUTS="$withval"])
 
+
+dnl Assume the user wants to build for the running kernel version if neither
+dnl the kernel directory nor version has been specified
+if test "$WCM_KERNEL_DIR" = "yes" -o -z "$WCM_KERNEL_DIR"; then
+	if test "$MODUTS" = "yes" -o -z "$MODUTS"; then
+		MODUTS=`uname -r`
+	fi
+fi
+
+dnl Discover the kernel source location if not already set
+AC_MSG_CHECKING(for kernel source/headers)
+if test "$WCM_KERNEL_DIR" = "yes" -o -z "$WCM_KERNEL_DIR"; then
+	if test "$MODUTS" = "yes" -o -z "$MODUTS"; then X=`uname -r`; else X="$MODUTS"; fi
+	AC_DEFUN([SEARCH_DIRECTORIES], [[
+	  [/lib/modules/$X/source],
+	  [/lib/modules/$X/build],
+	  [/usr/src/linux],
+	  [/usr/src/linux-$X],
+	  [/usr/src/linux-2.6]
+	]])
+	WCM_KERNEL_DIR=
+	dnl Kernel source not specified, guess where it is
+	m4_foreach([ROOTDIR], SEARCH_DIRECTORIES, [
+		if test -z "$WCM_KERNEL_DIR"; then
+			if test WCM_ISBUILDDIR(ROOTDIR); then
+				WCM_KERNEL_DIR="ROOTDIR"
+			fi
+		fi
+	])
+fi
+if test -z "$WCM_KERNEL_DIR"; then
+	AC_MSG_RESULT([not found])
+	AC_MSG_WARN([Unable to find build config in any of: SEARCH_DIRECTORIES])
+fi
+AC_MSG_RESULT([$WCM_KERNEL_DIR])
+if test \! WCM_ISBUILDDIR($WCM_KERNEL_DIR); then
+	AC_MSG_WARN([Kernel directory does not appear to have needed config files])
+	WCM_ENV_KERNEL="no"
+fi
+
+dnl Discover the kernel source version if not already set
 AC_MSG_CHECKING(kernel version)
-AC_MSG_RESULT([$MODUTS])
+SRC_VERSION=[$(sed -n '/UTS_RELEASE/ s/^[^"]*"\([^"]*\).*$/\1/gp' \
+              "$WCM_KERNEL_DIR/include/linux/version.h"           \
+              "$WCM_KERNEL_DIR/include/generated/utsrelease.h"    \
+              "$WCM_KERNEL_DIR/include/linux/utsrelease.h" 2> /dev/null | head -n1)]
+AC_MSG_RESULT([$SRC_VERSION])
+if test "$MODUTS" = "yes" -o -z "$MODUTS"; then
+	MODUTS="$SRC_VERSION"
+elif test "$SRC_VERSION" != "$MODUTS"; then
+	AC_MSG_WARN([Spcified '$MODUTS' kernel, but found '$SRC_VERSION' instead])
+	WCM_ENV_KERNEL="no"
+fi
+
+
+if test "$WCM_ENV_KERNEL" = "no"; then
+	AC_MSG_ERROR([We could not find the development environment to dnl
+build modules for the '$MODUTS' kernel within the '$WCM_KERNEL_DIR' dnl
+directory. Please install the kernel source or the kernel development dnl
+package and try again.])
+fi
+WCM_ENV_KERNEL="yes"
+
+
+dnl Check which version of the driver we should compile
 MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.[[0-9]]*\.\([[0-9]]*\).*/\1/'`
 if echo $MODUTS | grep "^2.4" >/dev/null; then
 	AC_MSG_ERROR([kernel 2.4.x is not supported])
@@ -63,65 +134,6 @@ elif echo $MODUTS | grep "^4." >/dev/null; then
 	WCM_KERNEL_VER="3.17"
 else
 	AC_MSG_ERROR(kernel version $MODUTS not supported)
-fi
-
-dnl Check for kernel build environment
-AC_DEFUN([WCM_ISBUILDDIR], [\
-    \( -f "$1/.config" -o \
-       -f "$1/include/config/auto.conf" -o \
-       -f "$1/include/generated/autoconf.h" \) \
-])
-
-AC_ARG_WITH(kernel,
-	AS_HELP_STRING([--with-kernel=dir], [Specify kernel source directory]),
-	[WCM_KERNEL_DIR="$withval"])
-
-AC_MSG_CHECKING(for kernel source/headers)
-if test "$WCM_KERNEL_DIR" = "yes" -o -z "$WCM_KERNEL_DIR"; then
-	AC_DEFUN([SEARCH_DIRECTORIES], [[
-	  [/lib/modules/$MODUTS/source],
-	  [/lib/modules/$MODUTS/build],
-	  [/usr/src/linux],
-	  [/usr/src/linux-$MODUTS],
-	  [/usr/src/linux-2.6]
-	]])
-	WCM_KERNEL_DIR=
-	dnl Kernel source not specified, guess where it is
-	m4_foreach([ROOTDIR], SEARCH_DIRECTORIES, [
-		if test -z "$WCM_KERNEL_DIR"; then
-			if test WCM_ISBUILDDIR(ROOTDIR); then
-				WCM_KERNEL_DIR="ROOTDIR"
-				AC_MSG_RESULT($WCM_KERNEL_DIR)
-			fi
-		fi
-	])
-
-	if test -z "$WCM_KERNEL_DIR"; then
-		AC_MSG_RESULT([not found])
-		AC_MSG_NOTICE([Unable to find build config in any of: SEARCH_DIRECTORIES])
-	fi
-elif test "$WCM_KERNEL_DIR" != "no"; then
-	AC_MSG_RESULT([$WCM_KERNEL_DIR])
-	if test \! WCM_ISBUILDDIR($WCM_KERNEL_DIR); then
-		AC_MSG_NOTICE([Kernel directory does not appear to have needed config files])
-	fi
-fi
-
-dnl Final sanity check to make sure the kernel versions match
-for F in "$WCM_KERNEL_DIR/include/linux/version.h" \
-	"$WCM_KERNEL_DIR/include/generated/utsrelease.h" \
-	"$WCM_KERNEL_DIR/include/linux/utsrelease.h"; do
-	if test -f $F; then
-		if test "$MODUTS" = "`grep UTS_RELEASE $F | sed -e 's/^[[^"]]*"\([[^"]]*\).*$/\1/g'`"; then
-			WCM_ENV_KERNEL=yes
-		fi
-	fi
-done
-
-if test "$WCM_ENV_KERNEL" = "no"; then
-	AC_MSG_ERROR([We could not find the development environment to dnl
-build modules for the '$MODUTS' kernel. Please install the kernel source or dnl
-the kernel development package and try again.])
 fi
 
 dnl Separate test output from file-generation output
