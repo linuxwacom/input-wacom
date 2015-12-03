@@ -108,32 +108,20 @@ WCM_ENV_KERNEL="yes"
 
 
 dnl Check which version of the driver we should compile
-MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.[[0-9]]*\.\([[0-9]]*\).*/\1/'`
-if echo $MODUTS | grep "^2.4" >/dev/null; then
-	AC_MSG_ERROR([kernel 2.4.x is not supported])
-elif echo $MODUTS | grep "^2.6" >/dev/null; then
-	if test $MINOR -ge 26; then
-		case $MINOR in
-			26|27|28|29|30|31|32|33|34|35) WCM_KERNEL_VER="2.6.30";;
-			36|37) WCM_KERNEL_VER="2.6.36";;
-			*) WCM_KERNEL_VER="2.6.38";;
-		esac
-	else
-		AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.26])
-	fi
-elif echo $MODUTS | grep "^3." >/dev/null; then
-	MINOR=`echo $MODUTS | sed 's/[[0-9]]*\.\([[0-9]]*\).*/\1/'`
-	if test $MINOR -ge 17; then
-		WCM_KERNEL_VER="3.17"
-	elif test $MINOR -ge 7; then
-		WCM_KERNEL_VER="3.7"
-	else
-		WCM_KERNEL_VER="2.6.38"
-	fi
-elif echo $MODUTS | grep "^4." >/dev/null; then
-	WCM_KERNEL_VER="3.17"
+AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
+EXPLODED_VER="WCM_EXPLODE($MODUTS)"
+if test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.30)"; then
+	AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.30])
+elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.36)"; then
+	WCM_KERNEL_VER="2.6.30"
+elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.38)"; then
+	WCM_KERNEL_VER="2.6.36"
+elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
+	WCM_KERNEL_VER="2.6.38"
+elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
+	WCM_KERNEL_VER="3.7"
 else
-	AC_MSG_ERROR(kernel version $MODUTS not supported)
+	WCM_KERNEL_VER="3.17"
 fi
 
 dnl Separate test output from file-generation output
