@@ -1537,11 +1537,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case TABLETPC2FG:
 	case MTSCREEN:
 		if (features->device_type == BTN_TOOL_FINGER) {
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,37)
 			input_mt_create_slots(input_dev, features->touch_max);
-#else
-			input_mt_init_slots(input_dev, features->touch_max);
-#endif
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 					     0, features->x_max, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
@@ -1591,11 +1587,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,37)
 			input_mt_create_slots(input_dev, 2);
-#else
-			input_mt_init_slots(input_dev, 2);
-#endif
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 					     0, features->x_max,
 					     features->x_fuzz, 0);

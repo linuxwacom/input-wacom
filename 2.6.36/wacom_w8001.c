@@ -21,12 +21,6 @@
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
-# ifndef LINUX_VERSION_CODE
-# include <linux/version.h>
-# endif 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,37)
-#include <linux/input/mt.h>
-#endif
 
 #define DRIVER_DESC	"Wacom W8001 serial touchscreen driver"
 
@@ -447,11 +441,7 @@ static int w8001_setup(struct w8001 *w8001)
 		case 5:
 			w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,37)
 			input_mt_create_slots(dev, 2);
-#else
-			input_mt_init_slots(dev, 2);
-#endif
 			input_set_abs_params(dev, ABS_MT_TRACKING_ID,
 						0, MAX_TRACKING_ID, 0, 0);
 			input_set_abs_params(dev, ABS_MT_POSITION_X,
