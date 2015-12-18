@@ -611,7 +611,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 			return wacom_set_device_mode(intf, 131, 3, 2);
 		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
-		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
+		if (features->type <= BAMBOO_PT) {
 			return wacom_set_device_mode(intf, 2, 2, 2);
 		}
 	}

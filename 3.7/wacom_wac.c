@@ -910,7 +910,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			input_report_key(input, BTN_A, (data[2] & 0x80));  /* Down   */
 			input_report_key(input, BTN_0, (data[1] & 0x01));  /* Center */
 
-			if (data[4] | (data[3] & 0x01)) {
+			if (data[2] | (data[1] & 0x07)) {
 				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
 			} else {
 				input_report_abs(input, ABS_MISC, 0);
@@ -2478,7 +2478,8 @@ static const struct wacom_features wacom_features_0x32F =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x336 =
 	{ "Wacom DTU1141",        WACOM_PKGLEN_DTUS,      23472, 13203, 1023,
-	  0, DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
+	  0, DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x57 =
 	{ "Wacom DTK2241",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047,
 	  63, DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 6,

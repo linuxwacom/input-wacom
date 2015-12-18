@@ -1,0 +1,33 @@
+language: c
+
+compiler: gcc
+
+env:
+  - KERNEL="linux-3.17"
+  - KERNEL="linux-3.7"
+  - KERNEL="linux-2.6.38"
+  - KERNEL="linux-2.6.36"
+  - KERNEL="linux-2.6.30"
+  
+  - KERNEL="linux-4.1"      # Conditional 3.17
+  - KERNEL="linux-3.19"     # Conditional 3.17
+  - KERNEL="linux-3.18"     # Conditional 3.17
+  - KERNEL="linux-3.3"      # Conditional 2.6.38
+  - KERNEL="linux-2.6.35"   # Conditional 2.6.30
+
+addons:
+  apt:
+    packages:
+      - bc
+
+install:
+  - export KERNELDIR=${HOME}/kernel && echo ${KERNELDIR}
+  - export SERIES=$(case ${KERNEL} in linux-4.*) echo v4.x;; linux-3.*) echo v3.x;; linux-2.6.*) echo v2.6;; esac) && echo ${SERIES}
+  - export URL=https://www.kernel.org/pub/linux/kernel/${SERIES}/${KERNEL}.tar.xz && echo ${URL}
+  - mkdir ${KERNELDIR}
+  - curl ${URL} | tar xJC ${KERNELDIR}
+  - if [[ ! -f ${KERNELDIR}/${KERNEL}/include/linux/compiler-gcc5.h ]]; then echo '#include <linux/compiler-gcc4.h>' > ${KERNELDIR}/${KERNEL}/include/linux/compiler-gcc5.h; fi
+  - make -C ${KERNELDIR}/${KERNEL} defconfig prepare modules_prepare
+
+script:
+  - ./autogen.sh --with-kernel=${KERNELDIR}/${KERNEL} && make
