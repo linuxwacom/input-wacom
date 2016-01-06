@@ -237,6 +237,7 @@ struct wacom_wac {
 	int ps_connected;
 	u8 bt_features;
 	u8 bt_high_speed;
+	struct work_struct intuos_prox_event_worker;
 	struct hid_data hid_data;
 };
 

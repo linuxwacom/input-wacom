@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/input/mt.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 
@@ -397,6 +396,8 @@ static int w8001_setup(struct w8001 *w8001)
 	dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	strlcat(w8001->name, "Wacom Serial", sizeof(w8001->name));
 
+	__set_bit(INPUT_PROP_DIRECT, dev->propbit);
+
 	/* penabled? */
 	error = w8001_command(w8001, W8001_CMD_QUERY, true);
 	if (!error) {
@@ -592,15 +593,4 @@ static struct serio_driver w8001_drv = {
 	.disconnect	= w8001_disconnect,
 };
 
-static int __init w8001_init(void)
-{
-	return serio_register_driver(&w8001_drv);
-}
-
-static void __exit w8001_exit(void)
-{
-	serio_unregister_driver(&w8001_drv);
-}
-
-module_init(w8001_init);
-module_exit(w8001_exit);
+module_serio_driver(w8001_drv);

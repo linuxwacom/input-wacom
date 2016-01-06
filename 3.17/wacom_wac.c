@@ -440,8 +440,10 @@ exit:
 	return retval;
 }
 
-static void wacom_intuos_schedule_prox_event(struct wacom_wac *wacom_wac)
+static void wacom_intuos_schedule_prox_event(struct work_struct *work)
 {
+	struct wacom_wac *wacom_wac =
+		container_of(work, struct wacom_wac, intuos_prox_event_worker);
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 	struct hid_report *r;
 	struct hid_report_enum *re;
@@ -753,7 +755,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	/* don't report other events if we don't know the ID */
 	if (!wacom->id[idx]) {
 		/* but reschedule a read of the current tool */
-		wacom_intuos_schedule_prox_event(wacom);
+		schedule_work(&wacom->intuos_prox_event_worker);
 		return 1;
 	}
 
@@ -2591,6 +2593,9 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 
 		if (features->type == INTUOSHT2) {
 			wacom_setup_basic_pro_pen(wacom_wac);
+
+			INIT_WORK(&wacom_wac->intuos_prox_event_worker,
+				  wacom_intuos_schedule_prox_event);
 		} else {
 			__clear_bit(ABS_MISC, input_dev->absbit);
 			__set_bit(BTN_TOOL_PEN, input_dev->keybit);
