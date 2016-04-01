@@ -2372,6 +2372,9 @@ static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_RZ, -900, 899, 0, 0);
 	input_abs_set_res(input_dev, ABS_RZ, 287);
 	input_set_abs_params(input_dev, ABS_THROTTLE, -1023, 1023, 0, 0);
+
+	INIT_WORK(&wacom_wac->intuos_prox_event_worker,
+		  wacom_intuos_schedule_prox_event);
 }
 
 void wacom_setup_device_quirks(struct wacom *wacom)
