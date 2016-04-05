@@ -1541,14 +1541,6 @@ void wacom_battery_work(struct work_struct *work)
 	}
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
-static int wacom_hid_report_len(struct hid_report *report)
-{
-	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
-	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
-}
-#endif
-
 static size_t wacom_compute_pktlen(struct hid_device *hdev)
 {
 	struct hid_report_enum *report_enum;
