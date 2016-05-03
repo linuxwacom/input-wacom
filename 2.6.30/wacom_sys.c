@@ -757,6 +757,10 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (!id->driver_info)
 		return -EINVAL;
 
+	/* Verify that a device really has an endpoint */
+	if (intf->cur_altsetting->desc.bNumEndpoints < 1)
+		return -EINVAL;
+
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!wacom || !input_dev) {
