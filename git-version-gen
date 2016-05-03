@@ -1,6 +1,7 @@
 #!/bin/sh
 
-DEF_VER=UNKNOWN
+DIRECTORY=$(basename "$(dirname "$(readlink -mn "$0")")")
+DEF_VER="$DIRECTORY"
 TAG_PREFIX="input-wacom-"
 LF='
 '
