@@ -669,19 +669,22 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 			wacom->tool[idx] = BTN_TOOL_PEN;
 			break;
 		}
+		wacom->shared->stylus_in_proximity = true;
 		return 1;
 	}
 
-	wacom->shared->stylus_in_proximity = true;
-	if (wacom->shared->touch_down)
-		return 1;
+	/* in Range */
+	if ((data[1] & 0xfe) == 0x20) {
+		wacom->shared->stylus_in_proximity = true;
 
-	/* in Range Report while exiting */
-	if (((data[1] & 0xfe) == 0x20) && wacom->reporting_data) {
-		input_report_key(input, BTN_TOUCH, 0);
-		input_report_abs(input, ABS_PRESSURE, 0);
-		input_report_abs(input, ABS_DISTANCE, features->distance_max);
-		return 2;
+		/* in Range while exiting */
+		if (wacom->reporting_data) {
+			input_report_key(input, BTN_TOUCH, 0);
+			input_report_abs(input, ABS_PRESSURE, 0);
+			input_report_abs(input, ABS_DISTANCE, wacom->features.distance_max);
+			return 2;
+		}
+		return 1;
 	}
 
 	/* Exit report */
@@ -740,6 +743,9 @@ static int wacom_intuos_general(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 	int idx = (features->type == INTUOS) ? (data[1] & 0x01) : 0;
 	unsigned int t;
+
+	if (wacom->shared->touch_down)
+		return 1;
 
 	/*
 	 * don't report events for invalid data
