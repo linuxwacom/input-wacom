@@ -575,11 +575,12 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
-	int idx = 0;
+	int idx = (features->type == INTUOS) ? (data[1] & 0x01) : 0;
 
-	/* tool number */
-	if (features->type == INTUOS)
-		idx = data[1] & 0x01;
+	if (!(((data[1] & 0xfc) == 0xc0) ||  /* in prox */
+	    ((data[1] & 0xfe) == 0x20) ||    /* in range */
+	    ((data[1] & 0xfe) == 0x80)))     /* out prox */
+		return 0;
 
 	/* Enter report */
 	if ((data[1] & 0xfc) == 0xc0) {
@@ -671,26 +672,6 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		return 1;
 	}
 
-	/*
-	 * don't report events for invalid data
-	 */
-	/* older I4 styli don't work with new Cintiqs */
-	if ((!((wacom->id[idx] >> 20) & 0x01) &&
-			(features->type == WACOM_21UX2)) ||
-	    /* Only large Intuos support Lense Cursor */
-	    (wacom->tool[idx] == BTN_TOOL_LENS &&
-		(features->type == INTUOS3 ||
-		 features->type == INTUOS3S ||
-		 features->type == INTUOS4 ||
-		 features->type == INTUOS4S ||
-		 features->type == INTUOS5 ||
-		 features->type == INTUOS5S ||
-		 features->type == INTUOSPM ||
-		 features->type == INTUOSPS)) ||
-	   /* Cintiq doesn't send data when RDY bit isn't set */
-	   (features->type == CINTIQ && !(data[1] & 0x40)))
-		return 1;
-
 	wacom->shared->stylus_in_proximity = true;
 	if (wacom->shared->touch_down)
 		return 1;
@@ -752,12 +733,33 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	return 0;
 }
 
-static void wacom_intuos_general(struct wacom_wac *wacom)
+static int wacom_intuos_general(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
+	int idx = (features->type == INTUOS) ? (data[1] & 0x01) : 0;
 	unsigned int t;
+
+	/*
+	 * don't report events for invalid data
+	 */
+	/* older I4 styli don't work with new Cintiqs */
+	if ((!((wacom->id[idx] >> 20) & 0x01) &&
+			(features->type == WACOM_21UX2)) ||
+	    /* Only large Intuos support Lense Cursor */
+	    (wacom->tool[idx] == BTN_TOOL_LENS &&
+		(features->type == INTUOS3 ||
+		 features->type == INTUOS3S ||
+		 features->type == INTUOS4 ||
+		 features->type == INTUOS4S ||
+		 features->type == INTUOS5 ||
+		 features->type == INTUOS5S ||
+		 features->type == INTUOSPM ||
+		 features->type == INTUOSPS)) ||
+	   /* Cintiq doesn't send data when RDY bit isn't set */
+	   (features->type == CINTIQ && !(data[1] & 0x40)))
+		return 1;
 
 	/* general pen packet */
 	if ((data[1] & 0xb8) == 0xa0) {
@@ -783,6 +785,7 @@ static void wacom_intuos_general(struct wacom_wac *wacom)
 				((data[7] << 1) & 0x7e) | (data[8] >> 7));
 		input_report_abs(input, ABS_TILT_Y, data[8] & 0x7f);
 	}
+	return 0;
 }
 
 static int wacom_intuos_irq(struct wacom_wac *wacom)
@@ -998,6 +1001,11 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	if (result)
                 return result - 1;
 
+	/* process general packets */
+	result = wacom_intuos_general(wacom);
+	if (result)
+		return result - 1;
+
 	if (features->type >= INTUOS3S) {
 		input_report_abs(input, ABS_X, (data[2] << 9) | (data[3] << 1) | ((data[9] >> 1) & 1));
 		input_report_abs(input, ABS_Y, (data[4] << 9) | (data[5] << 1) | (data[9] & 1));
@@ -1007,9 +1015,6 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 		input_report_abs(input, ABS_Y, be16_to_cpup((__be16 *)&data[4]));
 		input_report_abs(input, ABS_DISTANCE, ((data[9] >> 3) & 0x1f));
 	}
-
-	/* process general packets */
-	wacom_intuos_general(wacom);
 
 	/* 4D mouse, 2D mouse, marker pen rotation, tilt mouse, or Lens cursor packets */
 	if ((data[1] & 0xbc) == 0xa8 || (data[1] & 0xbe) == 0xb0 || (data[1] & 0xbc) == 0xac) {
