@@ -2651,6 +2651,10 @@ static const struct wacom_features wacom_features_0x33D =
 static const struct wacom_features wacom_features_0x33E =
 	{ "Wacom Intuos PT M 2", WACOM_PKGLEN_INTUOS, 21600, 13500, 2047, 63,
 	  INTUOSHT2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16 };
+static const struct wacom_features wacom_features_0x343 =
+	{ "Wacom DTK1651", WACOM_PKGLEN_DTUS, 34616, 19559, 1023, 0,
+	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -2817,6 +2821,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x33C, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x33D, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x33E, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x343) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };
