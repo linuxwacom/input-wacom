@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 
@@ -452,7 +451,8 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &serio->dev;
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	__set_bit(EV_KEY, input_dev->evbit);
+	__set_bit(EV_ABS, input_dev->evbit);
 
 	serio_set_drvdata(serio, w8001);
 	err = serio_open(serio, drv);
