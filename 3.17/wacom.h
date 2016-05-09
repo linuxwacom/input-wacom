@@ -171,4 +171,13 @@ void wacom_battery_work(struct work_struct *work);
 int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial,
 				   int index);
 void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
+static int wacom_hid_report_len(struct hid_report *report)
+{
+	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
+	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
+}
+#endif
+
 #endif
