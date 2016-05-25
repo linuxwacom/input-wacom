@@ -1905,6 +1905,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 				   struct wacom_wac *wacom_wac)
 {
 	struct wacom_features *features = &wacom_wac->features;
+	int numbered_buttons = features->numbered_buttons;
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
@@ -1912,7 +1913,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	__set_bit(ABS_MISC, input_dev->absbit);
 
 	wacom_abs_set_axis(input_dev, wacom_wac);
-	wacom_setup_numbered_buttons(input_dev, features->numbered_buttons);
 
 	switch (features->type) {
 	case REMOTE:
@@ -2031,6 +2031,8 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		} else if (features->device_type == BTN_TOOL_FINGER) {
 			__clear_bit(ABS_MISC, input_dev->absbit);
 
+			/* pad is on pen interface */
+			numbered_buttons = 0;
 			__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 			__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
@@ -2201,6 +2203,8 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		}
 		break;
 	}
+
+	wacom_setup_numbered_buttons(input_dev, numbered_buttons);
 	return 0;
 }
 
