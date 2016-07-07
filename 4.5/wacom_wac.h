@@ -84,6 +84,18 @@
 #define WACOM_DEVICETYPE_WL_MONITOR     0x0008
 #define WACOM_DEVICETYPE_DIRECT         0x0010
 
+#ifndef HID_DG_TILT_X
+#define HID_DG_TILT_X                   (HID_UP_DIGITIZER | 0x3D)
+#endif
+
+#ifndef HID_DG_TILT_Y
+#define HID_DG_TILT_Y                   (HID_UP_DIGITIZER | 0x3E)
+#endif
+
+#ifndef HID_DG_TWIST
+#define HID_DG_TWIST                    (HID_UP_DIGITIZER | 0x41)
+#endif
+
 #define WACOM_HID_UP_WACOMDIGITIZER     0xff0d0000
 #define WACOM_HID_WD_DIGITIZER          (WACOM_HID_UP_WACOMDIGITIZER | 0x01)
 #define WACOM_HID_UP_G9                 0xff090000
