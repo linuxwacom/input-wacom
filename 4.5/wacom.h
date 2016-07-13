@@ -126,6 +126,8 @@ struct wacom_remote {
 	struct {
 		struct attribute_group group;
 		u32 serial;
+		struct input_dev *input;
+		bool registered;
 	} remotes[WACOM_MAX_REMOTES];
 };
 
