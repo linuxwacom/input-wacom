@@ -1547,6 +1547,7 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 
 static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 {
+	struct wacom *w = container_of(wacom, struct wacom, wacom_wac);
 	unsigned char *data = wacom->data;
 	int connected;
 
@@ -1574,7 +1575,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 			wacom_schedule_work(wacom);
 		}
 
-		if (wacom->shared->type)
+		if (w->battery.dev)
 			wacom_notify_battery(wacom, battery, charging, 1, 0);
 
 	} else if (wacom->pid != 0) {
