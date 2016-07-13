@@ -1284,7 +1284,6 @@ int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial, int index)
 	if (error) {
 		dev_err(&wacom->intf->dev,
 			"cannot create sysfs group err: %d\n", error);
-		kobject_put(wacom->remote_dir);
 		return error;
 	}
 
@@ -1747,12 +1746,19 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 static void wacom_disconnect(struct usb_interface *intf)
 {
 	struct wacom *wacom = usb_get_intfdata(intf);
+	int i;
 
 	usb_set_intfdata(intf, NULL);
 
 	usb_kill_urb(wacom->irq);
 	cancel_work_sync(&wacom->wireless_work);
 	cancel_work_sync(&wacom->battery_work);
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		if (wacom->remote_group[i].name) {
+			wacom_remote_destroy_attr_group(wacom,
+						wacom->wacom_wac.serial[i]);
+		}
+	}
 	kobject_put(wacom->remote_dir);
 	wacom_unregister_inputs(wacom);
 	wacom_destroy_battery(wacom);
