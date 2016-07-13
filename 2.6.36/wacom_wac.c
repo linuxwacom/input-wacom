@@ -1306,25 +1306,37 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		input_sync(wacom_wac->input);
 }
 
-static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
+static void wacom_setup_basic_pro_pen(struct wacom_wac *wacom_wac)
 {
 	struct input_dev *input_dev = wacom_wac->input;
 
 	input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
 
-	__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 	__set_bit(BTN_TOOL_PEN, input_dev->keybit);
-	__set_bit(BTN_TOOL_BRUSH, input_dev->keybit);
-	__set_bit(BTN_TOOL_PENCIL, input_dev->keybit);
-	__set_bit(BTN_TOOL_AIRBRUSH, input_dev->keybit);
 	__set_bit(BTN_STYLUS, input_dev->keybit);
 	__set_bit(BTN_STYLUS2, input_dev->keybit);
 
 	input_set_abs_params(input_dev, ABS_DISTANCE,
+		0, wacom_wac->features.distance_max, wacom_wac->features.distance_fuzz, 0);
+}
+
+static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
+{
+	struct input_dev *input_dev = wacom_wac->input;
+	struct wacom_features *features = &wacom_wac->features;
+
+	wacom_setup_basic_pro_pen(wacom_wac);
+
+	__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
+	__set_bit(BTN_TOOL_BRUSH, input_dev->keybit);
+	__set_bit(BTN_TOOL_PENCIL, input_dev->keybit);
+	__set_bit(BTN_TOOL_AIRBRUSH, input_dev->keybit);
+
+	input_set_abs_params(input_dev, ABS_DISTANCE,
 			     0, wacom_wac->features.distance_max, 0, 0);
 	input_set_abs_params(input_dev, ABS_WHEEL, 0, 1023, 0, 0);
-	input_set_abs_params(input_dev, ABS_TILT_X, 0, 127, 0, 0);
-	input_set_abs_params(input_dev, ABS_TILT_Y, 0, 127, 0, 0);
+	input_set_abs_params(input_dev, ABS_TILT_X, 0, 127, features->tilt_fuzz, 0);
+	input_set_abs_params(input_dev, ABS_TILT_Y, 0, 127, features->tilt_fuzz, 0);
 }
 
 static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
@@ -1427,6 +1439,9 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case WACOM_G4:
 		input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
+		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+				     features->distance_max,
+				     features->distance_fuzz, 0);
 
 		__set_bit(BTN_BACK, input_dev->keybit);
 		__set_bit(BTN_FORWARD, input_dev->keybit);
@@ -1534,21 +1549,36 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		wacom_setup_intuos(wacom_wac);
 		break;
 
-	case INTUOSPM:
-	case INTUOSPL:
-	case INTUOS5:
-	case INTUOS5L:
 	case INTUOS4:
 	case INTUOS4L:
 		__set_bit(BTN_7, input_dev->keybit);
 		__set_bit(BTN_8, input_dev->keybit);
 		/* fall through */
 
-	case INTUOSPS:
-	case INTUOS5S:
 	case INTUOS4S:
 		for (i = 0; i < 7; i++)
 			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
+		wacom_setup_intuos(wacom_wac);
+		break;
+
+	case INTUOSPM:
+	case INTUOSPL:
+	case INTUOS5:
+	case INTUOS5L:
+		__set_bit(BTN_7, input_dev->keybit);
+		__set_bit(BTN_8, input_dev->keybit);
+		/* fall through */
+
+	case INTUOSPS:
+	case INTUOS5S:
+		for (i = 0; i < 7; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+				     features->distance_max,
+				     features->distance_fuzz, 0);
 
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		wacom_setup_intuos(wacom_wac);

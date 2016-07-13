@@ -382,7 +382,8 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	features->x_fuzz = 4;
 	features->y_fuzz = 4;
 	features->pressure_fuzz = 0;
-	features->distance_fuzz = 0;
+	features->distance_fuzz = 1;
+	features->tilt_fuzz = 1;
 
 	/* only devices support touch need to retrieve the info */
 	if ((features->type != TABLETPC) && (features->type != TABLETPC2FG) &&

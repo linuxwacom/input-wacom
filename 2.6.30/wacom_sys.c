@@ -404,8 +404,13 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	struct usb_host_interface *interface = intf->cur_altsetting;
 	struct hid_descriptor *hid_desc;
 
-	/* default device to penabled */
+	/* default features */
 	features->device_type = BTN_TOOL_PEN;
+	features->x_fuzz = 4;
+	features->y_fuzz = 4;
+	features->pressure_fuzz = 0;
+	features->distance_fuzz = 1;
+	features->tilt_fuzz = 1;
 
 	/* only devices that support touch need to retrieve the info */
 	if (features->type < BAMBOO_PT)
