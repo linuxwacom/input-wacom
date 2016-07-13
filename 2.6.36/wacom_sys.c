@@ -858,7 +858,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (intf->cur_altsetting->desc.bNumEndpoints < 1)
 		return -EINVAL;
 
-	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
+	wacom = devm_kzalloc(&dev->dev, sizeof(struct wacom), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!wacom || !input_dev) {
 		error = -ENOMEM;
@@ -960,7 +960,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
  fail3:	usb_free_urb(wacom->irq);
  fail2:	usb_free_coherent(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
  fail1:	input_free_device(input_dev);
-	kfree(wacom);
 	return error;
 }
 
@@ -976,7 +975,6 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_free_coherent(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
 			wacom->wacom_wac.data, wacom->data_dma);
 	wacom_remove_shared_data(&wacom->wacom_wac);
-	kfree(wacom);
 }
 
 static int wacom_suspend(struct usb_interface *intf, pm_message_t message)
