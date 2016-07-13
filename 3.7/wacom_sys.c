@@ -1212,7 +1212,7 @@ static int __wacom_initialize_battery(struct wacom *wacom,
 	battery->battery.num_properties = ARRAY_SIZE(wacom_battery_props);
 	battery->battery.get_property = wacom_battery_get_property;
 	battery->battery.name = battery->bat_name;
-	battery->battery.type = POWER_SUPPLY_TYPE_BATTERY;
+	battery->battery.type = POWER_SUPPLY_TYPE_USB;
 	battery->battery.use_for_apm = 0;
 
 	error = power_supply_register(&wacom->usbdev->dev,
