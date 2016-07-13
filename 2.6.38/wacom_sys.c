@@ -1328,10 +1328,18 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 	struct wacom_remote *remote = wacom->remote;
 	u32 serial = remote->remotes[index].serial;
 	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&remote->remote_lock, flags);
+	remote->remotes[index].registered = false;
+	spin_unlock_irqrestore(&remote->remote_lock, flags);
 
 	if (remote->remotes[index].group.name)
 		devres_release_group(&wacom->usbdev->dev,
 				     &remote->remotes[index]);
+
+	if (remote->remotes[index].input)
+		input_unregister_device(remote->remotes[index].input);
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		if (remote->remotes[i].serial == serial) {
@@ -1343,48 +1351,10 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 			kfree((char *)remote->remotes[i].group.name);
 			remote->remotes[i].group.name = NULL;
 
+			remote->remotes[i].registered = false;
 			wacom->led.select[i] = WACOM_STATUS_UNKNOWN;
 		}
 	}
-}
-
-static int wacom_remote_create_one(struct wacom *wacom, u32 serial,
-				   unsigned int index)
-{
-	struct wacom_remote *remote = wacom->remote;
-	struct device *dev = &wacom->usbdev->dev;
-	int error, k;
-
-	/* A remote can pair more than once with an EKR,
-	 * check to make sure this serial isn't already paired.
-	 */
-	for (k = 0; k < WACOM_MAX_REMOTES; k++) {
-		if (remote->remotes[k].serial == serial)
-			break;
-	}
-
-	if (k < WACOM_MAX_REMOTES) {
-		remote->remotes[index].serial = serial;
-		return 0;
-	}
-
-	if (!devres_open_group(dev, &remote->remotes[index], GFP_KERNEL))
-		return -ENOMEM;
-
-	error = wacom_remote_create_attr_group(wacom, serial, index);
-	if (error)
-		goto fail;
-
-	remote->remotes[index].serial = serial;
-
-	devres_close_group(dev, &remote->remotes[index]);
-
-	return 0;
-
-fail:
-	devres_release_group(dev, &remote->remotes[index]);
-	remote->remotes[index].serial = 0;
-	return error;
 }
 
 static ssize_t wacom_store_unpair_remote(struct kobject *kobj,
@@ -1502,13 +1472,49 @@ static void wacom_unregister_inputs(struct wacom *wacom)
 	wacom->wacom_wac.input = NULL;
 }
 
+static int wacom_register_remote_input(struct wacom *wacom, int index)
+{
+	struct input_dev *input_dev;
+	struct wacom_remote *remote = wacom->remote;
+	struct usb_interface *intf = wacom->intf;
+	struct usb_device *dev = interface_to_usbdev(intf);
+	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
+	int error;
+
+	input_dev = input_allocate_device();
+	if (!input_dev) {
+		error = -ENOMEM;
+		goto fail1;
+	}
+
+	input_dev->name = wacom_wac->name;
+	input_dev->dev.parent = &intf->dev;
+	usb_to_input_id(dev, &input_dev->id);
+	if (wacom_wac->pid != 0) {
+		/* copy PID of wireless device */
+		input_dev->id.product = wacom_wac->pid;
+	}
+	input_set_drvdata(input_dev, wacom);
+
+	remote->remotes[index].input = input_dev;
+
+	return 0;
+
+fail1:
+	return error;
+}
+
 static int wacom_register_input(struct wacom *wacom)
 {
 	struct input_dev *input_dev;
 	struct usb_interface *intf = wacom->intf;
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
+	struct wacom_features *features = &wacom_wac->features;
 	int error;
+
+	if (features->type == REMOTE)
+		return 0;
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
@@ -1544,6 +1550,77 @@ fail2:
 	wacom_wac->input = NULL;
 fail1:
 	kfree(wacom_wac->slots);
+	return error;
+}
+
+static int wacom_remote_create_one(struct wacom *wacom, u32 serial,
+				   unsigned int index)
+{
+	struct wacom_remote *remote = wacom->remote;
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct device *dev = &wacom->usbdev->dev;
+	int error, k;
+
+	/* A remote can pair more than once with an EKR,
+	 * check to make sure this serial isn't already paired.
+	 */
+	for (k = 0; k < WACOM_MAX_REMOTES; k++) {
+		if (remote->remotes[k].serial == serial)
+			break;
+	}
+
+	if (k < WACOM_MAX_REMOTES) {
+		remote->remotes[index].serial = serial;
+		return 0;
+	}
+
+	if (!devres_open_group(dev, &remote->remotes[index], GFP_KERNEL))
+		return -ENOMEM;
+
+	error = wacom_remote_create_attr_group(wacom, serial, index);
+	if (error)
+		goto fail;
+
+	error = wacom_register_remote_input(wacom, index);
+	if (error)
+		goto fail;
+
+	if (!remote->remotes[index].input) {
+		error = -ENOMEM;
+		goto fail;
+	}
+
+	remote->remotes[index].input->uniq = remote->remotes[index].group.name;
+	remote->remotes[index].input->name = wacom_wac->name;
+
+	if (!remote->remotes[index].input->name) {
+		error = -EINVAL;
+		goto fail;
+	}
+
+	error = wacom_setup_input_capabilities(remote->remotes[index].input,
+					       wacom_wac);
+	if (error)
+		goto fail;
+
+	remote->remotes[index].serial = serial;
+
+	error = input_register_device(remote->remotes[index].input);
+	if (error)
+		goto fail2;
+
+	remote->remotes[index].registered = true;
+
+	devres_close_group(dev, &remote->remotes[index]);
+
+	return 0;
+fail2:
+	if (remote->remotes[index].input)
+		input_free_device(remote->remotes[index].input);
+	remote->remotes[index].input = NULL;
+fail:
+	devres_release_group(dev, &remote->remotes[index]);
+	remote->remotes[index].serial = 0;
 	return error;
 }
 
