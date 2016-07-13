@@ -1414,7 +1414,6 @@ static void wacom_unregister_inputs(struct wacom *wacom)
 	if (wacom->wacom_wac.input)
 		input_unregister_device(wacom->wacom_wac.input);
 	wacom->wacom_wac.input = NULL;
-	wacom_destroy_leds(wacom);
 }
 
 static int wacom_register_input(struct wacom *wacom)
@@ -1451,15 +1450,8 @@ static int wacom_register_input(struct wacom *wacom)
 	if (error)
 		goto fail2;
 
-	error = wacom_initialize_leds(wacom);
-	if (error)
-		goto fail3;
-
 	return 0;
 
-fail3:
-	input_unregister_device(input_dev);
-	input_dev = NULL;
 fail2:
 	if (input_dev)
 		input_free_device(input_dev);
@@ -1517,11 +1509,13 @@ static void wacom_wireless_work(struct work_struct *work)
 	/* Stylus interface */
 	wacom1 = usb_get_intfdata(usbdev->config->interface[1]);
 	wacom_wac1 = &(wacom1->wacom_wac);
+	wacom_destroy_leds(wacom1);
 	wacom_unregister_inputs(wacom1);
 
 	/* Touch interface */
 	wacom2 = usb_get_intfdata(usbdev->config->interface[2]);
 	wacom_wac2 = &(wacom2->wacom_wac);
+	wacom_destroy_leds(wacom2);
 	wacom_unregister_inputs(wacom2);
 
 	if (wacom_wac->pid == 0) {
@@ -1600,7 +1594,9 @@ static void wacom_wireless_work(struct work_struct *work)
 	return;
 
 fail:
+	wacom_destroy_leds(wacom1);
 	wacom_unregister_inputs(wacom1);
+	wacom_destroy_leds(wacom2);
 	wacom_unregister_inputs(wacom2);
 	return;
 }
@@ -1723,10 +1719,14 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		}
 	}
 
+	error = wacom_initialize_leds(wacom);
+	if (error)
+		goto fail4;
+
 	if (wacom->wacom_wac.features.type == REMOTE) {
 		error = wacom_initialize_remote(wacom);
 		if (error)
-			goto fail4;
+			goto fail_remote;
 	}
 
 	if ((wacom_wac->features.type == INTUOSHT ||
@@ -1739,7 +1739,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	}
 
 	return 0;
-
+ fail_remote: wacom_destroy_leds(wacom);
  fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
 	wacom_destroy_battery(wacom);
@@ -1757,6 +1757,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_kill_urb(wacom->irq);
 	cancel_work_sync(&wacom->work);
 	kobject_put(wacom->remote_dir);
+	wacom_destroy_leds(wacom);
 	wacom_unregister_inputs(wacom);
 	wacom_destroy_battery(wacom);
 	usb_free_urb(wacom->irq);
