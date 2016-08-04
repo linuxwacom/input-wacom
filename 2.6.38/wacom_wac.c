@@ -588,6 +588,7 @@ static int wacom_intuos_get_tool_type(int tool_id)
 		break;
 
 	case 0x82a: /* Eraser */
+	case 0x84a:
 	case 0x85a:
 	case 0x91a:
 	case 0xd1a:
@@ -1101,6 +1102,54 @@ static int wacom_wac_finger_count_touches(struct wacom_wac *wacom)
 	}
 
 	return count;
+}
+
+static int wacom_msprot_irq(struct wacom_wac *wacom)
+{
+	struct input_dev *input = wacom->input;
+	unsigned char *data = wacom->data;
+	int i;
+	int current_num_contacts = data[2];
+	int contacts_to_send = 0;
+
+	if (current_num_contacts)
+		wacom->num_contacts_left = current_num_contacts;
+
+	contacts_to_send = min(5, wacom->num_contacts_left);
+
+	for (i = 0; i < contacts_to_send; i++) {
+		int offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
+		bool touch = (data[offset] & 0x1) && report_touch_events(wacom);
+		int id = get_unaligned_le16(&data[offset + 1]);
+		int slot = find_slot_from_contactid(wacom, id);
+
+		if (slot < 0)
+			continue;
+
+		input_mt_slot(input, slot);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
+		if (touch) {
+			int x = get_unaligned_le16(&data[offset + 3]);
+			int y = get_unaligned_le16(&data[offset + 5]);
+			int w = get_unaligned_le16(&data[offset + 7]);
+			int h = get_unaligned_le16(&data[offset + 9]);
+			input_report_abs(input, ABS_MT_POSITION_X, x);
+			input_report_abs(input, ABS_MT_POSITION_Y, y);
+			input_report_abs(input, ABS_MT_WIDTH_MAJOR, max(w, h));
+			input_report_abs(input, ABS_MT_WIDTH_MINOR, min(w, h));
+			input_report_abs(input, ABS_MT_ORIENTATION, w > h);
+		}
+		wacom->slots[slot] = touch ? id : -1;
+	}
+
+	wacom->num_contacts_left -= contacts_to_send;
+	if (wacom->num_contacts_left <= 0) {
+		wacom->num_contacts_left = 0;
+		wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
+	}
+
+	input_mt_report_pointer_emulation(input, true);
+	return 1;
 }
 
 static int wacom_24hdt_irq(struct wacom_wac *wacom)
@@ -1652,6 +1701,160 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 	return 0;
 }
 
+static int wacom_mspro_device_irq(struct wacom_wac *wacom)
+{
+	struct wacom *w = container_of(wacom, struct wacom, wacom_wac);
+	struct wacom_features *features = &wacom->features;
+	unsigned char *data = wacom->data;
+	bool bat_charging;
+	int battery_level;
+
+	battery_level = data[1] & 0x7F;
+	bat_charging = data[1] & 0x80;
+
+	if (!w->battery.battery.dev &&
+	    !(features->quirks & WACOM_QUIRK_BATTERY)) {
+		features->quirks |= WACOM_QUIRK_BATTERY;
+		wacom_schedule_work(wacom, WACOM_WORKER_BATTERY);
+	}
+
+	wacom_notify_battery(wacom, battery_level, bat_charging, 1,
+			     bat_charging);
+
+	return 0;
+}
+
+static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
+{
+	struct wacom_features *features = &wacom->features;
+	unsigned char *data = wacom->data;
+	struct input_dev *input = wacom->input;
+	int nbuttons = features->numbered_buttons;
+	bool prox;
+	int buttons, ring;
+
+	switch (nbuttons) {
+		case 11:
+			buttons = (data[1] >> 1) | (data[3] << 6);
+			break;
+		case 13:
+			buttons = data[1] | (data[3] << 8);
+			break;
+		default:
+			dev_warn(input->dev.parent, "%s: unsupported device #%d\n", __func__, data[0]);
+			return 0;
+	}
+
+	ring = le16_to_cpup((__le16 *)&data[4]);
+
+	prox = buttons || ring;
+
+	wacom_report_numbered_buttons(input, nbuttons, buttons);
+	input_report_abs(input, ABS_WHEEL, (ring & 0x80) ? (ring & 0x7f) : 0);
+
+	input_report_key(input, wacom->tool[1], prox ? 1 : 0);
+	input_report_abs(input, ABS_MISC, prox ? PAD_DEVICE_ID : 0);
+
+	input_event(input, EV_MSC, MSC_SERIAL, 0xffffffff);
+
+	return 1;
+}
+
+static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
+{
+	unsigned char *data = wacom->data;
+	struct input_dev *input = wacom->input;
+	bool tip, sw1, sw2, range, proximity;
+	unsigned int x, y;
+	unsigned int pressure;
+	int tilt_x, tilt_y;
+	int rotation;
+	unsigned int fingerwheel;
+	unsigned int height;
+	u64 tool_uid;
+	unsigned int tool_type;
+
+	if (delay_pen_events(wacom))
+		return 1;
+
+	tip         = data[1] & 0x01;
+	sw1         = data[1] & 0x02;
+	sw2         = data[1] & 0x04;
+	/* eraser   = data[1] & 0x08; */
+	/* invert   = data[1] & 0x10; */
+	range       = data[1] & 0x20;
+	proximity   = data[1] & 0x40;
+	x           = le32_to_cpup((__le32 *)&data[2]) & 0xFFFFFF;
+	y           = le32_to_cpup((__le32 *)&data[5]) & 0xFFFFFF;
+	pressure    = le16_to_cpup((__le16 *)&data[8]);
+	tilt_x      = data[10];
+	tilt_y      = data[11];
+	rotation    = le16_to_cpup((__le16 *)&data[12]);
+	fingerwheel = le16_to_cpup((__le16 *)&data[14]);
+	height      = data[16];
+	tool_uid    = le64_to_cpup((__le64 *)&data[17]);
+	tool_type   = le16_to_cpup((__le16 *)&data[25]);
+
+	wacom->serial[0] = (tool_uid & 0xFFFFFFFF);
+	wacom->id[0]     = (tool_uid >> 32) | tool_type;
+	if (range) {
+		wacom->tool[0] = wacom_intuos_get_tool_type(wacom->id[0] & 0xFFFFF);
+	}
+
+	/* pointer going from fully "in range" to merely "in proximity" */
+	if (!range && wacom->tool[0]) {
+		height = wacom->features.distance_max;
+	}
+
+	/*
+	 * only report data if there's a tool for userspace to associate
+	 * the events with.
+	 */
+	if (wacom->tool[0]) {
+		input_report_key(input, BTN_TOUCH, tip);
+		input_report_key(input, BTN_STYLUS, sw1);
+		input_report_key(input, BTN_STYLUS2, sw2);
+		input_report_abs(input, ABS_X, x);
+		input_report_abs(input, ABS_Y, y);
+		input_report_abs(input, ABS_PRESSURE, pressure);
+		input_report_abs(input, ABS_TILT_X, tilt_x);
+		input_report_abs(input, ABS_TILT_Y, tilt_y);
+		input_report_abs(input, ABS_Z, rotation);
+		input_report_abs(input, ABS_WHEEL, fingerwheel);
+		input_report_abs(input, ABS_DISTANCE, height);
+		input_event(input, EV_MSC, MSC_SERIAL, wacom->serial[0]);
+		input_report_abs(input, ABS_MISC, wacom_intuos_id_mangle(wacom->id[0]));
+		input_report_key(input, wacom->tool[0], range ? 1 : 0);
+
+		if (!range)
+			wacom->tool[0] = 0;
+	}
+
+	wacom->shared->stylus_in_proximity = proximity;
+
+	return 1;
+}
+
+static int wacom_mspro_irq(struct wacom_wac *wacom)
+{
+	unsigned char *data = wacom->data;
+	struct input_dev *input = wacom->input;
+
+	switch (data[0]) {
+		case WACOM_REPORT_MSPRO:
+			return wacom_mspro_pen_irq(wacom);
+		case WACOM_REPORT_MSPROPAD:
+			return wacom_mspro_pad_irq(wacom);
+		case WACOM_REPORT_MSPRODEVICE:
+			return wacom_mspro_device_irq(wacom);
+		default:
+			dev_dbg(input->dev.parent,
+				"%s: received unknown report #%d\n", __func__, data[0]);
+			break;
+	}
+	return 0;
+}
+
 void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 {
 	bool sync;
@@ -1702,6 +1905,14 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case CINTIQ_HYBRID:
 	case CINTIQ_COMPANION_2:
 		sync = wacom_intuos_irq(wacom_wac);
+		break;
+
+	case WACOM_MSPRO:
+		sync = wacom_mspro_irq(wacom_wac);
+		break;
+
+	case WACOM_MSPROT:
+		sync = wacom_msprot_irq(wacom_wac);
 		break;
 
 	case WACOM_24HDT:
@@ -2017,6 +2228,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case WACOM_13HD:
 	case CINTIQ_HYBRID:
 	case CINTIQ_COMPANION_2:
+	case WACOM_MSPRO:
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		/* fall through */
 
@@ -2104,6 +2316,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		}
 		break;
 
+	case WACOM_MSPROT:
 	case WACOM_24HDT:
 		if (features->device_type == BTN_TOOL_FINGER) {
 			input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, features->x_max, 0, 0);
@@ -2767,6 +2980,25 @@ static const struct wacom_features wacom_features_0x343 =
 	  0, DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET};
+static const struct wacom_features wacom_features_0x34A =
+	{ "Wacom MobileStudio Pro 13 Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT, /* Touch */
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34D };
+static const struct wacom_features wacom_features_0x34B =
+	{ "Wacom MobileStudio Pro 16 Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT, /* Touch */
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34E };
+static const struct wacom_features wacom_features_0x34D =
+	{ "Wacom MobileStudio Pro 13", WACOM_PKGLEN_MSPRO, 59552, 33848, 8191, 63,
+	  WACOM_MSPRO, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 11,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+          .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34A };
+static const struct wacom_features wacom_features_0x34E =
+	{ "Wacom MobileStudio Pro 16", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
+	  WACOM_MSPRO, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 13,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+          .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34B };
+
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
 	.driver_info = (kernel_ulong_t)&wacom_features_##prod
@@ -2934,6 +3166,10 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x33D, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x33E, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x343) },
+	{ USB_DEVICE_WACOM(0x34A) },
+	{ USB_DEVICE_WACOM(0x34B) },
+	{ USB_DEVICE_WACOM(0x34D) },
+	{ USB_DEVICE_WACOM(0x34E) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };
