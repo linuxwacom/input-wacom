@@ -1434,34 +1434,6 @@ static struct input_dev *wacom_allocate_input(struct wacom *wacom)
 	return input_dev;
 }
 
-static void wacom_clean_inputs(struct wacom *wacom)
-{
-	if (wacom->wacom_wac.pen_input) {
-		if (wacom->wacom_wac.pen_registered)
-			input_unregister_device(wacom->wacom_wac.pen_input);
-		else
-			input_free_device(wacom->wacom_wac.pen_input);
-	}
-	if (wacom->wacom_wac.touch_input) {
-		if (wacom->wacom_wac.touch_registered)
-			input_unregister_device(wacom->wacom_wac.touch_input);
-		else
-			input_free_device(wacom->wacom_wac.touch_input);
-	}
-	if (wacom->wacom_wac.pad_input) {
-		if (wacom->wacom_wac.pad_registered)
-			input_unregister_device(wacom->wacom_wac.pad_input);
-		else
-			input_free_device(wacom->wacom_wac.pad_input);
-	}
-	wacom->wacom_wac.pen_input = NULL;
-	wacom->wacom_wac.touch_input = NULL;
-	wacom->wacom_wac.pad_input = NULL;
-	wacom->wacom_wac.pen_registered = false;
-	wacom->wacom_wac.touch_registered = false;
-	wacom->wacom_wac.pad_registered = false;
-}
-
 static int wacom_allocate_inputs(struct wacom *wacom)
 {
 	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
@@ -1504,7 +1476,6 @@ static int wacom_register_inputs(struct wacom *wacom)
 		error = input_register_device(pen_input_dev);
 		if (error)
 			goto fail;
-		wacom_wac->pen_registered = true;
 	}
 
 	error = wacom_setup_touch_input_capabilities(touch_input_dev, wacom_wac);
@@ -1517,7 +1488,6 @@ static int wacom_register_inputs(struct wacom *wacom)
 		error = input_register_device(touch_input_dev);
 		if (error)
 			goto fail;
-		wacom_wac->touch_registered = true;
 	}
 
 	error = wacom_setup_pad_input_capabilities(pad_input_dev, wacom_wac);
@@ -1530,18 +1500,14 @@ static int wacom_register_inputs(struct wacom *wacom)
 		error = input_register_device(pad_input_dev);
 		if (error)
 			goto fail;
-		wacom_wac->pad_registered = true;
 	}
 
 	return 0;
 
 fail:
 	wacom_wac->pad_input = NULL;
-	wacom_wac->pad_registered = false;
 	wacom_wac->touch_input = NULL;
-	wacom_wac->touch_registered = false;
 	wacom_wac->pen_input = NULL;
-	wacom_wac->pen_registered = false;
 	return error;
 }
 
@@ -1656,6 +1622,22 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		"%s%s Pad", name, suffix);
 }
 
+static void wacom_release_resources(struct wacom *wacom)
+{
+	struct hid_device *hdev = wacom->hdev;
+
+	if (!wacom->resources)
+		return;
+
+	devres_release_group(&hdev->dev, wacom);
+
+	wacom->resources = false;
+
+	wacom->wacom_wac.pen_input = NULL;
+	wacom->wacom_wac.touch_input = NULL;
+	wacom->wacom_wac.pad_input = NULL;
+}
+
 static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 {
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
@@ -1668,9 +1650,14 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	if (features->pktlen > WACOM_PKGLEN_MAX)
 		return -EINVAL;
 
+	if (!devres_open_group(&hdev->dev, wacom, GFP_KERNEL))
+		return -ENOMEM;
+
+	wacom->resources = true;
+
 	error = wacom_allocate_inputs(wacom);
 	if (error)
-		return error;
+		goto fail_open_group;
 
 	/*
 	 * Bamboo Pad has a generic hid handling for the Pen, and we switch it
@@ -1781,6 +1768,8 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 		wacom_wac->shared->touch_input = wacom_wac->touch_input;
 	}
 
+	devres_close_group(&hdev->dev, wacom);
+
 	return 0;
 
 fail_quirks:
@@ -1799,6 +1788,8 @@ fail_battery:
 fail_shared_data:
 fail_parsed:
 fail_allocate_inputs:
+fail_open_group:
+	wacom_release_resources(wacom);
 	return error;
 }
 
@@ -1824,14 +1815,14 @@ static void wacom_wireless_work(struct work_struct *work)
 	wacom1 = hid_get_drvdata(hdev1);
 	wacom_wac1 = &(wacom1->wacom_wac);
 	wacom_destroy_leds(wacom1);
-	wacom_clean_inputs(wacom1);
+	wacom_release_resources(wacom1);
 
 	/* Touch interface */
 	hdev2 = usb_get_intfdata(usbdev->config->interface[2]);
 	wacom2 = hid_get_drvdata(hdev2);
 	wacom_wac2 = &(wacom2->wacom_wac);
 	wacom_destroy_leds(wacom2);
-	wacom_clean_inputs(wacom2);
+	wacom_release_resources(wacom2);
 
 	if (wacom_wac->pid == 0) {
 		hid_info(wacom->hdev, "wireless tablet disconnected\n");
@@ -1886,9 +1877,9 @@ static void wacom_wireless_work(struct work_struct *work)
 
 fail:
 	wacom_destroy_leds(wacom1);
-	wacom_clean_inputs(wacom1);
+	wacom_release_resources(wacom1);
 	wacom_destroy_leds(wacom2);
-	wacom_clean_inputs(wacom2);
+	wacom_release_resources(wacom2);
 	return;
 }
 
