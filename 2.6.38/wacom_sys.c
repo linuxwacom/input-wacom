@@ -1413,7 +1413,6 @@ static void wacom_unregister_inputs(struct wacom *wacom)
 {
 	if (wacom->wacom_wac.input)
 		input_unregister_device(wacom->wacom_wac.input);
-	kobject_put(wacom->remote_dir);
 	wacom->wacom_wac.input = NULL;
 	wacom_destroy_leds(wacom);
 }
@@ -1456,14 +1455,8 @@ static int wacom_register_input(struct wacom *wacom)
 	if (error)
 		goto fail3;
 
-	error = wacom_initialize_remote(wacom);
-	if (error)
-		goto fail_remote;
-
 	return 0;
 
-fail_remote:
-	wacom_destroy_leds(wacom);
 fail3:
 	input_unregister_device(input_dev);
 	input_dev = NULL;
@@ -1730,6 +1723,12 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		}
 	}
 
+	if (wacom->wacom_wac.features.type == REMOTE) {
+		error = wacom_initialize_remote(wacom);
+		if (error)
+			goto fail4;
+	}
+
 	if ((wacom_wac->features.type == INTUOSHT ||
 	    wacom_wac->features.type == INTUOSHT2) &&
 	    wacom_wac->features.touch_max) {
@@ -1757,6 +1756,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 
 	usb_kill_urb(wacom->irq);
 	cancel_work_sync(&wacom->work);
+	kobject_put(wacom->remote_dir);
 	wacom_unregister_inputs(wacom);
 	wacom_destroy_battery(wacom);
 	usb_free_urb(wacom->irq);
