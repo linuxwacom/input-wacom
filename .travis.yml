@@ -30,4 +30,4 @@ install:
   - make -C ${KERNELDIR}/${KERNEL} defconfig prepare modules_prepare
 
 script:
-  - ./autogen.sh --with-kernel=${KERNELDIR}/${KERNEL} && make
+  - ./autogen.sh --with-kernel=${KERNELDIR}/${KERNEL} && make EXTRA_CFLAGS="-Werror -Wno-type-limits -Wno-unused-function -isystem ${KERNELDIR}/${KERNEL}/arch/x86/include -isystem ${KERNELDIR}/${KERNEL}/arch/x86/include/uapi -isystem ${KERNELDIR}/${KERNEL}/include/linux"
