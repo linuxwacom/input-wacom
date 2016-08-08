@@ -571,6 +571,38 @@ static struct wacom_hdev_data *wacom_get_hdev_data(struct hid_device *hdev)
 	return NULL;
 }
 
+static void wacom_release_shared_data(struct kref *kref)
+{
+	struct wacom_hdev_data *data =
+		container_of(kref, struct wacom_hdev_data, kref);
+
+	mutex_lock(&wacom_udev_list_lock);
+	list_del(&data->list);
+	mutex_unlock(&wacom_udev_list_lock);
+
+	kfree(data);
+}
+
+static void wacom_remove_shared_data(void *res)
+{
+	struct wacom *wacom = res;
+	struct wacom_hdev_data *data;
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+
+	if (wacom_wac->shared) {
+		data = container_of(wacom_wac->shared, struct wacom_hdev_data,
+				    shared);
+
+		if (wacom_wac->shared->touch == wacom->hdev)
+			wacom_wac->shared->touch = NULL;
+		else if (wacom_wac->shared->pen == wacom->hdev)
+			wacom_wac->shared->pen = NULL;
+
+		kref_put(&data->kref, wacom_release_shared_data);
+		wacom_wac->shared = NULL;
+	}
+}
+
 static int wacom_add_shared_data(struct hid_device *hdev)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
@@ -595,6 +627,13 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 
 	wacom_wac->shared = &data->shared;
 
+	retval = devm_add_action(&hdev->dev, wacom_remove_shared_data, wacom);
+	if (retval) {
+		mutex_unlock(&wacom_udev_list_lock);
+		wacom_remove_shared_data(wacom);
+		return retval;
+	}
+
 	if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)
 		wacom_wac->shared->touch = hdev;
 	else if (wacom_wac->features.device_type & WACOM_DEVICETYPE_PEN)
@@ -603,37 +642,6 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 out:
 	mutex_unlock(&wacom_udev_list_lock);
 	return retval;
-}
-
-static void wacom_release_shared_data(struct kref *kref)
-{
-	struct wacom_hdev_data *data =
-		container_of(kref, struct wacom_hdev_data, kref);
-
-	mutex_lock(&wacom_udev_list_lock);
-	list_del(&data->list);
-	mutex_unlock(&wacom_udev_list_lock);
-
-	kfree(data);
-}
-
-static void wacom_remove_shared_data(struct wacom *wacom)
-{
-	struct wacom_hdev_data *data;
-	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
-
-	if (wacom_wac->shared) {
-		data = container_of(wacom_wac->shared, struct wacom_hdev_data,
-				    shared);
-
-		if (wacom_wac->shared->touch == wacom->hdev)
-			wacom_wac->shared->touch = NULL;
-		else if (wacom_wac->shared->pen == wacom->hdev)
-			wacom_wac->shared->pen = NULL;
-
-		kref_put(&data->kref, wacom_release_shared_data);
-		wacom_wac->shared = NULL;
-	}
 }
 
 static int wacom_led_control(struct wacom *wacom)
@@ -1782,7 +1790,6 @@ fail_register_inputs:
 	wacom_destroy_battery(wacom);
 #endif
 fail_battery:
-	wacom_remove_shared_data(wacom);
 fail_shared_data:
 fail_parsed:
 fail_allocate_inputs:
@@ -1822,7 +1829,6 @@ static void wacom_wireless_work(struct work_struct *work)
 
 	if (wacom_wac->pid == 0) {
 		hid_info(wacom->hdev, "wireless tablet disconnected\n");
-		wacom_wac1->shared->type = 0;
 	} else {
 		const struct hid_device_id *id = wacom_ids;
 
