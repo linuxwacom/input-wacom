@@ -130,7 +130,6 @@ struct wacom {
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
-	bool led_initialized;
 	struct power_supply battery;
 	struct kobject *remote_dir;
 	struct attribute_group remote_group[5];

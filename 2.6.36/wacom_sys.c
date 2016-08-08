@@ -738,6 +738,45 @@ static struct attribute_group intuos5_led_attr_group = {
 	.attrs = intuos5_led_attrs,
 };
 
+struct wacom_sysfs_group_devres {
+	struct attribute_group *group;
+	struct kobject *root;
+};
+
+static void wacom_devm_sysfs_group_release(struct device *dev, void *res)
+{
+	struct wacom_sysfs_group_devres *devres = res;
+	struct kobject *kobj = devres->root;
+
+	dev_dbg(dev, "%s: dropping reference to %s\n",
+		__func__, devres->group->name);
+	sysfs_remove_group(kobj, devres->group);
+}
+
+static int wacom_devm_sysfs_create_group(struct wacom *wacom,
+					 struct attribute_group *group)
+{
+	struct wacom_sysfs_group_devres *devres;
+	int error;
+
+	devres = devres_alloc(wacom_devm_sysfs_group_release,
+			      sizeof(struct wacom_sysfs_group_devres),
+			      GFP_KERNEL);
+	if (!devres)
+		return -ENOMEM;
+
+	devres->group = group;
+	devres->root = &wacom->intf->dev.kobj;
+
+	error = sysfs_create_group(devres->root, group);
+	if (error)
+		return error;
+
+	devres_add(&wacom->intf->dev, devres);
+
+	return 0;
+}
+
 static int wacom_initialize_leds(struct wacom *wacom)
 {
 	int error;
@@ -755,8 +794,9 @@ static int wacom_initialize_leds(struct wacom *wacom)
 		wacom->led.llv = 10;
 		wacom->led.hlv = 20;
 		wacom->led.img_lum = 10;
-		error = sysfs_create_group(&wacom->intf->dev.kobj,
-					   &intuos4_led_attr_group);
+
+		error = wacom_devm_sysfs_create_group(wacom,
+						      &intuos4_led_attr_group);
 		break;
 
 	case WACOM_24HD:
@@ -766,8 +806,9 @@ static int wacom_initialize_leds(struct wacom *wacom)
 		wacom->led.llv = 0;
 		wacom->led.hlv = 0;
 		wacom->led.img_lum = 0;
-		error = sysfs_create_group(&wacom->intf->dev.kobj,
-					   &cintiq_led_attr_group);
+
+		error = wacom_devm_sysfs_create_group(wacom,
+						      &cintiq_led_attr_group);
 		break;
 
 	case INTUOS5S:
@@ -782,8 +823,8 @@ static int wacom_initialize_leds(struct wacom *wacom)
 		wacom->led.hlv = 0;
 		wacom->led.img_lum = 0;
 
-		error = sysfs_create_group(&wacom->intf->dev.kobj,
-					   &intuos5_led_attr_group);
+		error = wacom_devm_sysfs_create_group(wacom,
+						      &intuos5_led_attr_group);
 		break;
 
 	default:
@@ -796,45 +837,8 @@ static int wacom_initialize_leds(struct wacom *wacom)
 		return error;
 	}
 	wacom_led_control(wacom);
-	wacom->led_initialized = true;
 
 	return 0;
-}
-
-static void wacom_destroy_leds(struct wacom *wacom)
-{
-	if (!wacom->led_initialized)
-		return;
-
-	wacom->led_initialized = false;
-
-	if (wacom->wacom_wac.features.device_type != BTN_TOOL_PEN)
-		return;
-
-	switch (wacom->wacom_wac.features.type) {
-	case INTUOS4S:
-	case INTUOS4:
-	case INTUOS4L:
-		sysfs_remove_group(&wacom->intf->dev.kobj,
-				   &intuos4_led_attr_group);
-		break;
-
-	case WACOM_24HD:
-	case WACOM_21UX2:
-		sysfs_remove_group(&wacom->intf->dev.kobj,
-				   &cintiq_led_attr_group);
-		break;
-
-	case INTUOS5S:
-	case INTUOS5:
-	case INTUOS5L:
-	case INTUOSPS:
-	case INTUOSPM:
-	case INTUOSPL:
-		sysfs_remove_group(&wacom->intf->dev.kobj,
-				   &intuos5_led_attr_group);
-		break;
-	}
 }
 
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -944,7 +948,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	error = input_register_device(input_dev);
 	if (error)
-		goto fail5;
+		goto fail4;
 
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(intf, features);
@@ -952,7 +956,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_set_intfdata(intf, wacom);
 	return 0;
 
- fail5:	wacom_destroy_leds(wacom);
  fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
  fail2:	usb_free_coherent(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
@@ -969,7 +972,6 @@ static void wacom_disconnect(struct usb_interface *intf)
 
 	usb_kill_urb(wacom->irq);
 	input_unregister_device(wacom->wacom_wac.input);
-	wacom_destroy_leds(wacom);
 	usb_free_urb(wacom->irq);
 	usb_free_coherent(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
 			wacom->wacom_wac.data, wacom->data_dma);
