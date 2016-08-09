@@ -2077,7 +2077,7 @@ static int wacom_probe(struct hid_device *hdev,
 
 	if (features->check_for_hid_type && features->hid_type != hdev->type) {
 		error = -ENODEV;
-		goto fail_type;
+		goto fail;
 	}
 
 	wacom_wac->hid_data.inputmode = -1;
@@ -2094,12 +2094,12 @@ static int wacom_probe(struct hid_device *hdev,
 	error = hid_parse(hdev);
 	if (error) {
 		hid_err(hdev, "parse failed\n");
-		goto fail_parse;
+		goto fail;
 	}
 
 	error = wacom_parse_and_register(wacom, false);
 	if (error)
-		goto fail_parse;
+		goto fail;
 
 	if (hdev->bus == BUS_BLUETOOTH) {
 		error = device_create_file(&hdev->dev, &dev_attr_speed);
@@ -2111,8 +2111,7 @@ static int wacom_probe(struct hid_device *hdev,
 
 	return 0;
 
-fail_parse:
-fail_type:
+fail:
 	hid_set_drvdata(hdev, NULL);
 	return error;
 }
