@@ -115,6 +115,14 @@ enum wacom_worker {
 	WACOM_WORKER_REMOTE,
 };
 
+struct wacom_remote {
+	spinlock_t remote_lock;
+	struct kfifo remote_fifo;
+	struct kobject *remote_dir;
+	struct attribute_group remote_group[WACOM_MAX_REMOTES];
+	__u32 serial[WACOM_MAX_REMOTES];
+};
+
 struct wacom {
 	dma_addr_t data_dma;
 	struct usb_device *usbdev;
@@ -125,8 +133,7 @@ struct wacom {
 	struct work_struct wireless_work;
 	struct work_struct battery_work;
 	struct work_struct remote_work;
-	spinlock_t remote_lock;
-	struct kfifo remote_fifo;
+	struct wacom_remote *remote;
 	bool open;
 	char phys[32];
 	struct wacom_led {
@@ -136,8 +143,6 @@ struct wacom {
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
 	struct power_supply battery;
-	struct kobject *remote_dir;
-	struct attribute_group remote_group[5];
 };
 
 static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
