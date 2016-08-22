@@ -3,12 +3,14 @@ language: c
 compiler: gcc
 
 env:
+  - KERNEL="linux-4.5"
   - KERNEL="linux-3.17"
   - KERNEL="linux-3.7"
   - KERNEL="linux-2.6.38"
   - KERNEL="linux-2.6.36"
   - KERNEL="linux-2.6.30"
-  
+
+  - KERNEL="linux-4.6"      # Conditional 4.5
   - KERNEL="linux-4.1"      # Conditional 3.17
   - KERNEL="linux-3.19"     # Conditional 3.17
   - KERNEL="linux-3.18"     # Conditional 3.17
