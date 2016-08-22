@@ -1060,7 +1060,9 @@ static int wacom_led_register_one(struct device *dev, struct wacom *wacom,
 	led->hlv = wacom->led.hlv;
 	led->cdev.name = name;
 	led->cdev.max_brightness = LED_FULL;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
 	led->cdev.flags = LED_HW_PLUGGABLE;
+#endif
 	led->cdev.brightness_get = __wacom_led_brightness_get;
 	if (!read_only) {
 		led->cdev.brightness_set_blocking = wacom_led_brightness_set;
@@ -1087,6 +1089,20 @@ static void wacom_led_groups_release_one(void *data)
 
 	devres_release_group(group->dev, group);
 }
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,6,0)
+static int devm_add_action_or_reset(struct device *dev,
+				    void (*action)(void *), void *data)
+{
+	int ret;
+
+	ret = devm_add_action(dev, action, data);
+	if (ret)
+		action(data);
+
+	return ret;
+}
+#endif
 
 static int wacom_led_groups_alloc_and_register_one(struct device *dev,
 						   struct wacom *wacom,

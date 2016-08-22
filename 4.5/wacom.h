@@ -95,6 +95,7 @@
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <asm/unaligned.h>
+#include <linux/version.h>
 
 /*
  * Version Information
