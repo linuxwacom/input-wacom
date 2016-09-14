@@ -131,6 +131,7 @@ struct wacom_group_leds {
 };
 
 struct wacom_battery {
+	struct wacom *wacom;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
 	struct power_supply_desc bat_desc;
 	struct power_supply *battery;
