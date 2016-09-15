@@ -112,6 +112,11 @@ MODULE_LICENSE(DRIVER_LICENSE);
 #define USB_VENDOR_ID_WACOM	0x056a
 #define USB_VENDOR_ID_LENOVO	0x17ef
 
+enum wacom_worker {
+	WACOM_WORKER_WIRELESS,
+	WACOM_WORKER_BATTERY,
+};
+
 struct wacom {
 	dma_addr_t data_dma;
 	struct usb_device *usbdev;
@@ -119,7 +124,8 @@ struct wacom {
 	struct urb *irq;
 	struct wacom_wac wacom_wac;
 	struct mutex lock;
-	struct work_struct work;
+	struct work_struct wireless_work;
+	struct work_struct battery_work;
 	bool open;
 	char phys[32];
 	struct wacom_led {
@@ -134,10 +140,19 @@ struct wacom {
 	struct attribute_group remote_group[5];
 };
 
-static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
+static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
+				       enum wacom_worker which)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	schedule_work(&wacom->work);
+
+	switch (which) {
+	case WACOM_WORKER_WIRELESS:
+		schedule_work(&wacom->wireless_work);
+		break;
+	case WACOM_WORKER_BATTERY:
+		schedule_work(&wacom->battery_work);
+		break;
+	}
 }
 
 extern const struct usb_device_id wacom_ids[];

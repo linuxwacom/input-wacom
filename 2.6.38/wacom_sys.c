@@ -1492,7 +1492,7 @@ static void wacom_calculate_res(struct wacom_features *features)
 
 static void wacom_wireless_work(struct work_struct *work)
 {
-	struct wacom *wacom = container_of(work, struct wacom, work);
+	struct wacom *wacom = container_of(work, struct wacom, wireless_work);
 	struct usb_device *usbdev = wacom->usbdev;
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct wacom *wacom1, *wacom2;
@@ -1603,7 +1603,7 @@ fail:
 
 void wacom_battery_work(struct work_struct *work)
 {
-	struct wacom *wacom = container_of(work, struct wacom, work);
+	struct wacom *wacom = container_of(work, struct wacom, battery_work);
 
 	if ((wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
 	     !wacom->battery.dev) {
@@ -1660,7 +1660,8 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	wacom->usbdev = dev;
 	wacom->intf = intf;
 	mutex_init(&wacom->lock);
-	INIT_WORK(&wacom->work, wacom_wireless_work);
+	INIT_WORK(&wacom->wireless_work, wacom_wireless_work);
+	INIT_WORK(&wacom->battery_work, wacom_battery_work);
 	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
 	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
@@ -1755,7 +1756,8 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	usb_kill_urb(wacom->irq);
-	cancel_work_sync(&wacom->work);
+	cancel_work_sync(&wacom->wireless_work);
+	cancel_work_sync(&wacom->battery_work);
 	kobject_put(wacom->remote_dir);
 	wacom_destroy_leds(wacom);
 	wacom_unregister_inputs(wacom);
