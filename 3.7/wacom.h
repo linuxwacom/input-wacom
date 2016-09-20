@@ -86,6 +86,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/kfifo.h>
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <asm/unaligned.h>
@@ -111,6 +112,7 @@ MODULE_LICENSE(DRIVER_LICENSE);
 enum wacom_worker {
 	WACOM_WORKER_WIRELESS,
 	WACOM_WORKER_BATTERY,
+	WACOM_WORKER_REMOTE,
 };
 
 struct wacom {
@@ -122,6 +124,9 @@ struct wacom {
 	struct mutex lock;
 	struct work_struct wireless_work;
 	struct work_struct battery_work;
+	struct work_struct remote_work;
+	spinlock_t remote_lock;
+	struct kfifo remote_fifo;
 	bool open;
 	char phys[32];
 	struct wacom_led {
@@ -147,6 +152,9 @@ static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
 	case WACOM_WORKER_BATTERY:
 		schedule_work(&wacom->battery_work);
 		break;
+	case WACOM_WORKER_REMOTE:
+		schedule_work(&wacom->remote_work);
+		break;
 	}
 }
 
@@ -157,7 +165,4 @@ void wacom_setup_device_quirks(struct wacom *wacom);
 int wacom_setup_input_capabilities(struct input_dev *input_dev,
 				   struct wacom_wac *wacom_wac);
 void wacom_battery_work(struct work_struct *work);
-int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial,
-				   int index);
-void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial);
 #endif

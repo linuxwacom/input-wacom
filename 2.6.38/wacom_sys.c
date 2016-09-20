@@ -1272,7 +1272,7 @@ DEVICE_EKR_ATTR_GROUP(2);
 DEVICE_EKR_ATTR_GROUP(3);
 DEVICE_EKR_ATTR_GROUP(4);
 
-int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial, int index)
+static int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial, int index)
 {
 	int error = 0;
 	char *buf;
@@ -1297,7 +1297,7 @@ int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial, int index)
 	return 0;
 }
 
-void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial)
+static void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial)
 {
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	int i;
@@ -1613,6 +1613,66 @@ void wacom_battery_work(struct work_struct *work)
 	}
 }
 
+static void wacom_remote_work(struct work_struct *work)
+{
+	struct wacom *wacom = container_of(work, struct wacom, remote_work);
+	struct device *dev = &wacom->intf->dev;
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct wacom_remote_data data;
+	unsigned long flags;
+	unsigned int count;
+	u32 serial;
+	int i, k;
+
+	spin_lock_irqsave(&wacom->remote_lock, flags);
+
+	count = kfifo_out(&wacom->remote_fifo, &data, sizeof(data));
+
+	if (count != sizeof(data)) {
+			dev_err(dev,
+			"workitem triggered without status available\n");
+		spin_unlock_irqrestore(&wacom->remote_lock, flags);
+		return;
+	}
+
+	if (!kfifo_is_empty(&wacom->remote_fifo))
+		wacom_schedule_work(&wacom->wacom_wac, WACOM_WORKER_REMOTE);
+
+	spin_unlock_irqrestore(&wacom->remote_lock, flags);
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		serial = data.remote[i].serial;
+		if (data.remote[i].connected) {
+
+			if (wacom_wac->serial[i] == serial)
+				continue;
+
+			if (wacom_wac->serial[i]) {
+				wacom_remote_destroy_attr_group(wacom,
+							wacom_wac->serial[i]);
+			}
+
+			/* A remote can pair more than once with an EKR,
+			 * check to make sure this serial isn't already paired.
+			 */
+			for (k = 0; k < WACOM_MAX_REMOTES; k++) {
+				if (wacom_wac->serial[k] == serial)
+					break;
+			}
+
+			if (k < WACOM_MAX_REMOTES) {
+				wacom_wac->serial[i] = serial;
+				continue;
+			}
+			wacom_remote_create_attr_group(wacom, serial, i);
+
+		} else if (wacom_wac->serial[i]) {
+			wacom_remote_destroy_attr_group(wacom,
+							wacom_wac->serial[i]);
+		}
+	}
+}
+
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
@@ -1660,6 +1720,18 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	mutex_init(&wacom->lock);
 	INIT_WORK(&wacom->wireless_work, wacom_wireless_work);
 	INIT_WORK(&wacom->battery_work, wacom_battery_work);
+	INIT_WORK(&wacom->remote_work, wacom_remote_work);
+	spin_lock_init(&wacom->remote_lock);
+
+	if (kfifo_alloc(&wacom->remote_fifo,
+			5 * sizeof(struct wacom_remote_data),
+			GFP_KERNEL)) {
+		dev_err(&wacom->intf->dev,
+			"%s:failed allocating remote_fifo\n", __func__);
+		error = -ENOMEM;
+		goto fail2;
+	}
+
 	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
 	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
@@ -1742,6 +1814,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
  fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
 	wacom_destroy_battery(wacom);
+	kfifo_free(&wacom->remote_fifo);
  fail2:	usb_free_coherent(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
  fail1:
 	return error;
@@ -1757,6 +1830,8 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_kill_urb(wacom->irq);
 	cancel_work_sync(&wacom->wireless_work);
 	cancel_work_sync(&wacom->battery_work);
+	cancel_work_sync(&wacom->remote_work);
+	kfifo_free(&wacom->remote_fifo);
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		if (wacom->remote_group[i].name) {
 			wacom_remote_destroy_attr_group(wacom,

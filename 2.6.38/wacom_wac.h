@@ -165,6 +165,13 @@ struct wacom_shared {
 	struct input_dev *touch_input;
 };
 
+struct wacom_remote_data {
+	struct {
+		u32 serial;
+		bool connected;
+	} remote[WACOM_MAX_REMOTES];
+};
+
 struct wacom_wac {
 	char name[WACOM_NAME_MAX];
 	char bat_name[WACOM_NAME_MAX];
