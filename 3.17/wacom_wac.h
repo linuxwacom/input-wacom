@@ -85,6 +85,10 @@
 #define WACOM_DEVICETYPE_WL_MONITOR     0x0008
 #define WACOM_DEVICETYPE_DIRECT         0x0010
 
+#ifndef HID_DG_BATTERYSTRENGTH
+#define HID_DG_BATTERYSTRENGTH          (HID_UP_DIGITIZER | 0x3B)
+#endif
+
 #ifndef HID_DG_TILT_X
 #define HID_DG_TILT_X                   (HID_UP_DIGITIZER | 0x3D)
 #endif
@@ -113,6 +117,8 @@
 #define WACOM_HID_WD_ACCELEROMETER_X    (WACOM_HID_UP_WACOMDIGITIZER | 0x0401)
 #define WACOM_HID_WD_ACCELEROMETER_Y    (WACOM_HID_UP_WACOMDIGITIZER | 0x0402)
 #define WACOM_HID_WD_ACCELEROMETER_Z    (WACOM_HID_UP_WACOMDIGITIZER | 0x0403)
+#define WACOM_HID_WD_BATTERY_CHARGING   (WACOM_HID_UP_WACOMDIGITIZER | 0x0404)
+#define WACOM_HID_WD_BATTERY_LEVEL      (WACOM_HID_UP_WACOMDIGITIZER | 0x043b)
 #define WACOM_HID_WD_EXPRESSKEY00       (WACOM_HID_UP_WACOMDIGITIZER | 0x0910)
 #define WACOM_HID_WD_BUTTONHOME         (WACOM_HID_UP_WACOMDIGITIZER | 0x0990)
 #define WACOM_HID_WD_BUTTONUP           (WACOM_HID_UP_WACOMDIGITIZER | 0x0991)
@@ -269,6 +275,10 @@ struct hid_data {
 	int last_slot_field;
 	int num_expected;
 	int num_received;
+	int battery_capacity;
+	int bat_charging;
+	int bat_connected;
+	int ps_connected;
 };
 
 struct wacom_remote_data {
