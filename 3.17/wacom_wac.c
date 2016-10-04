@@ -1491,7 +1491,8 @@ static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 	unsigned int equivalent_usage = wacom_equivalent_usage(usage->hid);
 	int resolution_code = code;
 
-	if (equivalent_usage == HID_DG_TWIST) {
+	if (equivalent_usage == HID_DG_TWIST ||
+	    equivalent_usage == WACOM_HID_WD_TOUCHRING) {
 		resolution_code = ABS_RZ;
 	}
 
