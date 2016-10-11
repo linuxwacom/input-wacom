@@ -1118,30 +1118,29 @@ static int wacom_battery_get_property(struct power_supply *psy,
 				      union power_supply_propval *val)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-	struct wacom *wacom = power_supply_get_drvdata(psy);
+	struct wacom_battery *battery = power_supply_get_drvdata(psy);
 #else
-	struct wacom *wacom = container_of(psy, struct wacom, battery);
+	struct wacom_battery *battery = container_of(psy, struct wacom_battery, battery);
 #endif
 	int ret = 0;
 
 	switch (psp) {
 		case POWER_SUPPLY_PROP_PRESENT:
-			val->intval = wacom->wacom_wac.bat_connected;
+			val->intval = battery->bat_connected;
 			break;
 		case POWER_SUPPLY_PROP_SCOPE:
 			val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 			break;
 		case POWER_SUPPLY_PROP_CAPACITY:
-			val->intval =
-				wacom->wacom_wac.battery_capacity;
+			val->intval = battery->battery_capacity;
 			break;
 		case POWER_SUPPLY_PROP_STATUS:
-			if (wacom->wacom_wac.bat_charging)
+			if (battery->bat_charging)
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
-			else if (wacom->wacom_wac.battery_capacity == 100 &&
-				    wacom->wacom_wac.ps_connected)
+			else if (battery->battery_capacity == 100 &&
+				    battery->ps_connected)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
-			else if (wacom->wacom_wac.ps_connected)
+			else if (battery->ps_connected)
 				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 			else
 				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -1159,9 +1158,9 @@ static int wacom_ac_get_property(struct power_supply *psy,
 				union power_supply_propval *val)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-	struct wacom *wacom = power_supply_get_drvdata(psy);
+	struct wacom_battery *battery = power_supply_get_drvdata(psy);
 #else
-	struct wacom *wacom = container_of(psy, struct wacom, ac);
+	struct wacom_battery *battery = container_of(psy, struct wacom_battery, battery);
 #endif
 	int ret = 0;
 
@@ -1169,7 +1168,7 @@ static int wacom_ac_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		/* fall through */
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = wacom->wacom_wac.ps_connected;
+		val->intval = battery->ps_connected;
 		break;
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
@@ -1181,101 +1180,132 @@ static int wacom_ac_get_property(struct power_supply *psy,
 	return ret;
 }
 
-static int wacom_initialize_battery(struct wacom *wacom)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+static int __wacom_initialize_battery(struct wacom *wacom,
+				      struct wacom_battery *battery)
 {
 	static atomic_t battery_no = ATOMIC_INIT(0);
 	struct device *dev = &wacom->hdev->dev;
 	int error;
 	unsigned long n;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-	struct power_supply_config psy_cfg = { .drv_data = wacom, };
-	struct power_supply_desc *bat_desc = &WACOM_POWERSUPPLY_DESC(wacom->battery);
+
+	n = atomic_inc_return(&battery_no) - 1;
+
+	battery->battery.properties = wacom_battery_props;
+	battery->battery.num_properties = ARRAY_SIZE(wacom_battery_props);
+	battery->battery.get_property = wacom_battery_get_property;
+	sprintf(wacom->battery.bat_name, "wacom_battery_%ld", n);
+	battery->battery.name = wacom->battery.bat_name;
+	battery->battery.type = POWER_SUPPLY_TYPE_BATTERY;
+	battery->battery.use_for_apm = 0;
+
+	battery->ac.properties = wacom_ac_props;
+	battery->ac.num_properties = ARRAY_SIZE(wacom_ac_props);
+	battery->ac.get_property = wacom_ac_get_property;
+	sprintf(wacom->battery.ac_name, "wacom_ac_%ld", n);
+	battery->ac.name = wacom->battery.ac_name;
+	battery->ac.type = POWER_SUPPLY_TYPE_MAINS;
+	battery->ac.use_for_apm = 0;
+
+	error = power_supply_register(dev, &battery->battery);
+
+	if (error)
+		return error;
+
+	power_supply_powers(WACOM_POWERSUPPLY_REF(battery->battery), dev);
+
+	error = power_supply_register(dev, &battery->ac);
+
+	if (error) {
+		power_supply_unregister(&battery->battery);
+		return error;
+	}
+
+	power_supply_powers(WACOM_POWERSUPPLY_REF(battery->ac), dev);
+
+	return 0;
+}
+
+#else
+static int __wacom_initialize_battery(struct wacom *wacom,
+				      struct wacom_battery *battery)
+{
+	static atomic_t battery_no = ATOMIC_INIT(0);
+	struct device *dev = &wacom->hdev->dev;
+	struct power_supply_config psy_cfg = { .drv_data = battery, };
+	struct power_supply *ps_bat, *ps_ac;
+	struct power_supply_desc *bat_desc = &battery->bat_desc;
+	struct power_supply_desc *ac_desc = &battery->ac_desc;
+	unsigned long n;
+	int error;
 
 	if (!devres_open_group(dev, bat_desc, GFP_KERNEL))
 		return -ENOMEM;
-#endif
 
-	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) {
-		n = atomic_inc_return(&battery_no) - 1;
+	n = atomic_inc_return(&battery_no) - 1;
 
-		WACOM_POWERSUPPLY_DESC(wacom->battery).properties = wacom_battery_props;
-		WACOM_POWERSUPPLY_DESC(wacom->battery).num_properties = ARRAY_SIZE(wacom_battery_props);
-		WACOM_POWERSUPPLY_DESC(wacom->battery).get_property = wacom_battery_get_property;
-		sprintf(wacom->wacom_wac.bat_name, "wacom_battery_%ld", n);
-		WACOM_POWERSUPPLY_DESC(wacom->battery).name = wacom->wacom_wac.bat_name;
-		WACOM_POWERSUPPLY_DESC(wacom->battery).type = POWER_SUPPLY_TYPE_BATTERY;
-		WACOM_POWERSUPPLY_DESC(wacom->battery).use_for_apm = 0;
+	bat_desc->properties = wacom_battery_props;
+	bat_desc->num_properties = ARRAY_SIZE(wacom_battery_props);
+	bat_desc->get_property = wacom_battery_get_property;
+	sprintf(battery->bat_name, "wacom_battery_%ld", n);
+	bat_desc->name = battery->bat_name;
+	bat_desc->type = POWER_SUPPLY_TYPE_BATTERY;
+	bat_desc->use_for_apm = 0;
 
-		WACOM_POWERSUPPLY_DESC(wacom->ac).properties = wacom_ac_props;
-		WACOM_POWERSUPPLY_DESC(wacom->ac).num_properties = ARRAY_SIZE(wacom_ac_props);
-		WACOM_POWERSUPPLY_DESC(wacom->ac).get_property = wacom_ac_get_property;
-		sprintf(wacom->wacom_wac.ac_name, "wacom_ac_%ld", n);
-		WACOM_POWERSUPPLY_DESC(wacom->ac).name = wacom->wacom_wac.ac_name;
-		WACOM_POWERSUPPLY_DESC(wacom->battery).type = POWER_SUPPLY_TYPE_MAINS;
-		WACOM_POWERSUPPLY_DESC(wacom->battery).use_for_apm = 0;
+	ac_desc->properties = wacom_ac_props;
+	ac_desc->num_properties = ARRAY_SIZE(wacom_ac_props);
+	ac_desc->get_property = wacom_ac_get_property;
+	sprintf(battery->ac_name, "wacom_ac_%ld", n);
+	ac_desc->name = battery->ac_name;
+	ac_desc->type = POWER_SUPPLY_TYPE_MAINS;
+	ac_desc->use_for_apm = 0;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-		wacom->battery = devm_power_supply_register(dev,
-							   &WACOM_POWERSUPPLY_DESC(wacom->battery),
-							   &psy_cfg);
-		if (IS_ERR(wacom->battery)) {
-			error = PTR_ERR(wacom->battery);
-			goto err;
-		}
-#else
-		error = power_supply_register(dev,
-					      &wacom->battery);
-
-		if (error)
-			return error;
-#endif
-
-		power_supply_powers(WACOM_POWERSUPPLY_REF(wacom->battery), dev);
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-		wacom->ac = devm_power_supply_register(dev,
-						       &WACOM_POWERSUPPLY_DESC(wacom->battery),
-						       &psy_cfg);
-		if (IS_ERR(wacom->ac)) {
-			error = PTR_ERR(wacom->ac);
-			goto err;
-		}
-#else
-		error = power_supply_register(dev, &wacom->ac);
-
-		if (error) {
-			power_supply_unregister(&wacom->battery);
-			return error;
-		}
-#endif
-		power_supply_powers(WACOM_POWERSUPPLY_REF(wacom->ac), dev);
+	ps_bat = devm_power_supply_register(dev, bat_desc, &psy_cfg);
+	if (IS_ERR(ps_bat)) {
+		error = PTR_ERR(ps_bat);
+		goto err;
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-	devres_close_group(dev, bat_desc);
-#endif
+	ps_ac = devm_power_supply_register(dev, ac_desc, &psy_cfg);
+	if (IS_ERR(ps_ac)) {
+		error = PTR_ERR(ps_ac);
+		goto err;
+	}
 
+	power_supply_powers(ps_bat, &wacom->hdev->dev);
+	power_supply_powers(ps_ac, &wacom->hdev->dev);
+
+	battery->battery = ps_bat;
+	battery->ac = ps_ac;
+
+	devres_close_group(dev, bat_desc);
 	return 0;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
 err:
 	devres_release_group(dev, bat_desc);
 	return error;
+}
 #endif
+
+static int wacom_initialize_battery(struct wacom *wacom)
+{
+	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY)
+		 return __wacom_initialize_battery(wacom, &wacom->battery);
+
+	return 0;
 }
 
 static void wacom_destroy_battery(struct wacom *wacom)
 {
-	if (WACOM_POWERSUPPLY_DEVICE(wacom->battery)) {
-
+	if (WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-		devres_release_group(&wacom->hdev->dev, WACOM_POWERSUPPLY_DEVICE(wacom->battery));
+		devres_release_group(&wacom->hdev->dev, wacom->battery.battery);
 #else
-		power_supply_unregister(WACOM_POWERSUPPLY_REF(wacom->battery));
-		power_supply_unregister(WACOM_POWERSUPPLY_REF(wacom->ac));
+		power_supply_unregister(&wacom->battery.battery);
+		power_supply_unregister(&wacom->battery.ac);
 #endif
-		WACOM_POWERSUPPLY_DEVICE(wacom->battery) = NULL;
-		WACOM_POWERSUPPLY_DEVICE(wacom->ac) = NULL;
+		WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery) = NULL;
+		WACOM_POWERSUPPLY_DEVICE(wacom->battery.ac) = NULL;
 	}
 }
 
@@ -1439,9 +1469,28 @@ static void wacom_remotes_destroy(void *data)
 	struct wacom *wacom = data;
 	struct wacom_remote *remote = wacom->remote;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+	int i;
+	unsigned long flags;
+#endif
+
 	if (!remote)
 		return;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		if (remote->remotes[i].registered) {
+			spin_lock_irqsave(&remote->remote_lock, flags);
+			remote->remotes[i].registered = false;
+			spin_unlock_irqrestore(&remote->remote_lock, flags);
+
+			if (WACOM_POWERSUPPLY_DEVICE(remote->remotes[i].battery.battery)) {
+				power_supply_unregister(&remote->remotes[i].battery.battery);
+				power_supply_unregister(&remote->remotes[i].battery.ac);
+			}
+		}
+	}
+#endif
 	kobject_put(remote->remote_dir);
 	kfifo_free(&remote->remote_fifo);
 	wacom->remote = NULL;
@@ -1645,11 +1694,11 @@ void wacom_battery_work(struct work_struct *work)
 	struct wacom *wacom = container_of(work, struct wacom, battery_work);
 
 	if ((wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
-	     !WACOM_POWERSUPPLY_DEVICE(wacom->battery)) {
+	     !WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
 		wacom_initialize_battery(wacom);
 	}
 	else if (!(wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
-		 WACOM_POWERSUPPLY_DEVICE(wacom->battery)) {
+		 WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
 		wacom_destroy_battery(wacom);
 	}
 }
@@ -2046,6 +2095,11 @@ static int wacom_remote_create_one(struct wacom *wacom, u32 serial,
 	error = input_register_device(remote->remotes[index].input);
 	if (error)
 		goto fail;
+
+	error = __wacom_initialize_battery(wacom,
+					   &remote->remotes[index].battery);
+	if (error)
+		 goto fail;
 
 	remote->remotes[index].registered = true;
 

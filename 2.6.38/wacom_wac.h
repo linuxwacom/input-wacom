@@ -174,7 +174,6 @@ struct wacom_remote_data {
 
 struct wacom_wac {
 	char name[WACOM_NAME_MAX];
-	char bat_name[WACOM_NAME_MAX];
 	unsigned char *data;
 	int tool[2];
 	int id[2];
@@ -184,12 +183,8 @@ struct wacom_wac {
 	struct wacom_shared *shared;
 	struct input_dev *input;
 	int pid;
-	int battery_capacity;
 	int num_contacts_left;
 	int *slots;
-	int bat_charging;
-	int bat_connected;
-	int ps_connected;
 };
 
 #endif

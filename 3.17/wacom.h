@@ -130,6 +130,24 @@ struct wacom_group_leds {
 	u8 select; /* status led selector (0..3) */
 };
 
+struct wacom_battery {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+	struct power_supply_desc bat_desc;
+	struct power_supply_desc ac_desc;
+	struct power_supply *battery;
+	struct power_supply *ac;
+#else
+	struct power_supply battery;
+	struct power_supply ac;
+#endif
+	char bat_name[WACOM_NAME_MAX];
+	char ac_name[WACOM_NAME_MAX];
+	int battery_capacity;
+	int bat_charging;
+	int bat_connected;
+	int ps_connected;
+};
+
 struct wacom_remote {
 	spinlock_t remote_lock;
 	struct kfifo remote_fifo;
@@ -139,6 +157,7 @@ struct wacom_remote {
 		u32 serial;
 		struct input_dev *input;
 		bool registered;
+		struct wacom_battery battery;
 	} remotes[WACOM_MAX_REMOTES];
 };
 
@@ -159,13 +178,9 @@ struct wacom {
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-	struct power_supply *battery;
-	struct power_supply *ac;
-	struct power_supply_desc battery_desc;
-	struct power_supply_desc ac_desc;
+	struct wacom_battery battery;
 #else
-	struct power_supply battery;
-	struct power_supply ac;
+	struct wacom_battery battery;
 #endif
 	bool resources;
 };

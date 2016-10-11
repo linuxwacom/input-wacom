@@ -41,25 +41,34 @@
 static void wacom_report_numbered_buttons(struct input_dev *input_dev,
 				int button_cout, int mask);
 
+static void __wacom_notify_battery(struct wacom_battery *battery,
+	int bat_capacity, bool bat_charging, bool bat_connected,
+	bool ps_connected)
+{
+	bool changed = battery->battery_capacity != bat_capacity  ||
+		       battery->bat_charging     != bat_charging  ||
+		       battery->bat_connected    != bat_connected ||
+		       battery->ps_connected     != ps_connected;
+
+	if (changed) {
+		battery->battery_capacity = bat_capacity;
+		battery->bat_charging = bat_charging;
+		battery->bat_connected = bat_connected;
+		battery->ps_connected = ps_connected;
+
+		if (battery->battery.dev)
+			power_supply_changed(&battery->battery);
+	}
+}
+
 static void wacom_notify_battery(struct wacom_wac *wacom_wac,
 	int bat_capacity, bool bat_charging, bool bat_connected,
 	bool ps_connected)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	bool changed = wacom_wac->battery_capacity != bat_capacity  ||
-		       wacom_wac->bat_charging     != bat_charging  ||
-		       wacom_wac->bat_connected    != bat_connected ||
-		       wacom_wac->ps_connected     != ps_connected;
 
-	if (changed) {
-		wacom_wac->battery_capacity = bat_capacity;
-		wacom_wac->bat_charging = bat_charging;
-		wacom_wac->bat_connected = bat_connected;
-		wacom_wac->ps_connected = ps_connected;
-
-		if (wacom->battery.dev)
-			power_supply_changed(&wacom->battery);
-	}
+	__wacom_notify_battery(&wacom->battery, bat_capacity, bat_charging,
+			       bat_connected, ps_connected);
 }
 
 static int wacom_penpartner_irq(struct wacom_wac *wacom)
@@ -701,7 +710,6 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 {
 	unsigned char *data = wacom_wac->data;
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	struct wacom_features *features = &wacom_wac->features;
 	struct wacom_remote *remote = wacom->remote;
 	struct input_dev *input;
 	int bat_charging, bat_percent, touch_ring_mode;
@@ -778,14 +786,8 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 			wacom->led.select[i] = touch_ring_mode;
 	}
 
-	if (!wacom->battery.dev &&
-	    !(features->quirks & WACOM_QUIRK_BATTERY)) {
-		features->quirks |= WACOM_QUIRK_BATTERY;
-		wacom_schedule_work(wacom_wac, WACOM_WORKER_BATTERY);
-	}
-
-	wacom_notify_battery(wacom_wac, bat_percent, bat_charging, 1,
-			     bat_charging);
+	__wacom_notify_battery(&remote->remotes[index].battery, bat_percent,
+			       bat_charging, 1, bat_charging);
 
 out:
 	spin_unlock_irqrestore(&remote->remote_lock, flags);
@@ -1537,7 +1539,6 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 
 static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 {
-	struct wacom *w = container_of(wacom, struct wacom, wacom_wac);
 	unsigned char *data = wacom->data;
 	int connected;
 
@@ -1565,8 +1566,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 			wacom_schedule_work(wacom, WACOM_WORKER_WIRELESS);
 		}
 
-		if (w->battery.dev)
-			wacom_notify_battery(wacom, battery, charging, 1, 0);
+		wacom_notify_battery(wacom, battery, charging, 1, 0);
 
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
@@ -1603,14 +1603,14 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 		wacom_notify_battery(wacom_wac, battery, charging,
 				     battery || charging, 1);
 
-		if (!wacom->battery.dev &&
+		if (!wacom->battery.battery.dev &&
 		    !(features->quirks & WACOM_QUIRK_BATTERY)) {
 			features->quirks |= WACOM_QUIRK_BATTERY;
 			wacom_schedule_work(wacom_wac, WACOM_WORKER_BATTERY);
 		}
 	}
 	else if ((features->quirks & WACOM_QUIRK_BATTERY) &&
-		 wacom->battery.dev) {
+		 wacom->battery.battery.dev) {
 		features->quirks &= ~WACOM_QUIRK_BATTERY;
 		wacom_schedule_work(wacom_wac, WACOM_WORKER_BATTERY);
 		wacom_notify_battery(wacom_wac, 0, 0, 0, 0);
@@ -1835,9 +1835,8 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 		}
 	}
 
-	if (features->type == REMOTE) {
+	if (features->type == REMOTE)
 		features->quirks |= WACOM_QUIRK_MONITOR;
-	}
 }
 
 static void wacom_abs_set_axis(struct input_dev *input_dev,
