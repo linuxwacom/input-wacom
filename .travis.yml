@@ -23,7 +23,7 @@ addons:
 install:
   - export KERNELDIR=${HOME}/kernel && echo ${KERNELDIR}
   - export SERIES=$(case ${KERNEL} in linux-4.*) echo v4.x;; linux-3.*) echo v3.x;; linux-2.6.*) echo v2.6;; esac) && echo ${SERIES}
-  - export URL=https://www.kernel.org/pub/linux/kernel/${SERIES}/${KERNEL}.tar.xz && echo ${URL}
+  - export URL=https://cdn.kernel.org/pub/linux/kernel/${SERIES}/${KERNEL}.tar.xz && echo ${URL}
   - mkdir ${KERNELDIR}
   - curl ${URL} | tar xJC ${KERNELDIR}
   - if [[ ! -f ${KERNELDIR}/${KERNEL}/include/linux/compiler-gcc5.h ]]; then echo '#include <linux/compiler-gcc4.h>' > ${KERNELDIR}/${KERNEL}/include/linux/compiler-gcc5.h; fi
