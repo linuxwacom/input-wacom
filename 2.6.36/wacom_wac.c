@@ -682,8 +682,8 @@ static int wacom_intuos_general(struct wacom_wac *wacom)
 	   (features->type == CINTIQ && !(data[1] & 0x40)))
 		return 1;
 
-	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_INTUOSREAD &&
-		data[0] != WACOM_REPORT_INTUOSWRITE)
+	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_INTUOS_ID1 &&
+		data[0] != WACOM_REPORT_INTUOS_ID2)
 		return 0;
 
 	x = (be16_to_cpup((__be16 *)&data[2]) << 1) | ((data[9] >> 1) & 1);
@@ -816,8 +816,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	unsigned char *data = wacom->data;
 	int result;
 
-	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_INTUOSREAD
-		&& data[0] != WACOM_REPORT_INTUOSWRITE && data[0] != WACOM_REPORT_INTUOSPAD
+	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_INTUOS_ID1
+		&& data[0] != WACOM_REPORT_INTUOS_ID2 && data[0] != WACOM_REPORT_INTUOSPAD
 		&& data[0] != WACOM_REPORT_INTUOS5PAD) {
 		dbg("wacom_intuos_irq: received unknown report #%d", data[0]);
                 return 0;
