@@ -109,6 +109,7 @@ struct wacom_features {
 	int pressure_max;
 	int distance_max;
 	int type;
+	int numbered_buttons;
 	int x_min;
 	int y_min;
 	int device_type;
