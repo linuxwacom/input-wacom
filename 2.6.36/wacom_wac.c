@@ -908,7 +908,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	}
 
 	/* There are at most 5 contacts per packet */
-	contacts_to_send = min(5, (int)features->num_contacts_left);
+	contacts_to_send = min(5, features->num_contacts_left);
 
 	for (i = 0; i < contacts_to_send; i++) {
 		id = get_unaligned_le16(&data[k]);

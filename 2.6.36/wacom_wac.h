@@ -119,7 +119,7 @@ struct wacom_features {
 	unsigned quirks;
 	unsigned touch_max;
 	unsigned num_contacts;
-	unsigned num_contacts_left;
+	int num_contacts_left;
 };
 
 struct wacom_shared {
