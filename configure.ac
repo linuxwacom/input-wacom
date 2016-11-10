@@ -120,8 +120,10 @@ elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
 	WCM_KERNEL_VER="2.6.38"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
 	WCM_KERNEL_VER="3.7"
-else
+elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(4.5)"; then
 	WCM_KERNEL_VER="3.17"
+else
+	WCM_KERNEL_VER="4.5"
 fi
 
 dnl Separate test output from file-generation output
@@ -137,7 +139,8 @@ AC_CONFIG_FILES([Makefile
                  2.6.36/Makefile
                  2.6.38/Makefile
                  3.7/Makefile
-                 3.17/Makefile])
+                 3.17/Makefile
+                 4.5/Makefile])
 AC_OUTPUT
 
 AC_MSG_NOTICE([
