@@ -86,6 +86,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/kfifo.h>
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <asm/unaligned.h>
@@ -108,6 +109,36 @@ MODULE_LICENSE(DRIVER_LICENSE);
 #define USB_VENDOR_ID_WACOM	0x056a
 #define USB_VENDOR_ID_LENOVO	0x17ef
 
+enum wacom_worker {
+	WACOM_WORKER_WIRELESS,
+	WACOM_WORKER_BATTERY,
+	WACOM_WORKER_REMOTE,
+};
+
+struct wacom_battery {
+	struct power_supply battery;
+	struct power_supply ac;
+	char bat_name[WACOM_NAME_MAX];
+	char ac_name[WACOM_NAME_MAX];
+	int battery_capacity;
+	int bat_charging;
+	int bat_connected;
+	int ps_connected;
+};
+
+struct wacom_remote {
+	spinlock_t remote_lock;
+	struct kfifo remote_fifo;
+	struct kobject *remote_dir;
+	struct {
+		struct attribute_group group;
+		u32 serial;
+		struct input_dev *input;
+		bool registered;
+		struct wacom_battery battery;
+	} remotes[WACOM_MAX_REMOTES];
+};
+
 struct wacom {
 	dma_addr_t data_dma;
 	struct usb_device *usbdev;
@@ -115,7 +146,10 @@ struct wacom {
 	struct urb *irq;
 	struct wacom_wac wacom_wac;
 	struct mutex lock;
-	struct work_struct work;
+	struct work_struct wireless_work;
+	struct work_struct battery_work;
+	struct work_struct remote_work;
+	struct wacom_remote *remote;
 	bool open;
 	char phys[32];
 	struct wacom_led {
@@ -124,16 +158,25 @@ struct wacom {
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
-	bool led_initialized;
-	struct power_supply battery;
-	struct kobject *remote_dir;
-	struct attribute_group remote_group[5];
+	struct wacom_battery battery;
 };
 
-static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
+static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
+				       enum wacom_worker which)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	schedule_work(&wacom->work);
+
+	switch (which) {
+	case WACOM_WORKER_WIRELESS:
+		schedule_work(&wacom->wireless_work);
+		break;
+	case WACOM_WORKER_BATTERY:
+		schedule_work(&wacom->battery_work);
+		break;
+	case WACOM_WORKER_REMOTE:
+		schedule_work(&wacom->remote_work);
+		break;
+	}
 }
 
 extern const struct usb_device_id wacom_ids[];
@@ -143,7 +186,4 @@ void wacom_setup_device_quirks(struct wacom *wacom);
 int wacom_setup_input_capabilities(struct input_dev *input_dev,
 				   struct wacom_wac *wacom_wac);
 void wacom_battery_work(struct work_struct *work);
-int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial,
-				   int index);
-void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial);
 #endif

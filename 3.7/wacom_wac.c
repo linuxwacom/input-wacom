@@ -41,25 +41,34 @@
 static void wacom_report_numbered_buttons(struct input_dev *input_dev,
 				int button_cout, int mask);
 
+static void __wacom_notify_battery(struct wacom_battery *battery,
+	int bat_capacity, bool bat_charging, bool bat_connected,
+	bool ps_connected)
+{
+	bool changed = battery->battery_capacity != bat_capacity  ||
+		       battery->bat_charging     != bat_charging  ||
+		       battery->bat_connected    != bat_connected ||
+		       battery->ps_connected     != ps_connected;
+
+	if (changed) {
+		battery->battery_capacity = bat_capacity;
+		battery->bat_charging = bat_charging;
+		battery->bat_connected = bat_connected;
+		battery->ps_connected = ps_connected;
+
+		if (battery->battery.dev)
+			power_supply_changed(&battery->battery);
+	}
+}
+
 static void wacom_notify_battery(struct wacom_wac *wacom_wac,
 	int bat_capacity, bool bat_charging, bool bat_connected,
 	bool ps_connected)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	bool changed = wacom_wac->battery_capacity != bat_capacity  ||
-		       wacom_wac->bat_charging     != bat_charging  ||
-		       wacom_wac->bat_connected    != bat_connected ||
-		       wacom_wac->ps_connected     != ps_connected;
 
-	if (changed) {
-		wacom_wac->battery_capacity = bat_capacity;
-		wacom_wac->bat_charging = bat_charging;
-		wacom_wac->bat_connected = bat_connected;
-		wacom_wac->ps_connected = ps_connected;
-
-		if (wacom->battery.dev)
-			power_supply_changed(&wacom->battery);
-	}
+	__wacom_notify_battery(&wacom->battery, bat_capacity, bat_charging,
+			       bat_connected, ps_connected);
 }
 
 static int wacom_penpartner_irq(struct wacom_wac *wacom)
@@ -700,21 +709,36 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 {
 	unsigned char *data = wacom_wac->data;
-	struct input_dev *input = wacom_wac->input;
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	struct wacom_features *features = &wacom_wac->features;
+	struct wacom_remote *remote = wacom->remote;
+	struct input_dev *input;
 	int bat_charging, bat_percent, touch_ring_mode;
 	__u32 serial;
-	int i;
+	int i, index = -1;
+	unsigned long flags;
 
 	if (data[0] != WACOM_REPORT_REMOTE) {
-		dev_dbg(input->dev.parent,
+		dev_dbg(&wacom->intf->dev,
 			"%s: received unknown report #%d", __func__, data[0]);
 		return 0;
 	}
 
 	serial = data[3] + (data[4] << 8) + (data[5] << 16);
 	wacom_wac->id[0] = PAD_DEVICE_ID;
+
+	spin_lock_irqsave(&remote->remote_lock, flags);
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		if (remote->remotes[i].serial == serial) {
+			index = i;
+			break;
+		}
+	}
+
+	input = remote->remotes[index].input;
+
+	if (index < 0 || !remote->remotes[index].registered)
+		goto out;
 
 	input_report_key(input, BTN_0, (data[9] & 0x01));
 	input_report_key(input, BTN_1, (data[9] & 0x02));
@@ -752,73 +776,60 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 
 	input_event(input, EV_MSC, MSC_SERIAL, serial);
 
+	input_sync(input);
+
 	/*Which mode select (LED light) is currently on?*/
 	touch_ring_mode = (data[11] & 0xC0) >> 6;
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
-		if (wacom_wac->serial[i] == serial)
+		if (remote->remotes[i].serial == serial)
 			wacom->led.select[i] = touch_ring_mode;
 	}
 
-	if (!wacom->battery.dev &&
-	    !(features->quirks & WACOM_QUIRK_BATTERY)) {
-		features->quirks |= WACOM_QUIRK_BATTERY;
-		INIT_WORK(&wacom->work, wacom_battery_work);
-		wacom_schedule_work(wacom_wac);
-	}
+	__wacom_notify_battery(&remote->remotes[index].battery, bat_percent,
+			       bat_charging, 1, bat_charging);
 
-	wacom_notify_battery(wacom_wac, bat_percent, bat_charging, 1,
-			     bat_charging);
-
-	return 1;
+out:
+	spin_unlock_irqrestore(&remote->remote_lock, flags);
+	return 0;
 }
 
-static int wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
+static void wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	struct device *dev = &wacom->intf->dev;
 	unsigned char *data = wacom_wac->data;
-	int i;
+	struct wacom_remote *remote = wacom->remote;
+	struct wacom_remote_data remote_data;
+	unsigned long flags;
+	int i, ret;
 
 	if (data[0] != WACOM_REPORT_DEVICE_LIST)
-		return 0;
+		return;
+
+	memset(&remote_data, 0, sizeof(struct wacom_remote_data));
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		int j = i * 6;
 		int serial = (data[j+6] << 16) + (data[j+5] << 8) + data[j+4];
 		bool connected = data[j+2];
 
-		if (connected) {
-			int k;
-
-			if (wacom_wac->serial[i] == serial)
-				continue;
-
-			if (wacom_wac->serial[i]) {
-				wacom_remote_destroy_attr_group(wacom,
-							wacom_wac->serial[i]);
-			}
-
-			/* A remote can pair more than once with an EKR,
-			 * check to make sure this serial isn't already paired.
-			 */
-			for (k = 0; k < WACOM_MAX_REMOTES; k++) {
-				if (wacom_wac->serial[k] == serial)
-					break;
-			}
-
-			if (k < WACOM_MAX_REMOTES) {
-				wacom_wac->serial[i] = serial;
-				continue;
-			}
-			wacom_remote_create_attr_group(wacom, serial, i);
-
-		} else if (wacom_wac->serial[i]) {
-			wacom_remote_destroy_attr_group(wacom,
-							wacom_wac->serial[i]);
-		}
+		remote_data.remote[i].serial = serial;
+		remote_data.remote[i].connected = connected;
 	}
 
-	return 0;
+	spin_lock_irqsave(&remote->remote_lock, flags);
+
+	ret = kfifo_in(&remote->remote_fifo, &remote_data, sizeof(remote_data));
+	if (ret != sizeof(remote_data)) {
+		spin_unlock_irqrestore(&remote->remote_lock, flags);
+		dev_err(dev, "Can't queue Remote status event.\n");
+		return;
+	}
+
+	spin_unlock_irqrestore(&remote->remote_lock, flags);
+
+	wacom_schedule_work(wacom_wac, WACOM_WORKER_REMOTE);
 }
 
 static int wacom_intuos_general(struct wacom_wac *wacom)
@@ -1552,16 +1563,15 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 		charging = !!(data[5] & 0x80);
 		if (wacom->pid != pid) {
 			wacom->pid = pid;
-			wacom_schedule_work(wacom);
+			wacom_schedule_work(wacom, WACOM_WORKER_WIRELESS);
 		}
 
-		if (wacom->shared->type)
-			wacom_notify_battery(wacom, battery, charging, 1, 0);
+		wacom_notify_battery(wacom, battery, charging, 1, 0);
 
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
 		wacom->pid = 0;
-		wacom_schedule_work(wacom);
+		wacom_schedule_work(wacom, WACOM_WORKER_WIRELESS);
 		wacom_notify_battery(wacom, 0, 0, 0, 0);
 	}
 
@@ -1593,18 +1603,16 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 		wacom_notify_battery(wacom_wac, battery, charging,
 				     battery || charging, 1);
 
-		if (!wacom->battery.dev &&
+		if (!wacom->battery.battery.dev &&
 		    !(features->quirks & WACOM_QUIRK_BATTERY)) {
 			features->quirks |= WACOM_QUIRK_BATTERY;
-			INIT_WORK(&wacom->work, wacom_battery_work);
-			wacom_schedule_work(wacom_wac);
+			wacom_schedule_work(wacom_wac, WACOM_WORKER_BATTERY);
 		}
 	}
 	else if ((features->quirks & WACOM_QUIRK_BATTERY) &&
-		 wacom->battery.dev) {
+		 wacom->battery.battery.dev) {
 		features->quirks &= ~WACOM_QUIRK_BATTERY;
-		INIT_WORK(&wacom->work, wacom_battery_work);
-		wacom_schedule_work(wacom_wac);
+		wacom_schedule_work(wacom_wac, WACOM_WORKER_BATTERY);
 		wacom_notify_battery(wacom_wac, 0, 0, 0, 0);
 	}
 	return 0;
@@ -1704,8 +1712,9 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 
 	case REMOTE:
+		sync = false;
 		if (wacom_wac->data[0] == WACOM_REPORT_DEVICE_LIST)
-			sync = wacom_remote_status_irq(wacom_wac, len);
+			wacom_remote_status_irq(wacom_wac, len);
 		else
 			sync = wacom_remote_irq(wacom_wac, len);
 		break;
@@ -1825,6 +1834,9 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 			features->quirks |= WACOM_QUIRK_BATTERY;
 		}
 	}
+
+	if (features->type == REMOTE)
+		features->quirks |= WACOM_QUIRK_MONITOR;
 }
 
 static void wacom_abs_set_axis(struct input_dev *input_dev,
@@ -1899,6 +1911,8 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 {
 	struct wacom_features *features = &wacom_wac->features;
 	int numbered_buttons = features->numbered_buttons;
+	if (features->type == REMOTE && input_dev == wacom_wac->input)
+		return -ENODEV;
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
@@ -2804,6 +2818,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x5000) },
 	{ USB_DEVICE_WACOM(0x5002) },
 	{ USB_DEVICE_WACOM(0x5010) },
+	{ USB_DEVICE_WACOM(0x5013) },
 	{ USB_DEVICE_WACOM(0x47) },
 	{ USB_DEVICE_WACOM(0xF4) },
 	{ USB_DEVICE_WACOM(0xF8) },

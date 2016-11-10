@@ -90,6 +90,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/hid.h>
+#include <linux/kfifo.h>
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <asm/unaligned.h>
@@ -119,37 +120,84 @@
 #define WACOM_POWERSUPPLY_DESC(ps) (ps)
 #endif
 
+enum wacom_worker {
+	WACOM_WORKER_WIRELESS,
+	WACOM_WORKER_BATTERY,
+	WACOM_WORKER_REMOTE,
+};
+
+struct wacom_group_leds {
+	u8 select; /* status led selector (0..3) */
+};
+
+struct wacom_battery {
+	struct wacom *wacom;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+	struct power_supply_desc bat_desc;
+	struct power_supply *battery;
+#else
+	struct power_supply battery;
+#endif
+	char bat_name[WACOM_NAME_MAX];
+	int battery_capacity;
+	int bat_charging;
+	int bat_connected;
+	int ps_connected;
+};
+
+struct wacom_remote {
+	spinlock_t remote_lock;
+	struct kfifo remote_fifo;
+	struct kobject *remote_dir;
+	struct {
+		struct attribute_group group;
+		u32 serial;
+		struct input_dev *input;
+		bool registered;
+		struct wacom_battery battery;
+	} remotes[WACOM_MAX_REMOTES];
+};
+
 struct wacom {
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
 	struct wacom_wac wacom_wac;
 	struct hid_device *hdev;
 	struct mutex lock;
-	struct work_struct work;
-	struct wacom_led {
-		u8 select[5]; /* status led selector (0..3) */
+	struct work_struct wireless_work;
+	struct work_struct battery_work;
+	struct work_struct remote_work;
+	struct wacom_remote *remote;
+	struct wacom_leds {
+		struct wacom_group_leds *groups;
 		u8 llv;       /* status led brightness no button (1..127) */
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
-	bool led_initialized;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-	struct power_supply *battery;
-	struct power_supply *ac;
-	struct power_supply_desc battery_desc;
-	struct power_supply_desc ac_desc;
+	struct wacom_battery battery;
 #else
-	struct power_supply battery;
-	struct power_supply ac;
+	struct wacom_battery battery;
 #endif
-	struct kobject *remote_dir;
-	struct attribute_group remote_group[5];
+	bool resources;
 };
 
-static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
+static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
+				       enum wacom_worker which)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	schedule_work(&wacom->work);
+
+	switch (which) {
+	case WACOM_WORKER_WIRELESS:
+		schedule_work(&wacom->wireless_work);
+		break;
+	case WACOM_WORKER_BATTERY:
+		schedule_work(&wacom->battery_work);
+		break;
+	case WACOM_WORKER_REMOTE:
+		schedule_work(&wacom->remote_work);
+		break;
+	}
 }
 
 extern const struct hid_device_id wacom_ids[];
@@ -168,9 +216,6 @@ int wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value);
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
 void wacom_battery_work(struct work_struct *work);
-int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial,
-				   int index);
-void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 static int wacom_hid_report_len(struct hid_report *report)
