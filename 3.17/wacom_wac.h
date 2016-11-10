@@ -218,31 +218,30 @@ struct hid_data {
 	int num_received;
 };
 
+struct wacom_remote_data {
+	struct {
+		u32 serial;
+		bool connected;
+	} remote[WACOM_MAX_REMOTES];
+};
+
 struct wacom_wac {
+	char name[WACOM_NAME_MAX];
 	char pen_name[WACOM_NAME_MAX];
 	char touch_name[WACOM_NAME_MAX];
 	char pad_name[WACOM_NAME_MAX];
-	char bat_name[WACOM_NAME_MAX];
-	char ac_name[WACOM_NAME_MAX];
 	unsigned char data[WACOM_PKGLEN_MAX];
 	int tool[2];
 	int id[2];
-	__u32 serial[5];
+	__u32 serial[2];
 	bool reporting_data;
 	struct wacom_features features;
 	struct wacom_shared *shared;
 	struct input_dev *pen_input;
 	struct input_dev *touch_input;
 	struct input_dev *pad_input;
-	bool pen_registered;
-	bool touch_registered;
-	bool pad_registered;
 	int pid;
-	int battery_capacity;
 	int num_contacts_left;
-	int bat_charging;
-	int bat_connected;
-	int ps_connected;
 	u8 bt_features;
 	u8 bt_high_speed;
 	int mode_report;
