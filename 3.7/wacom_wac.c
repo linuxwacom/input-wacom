@@ -1190,7 +1190,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	input_mt_report_pointer_emulation(input, true);
 
 	wacom->num_contacts_left -= contacts_to_send;
-	if (wacom->num_contacts_left < 0) {
+	if (wacom->num_contacts_left <= 0) {
 		wacom->num_contacts_left = 0;
 		wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 	}
