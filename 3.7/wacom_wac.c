@@ -840,7 +840,7 @@ static inline bool report_touch_events(struct wacom_wac *wacom)
 {
 	return (touch_arbitration ? !wacom->shared->stylus_in_proximity : 1);
 }
- 
+
 static inline bool delay_pen_events(struct wacom_wac *wacom)
 {
 	return (wacom->shared->touch_down && touch_arbitration);
@@ -1066,7 +1066,7 @@ static int wacom_wac_finger_count_touches(struct wacom_wac *wacom)
 
 	if (touch_max == 1)
 		return test_bit(BTN_TOUCH, input->key) &&
-		       report_touch_events(wacom);
+			report_touch_events(wacom);
 
 	for (i = 0; i < input->mt->num_slots; i++) {
 		struct input_mt_slot *ps = &input->mt->slots[i];
@@ -1341,7 +1341,8 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 
 	for (i = 0; i < 2; i++) {
 		int offset = (data[1] & 0x80) ? (8 * i) : (9 * i);
-		bool touch = (data[offset + 3] & 0x80) && report_touch_events(wacom);
+		bool touch = report_touch_events(wacom)
+			   && (data[offset + 3] & 0x80);
 
 		input_mt_slot(input, i);
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
