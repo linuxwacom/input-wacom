@@ -1529,8 +1529,10 @@ static int wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 		return 0;
 	}
 
-	/* send pen events only when touch is up or forced out */
-	if (!usage->type || wacom_wac->shared->touch_down)
+	/* send pen events only when touch is up or forced out
+	 * or touch arbitration is off
+	 */
+	if (!usage->type || delay_pen_events(wacom_wac))
 		return 0;
 
 	input_event(input, usage->type, usage->code, value);
@@ -1560,8 +1562,7 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	/* keep pen state for touch events */
 	wacom_wac->shared->stylus_in_proximity = prox;
 
-	/* send pen events only when touch is up or forced out */
-	if (!wacom_wac->shared->touch_down) {
+	if (!delay_pen_events(wacom_wac)) {
 		input_report_key(input, BTN_TOUCH,
 				wacom_wac->hid_data.tipswitch);
 		input_report_key(input, wacom_wac->tool[0], prox);
@@ -1618,7 +1619,7 @@ static void wacom_wac_finger_slot(struct wacom_wac *wacom_wac,
 	struct hid_data *hid_data = &wacom_wac->hid_data;
 	bool mt = wacom_wac->features.touch_max > 1;
 	bool prox = hid_data->tipswitch &&
-		    !wacom_wac->shared->stylus_in_proximity;
+		    report_touch_events(wacom_wac);
 
 	wacom_wac->hid_data.num_received++;
 	if (wacom_wac->hid_data.num_received > wacom_wac->hid_data.num_expected)
