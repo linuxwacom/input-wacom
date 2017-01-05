@@ -107,7 +107,6 @@
 #define DRIVER_VERSION "v2.00"WACOM_VERSION_SUFFIX
 #define DRIVER_AUTHOR "Vojtech Pavlik <vojtech@ucw.cz>"
 #define DRIVER_DESC "USB Wacom tablet driver"
-#define DRIVER_LICENSE "GPL"
 
 #define USB_VENDOR_ID_WACOM	0x056a
 #define USB_VENDOR_ID_LENOVO	0x17ef
