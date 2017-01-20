@@ -505,11 +505,11 @@ static int wacom_bt_query_tablet_data(struct hid_device *hdev, u8 speed,
  * from the tablet, it is necessary to switch the tablet out of this
  * mode and into one which sends the full range of tablet data.
  */
-static int wacom_query_tablet_data(struct hid_device *hdev,
-		struct wacom_features *features)
+static int _wacom_query_tablet_data(struct wacom *wacom)
 {
-	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct hid_device *hdev = wacom->hdev;
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct wacom_features *features = &wacom_wac->features;
 
 	if (hdev->bus == BUS_BLUETOOTH)
 		return wacom_bt_query_tablet_data(hdev, 1, features);
@@ -1209,9 +1209,21 @@ static int wacom_initialize_leds(struct wacom *wacom)
 			"cannot create sysfs group err: %d\n", error);
 		return error;
 	}
-	wacom_led_control(wacom);
 
 	return 0;
+}
+
+static void wacom_init_work(struct work_struct *work)
+{
+	struct wacom *wacom = container_of(work, struct wacom, init_work.work);
+
+	_wacom_query_tablet_data(wacom);
+	wacom_led_control(wacom);
+}
+
+static void wacom_query_tablet_data(struct wacom *wacom)
+{
+	schedule_delayed_work(&wacom->init_work, msecs_to_jiffies(1000));
 }
 
 static enum power_supply_property wacom_battery_props[] = {
@@ -1951,7 +1963,7 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 
 	if (!wireless) {
 		/* Note that if query fails it is not a hard failure */
-		wacom_query_tablet_data(hdev, features);
+		wacom_query_tablet_data(wacom);
 	}
 
 	/* touch only Bamboo doesn't support pen */
@@ -2302,6 +2314,7 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom->usbdev = dev;
 	wacom->intf = intf;
 	mutex_init(&wacom->lock);
+	INIT_DELAYED_WORK(&wacom->init_work, wacom_init_work);
 	INIT_WORK(&wacom->wireless_work, wacom_wireless_work);
 	INIT_WORK(&wacom->battery_work, wacom_battery_work);
 	INIT_WORK(&wacom->remote_work, wacom_remote_work);
@@ -2343,6 +2356,7 @@ static void wacom_remove(struct hid_device *hdev)
 
 	hid_hw_stop(hdev);
 
+	cancel_delayed_work_sync(&wacom->init_work);
 	cancel_work_sync(&wacom->wireless_work);
 	cancel_work_sync(&wacom->battery_work);
 	cancel_work_sync(&wacom->remote_work);
@@ -2364,12 +2378,11 @@ static void wacom_remove(struct hid_device *hdev)
 static int wacom_resume(struct hid_device *hdev)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
-	struct wacom_features *features = &wacom->wacom_wac.features;
 
 	mutex_lock(&wacom->lock);
 
 	/* switch to wacom mode first */
-	wacom_query_tablet_data(hdev, features);
+	_wacom_query_tablet_data(wacom);
 	wacom_led_control(wacom);
 
 	mutex_unlock(&wacom->lock);
