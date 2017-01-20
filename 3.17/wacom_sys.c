@@ -2353,6 +2353,8 @@ static void wacom_remove(struct hid_device *hdev)
 #endif
 	wacom_remove_shared_data(wacom);
 
+	/* make sure we don't trigger the LEDs */
+	wacom_led_groups_release(wacom);
 	wacom_release_resources(wacom);
 
 	hid_set_drvdata(hdev, NULL);
