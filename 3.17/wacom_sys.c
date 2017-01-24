@@ -748,6 +748,11 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 		return retval;
 	}
 
+	if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)
+		wacom_wac->shared->touch = hdev;
+	else if (wacom_wac->features.device_type & WACOM_DEVICETYPE_PEN)
+		wacom_wac->shared->pen = hdev;
+
 out:
 	mutex_unlock(&wacom_udev_list_lock);
 	return retval;
@@ -1865,10 +1870,6 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	if (error)
 		goto fail_open_group;
 
-	error = wacom_add_shared_data(hdev);
-	if (error)
-		goto fail_allocate_inputs;
-
 	/*
 	 * Bamboo Pad has a generic hid handling for the Pen, and we switch it
 	 * into debug mode for the touch part.
@@ -1880,7 +1881,7 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 		} else if ((features->pktlen != WACOM_PKGLEN_BPAD_TOUCH) &&
 			   (features->pktlen != WACOM_PKGLEN_BPAD_TOUCH_USB)) {
 			error = -ENODEV;
-			goto fail_shared_data;
+			goto fail_allocate_inputs;
 		}
 	}
 
@@ -1909,10 +1910,9 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 
 	wacom_update_name(wacom, wireless ? " (WL)" : "");
 
-	if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)
-		wacom_wac->shared->touch = hdev;
-	else if (wacom_wac->features.device_type & WACOM_DEVICETYPE_PEN)
-		wacom_wac->shared->pen = hdev;
+	error = wacom_add_shared_data(hdev);
+	if (error)
+		goto fail_shared_data;
 
 	if (!(features->device_type & WACOM_DEVICETYPE_WL_MONITOR) &&
 	     (features->quirks & WACOM_QUIRK_BATTERY)) {
@@ -1993,9 +1993,8 @@ fail_register_inputs:
 	wacom_destroy_battery(wacom);
 #endif
 fail_battery:
-fail_parsed:
 fail_shared_data:
-	wacom_remove_shared_data(wacom);
+fail_parsed:
 fail_allocate_inputs:
 fail_open_group:
 	wacom_release_resources(wacom);
