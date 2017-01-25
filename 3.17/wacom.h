@@ -217,6 +217,7 @@ void wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value);
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
 void wacom_battery_work(struct work_struct *work);
+int wacom_equivalent_usage(int usage);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 static int wacom_hid_report_len(struct hid_report *report)

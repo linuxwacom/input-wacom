@@ -112,11 +112,12 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_features *features = &wacom->wacom_wac.features;
 	struct hid_data *hid_data = &wacom->wacom_wac.hid_data;
+	unsigned int equivalent_usage = wacom_equivalent_usage(usage->hid);
 	u8 *data;
 	int ret;
 	int n;
 
-	switch (usage->hid) {
+	switch (equivalent_usage) {
 	case HID_DG_CONTACTMAX:
 		/* leave touch_max as is if predefined */
 		if (!features->touch_max) {
@@ -329,8 +330,14 @@ static void wacom_post_parse_hid(struct hid_device *hdev,
 	if (features->type == HID_GENERIC) {
 		/* Any last-minute generic device setup */
 		if (features->touch_max > 1) {
-			input_mt_init_slots(wacom_wac->touch_input, wacom_wac->features.touch_max,
-				    INPUT_MT_DIRECT);
+			if (features->device_type & WACOM_DEVICETYPE_DIRECT)
+				input_mt_init_slots(wacom_wac->touch_input,
+						    wacom_wac->features.touch_max,
+						    INPUT_MT_DIRECT);
+			else
+				input_mt_init_slots(wacom_wac->touch_input,
+						    wacom_wac->features.touch_max,
+						    INPUT_MT_POINTER);
 		}
 	}
 }
@@ -1199,8 +1206,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 
 	case INTUOSP2_BT:
 		wacom->led.llv = 50;
-		wacom->led.max_llv = 100;
-		error = wacom_leds_alloc_and_register(wacom, 1, 4, false);
+		error = wacom_led_groups_allocate(wacom, 1);
 		if (error) {
 			hid_err(wacom->hdev,
 				"cannot create leds err: %d\n", error);
