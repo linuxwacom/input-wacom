@@ -1601,7 +1601,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 	return 0;
 }
 
-static int wacom_equivalent_usage(int usage)
+int wacom_equivalent_usage(int usage)
 {
 	if ((usage & HID_USAGE_PAGE) == WACOM_HID_UP_WACOMDIGITIZER) {
 		int subpage = (usage & 0xFF00) << 8;
@@ -1624,6 +1624,16 @@ static int wacom_equivalent_usage(int usage)
 
 		if (subpage == HID_UP_UNDEFINED)
 			subpage = HID_UP_DIGITIZER;
+
+		return subpage | subusage;
+	}
+
+	if ((usage & HID_USAGE_PAGE) == WACOM_HID_UP_WACOMTOUCH) {
+		int subpage = (usage & 0xFF00) << 8;
+		int subusage = (usage & 0xFF);
+
+		if (subpage == HID_UP_UNDEFINED)
+			subpage = WACOM_HID_SP_DIGITIZER;
 
 		return subpage | subusage;
 	}
@@ -2225,8 +2235,10 @@ static void wacom_wac_finger_pre_report(struct hid_device *hdev,
 
 		for (j = 0; j < field->maxusage; j++) {
 			struct hid_usage *usage = &field->usage[j];
+			unsigned int equivalent_usage =
+				wacom_equivalent_usage(usage->hid);
 
-			switch (usage->hid) {
+			switch (equivalent_usage) {
 			case HID_GD_X:
 			case HID_GD_Y:
 			case HID_DG_WIDTH:
@@ -2235,7 +2247,7 @@ static void wacom_wac_finger_pre_report(struct hid_device *hdev,
 			case HID_DG_INRANGE:
 			case HID_DG_INVERT:
 			case HID_DG_TIPSWITCH:
-				hid_data->last_slot_field = usage->hid;
+				hid_data->last_slot_field = equivalent_usage;
 				break;
 			case HID_DG_CONTACTCOUNT:
 				hid_data->cc_report = report->id;
@@ -2290,8 +2302,8 @@ void wacom_wac_usage_mapping(struct hid_device *hdev,
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct wacom_features *features = &wacom_wac->features;
 
-	/* currently, only direct devices have proper hid report descriptors */
-	features->device_type |= WACOM_DEVICETYPE_DIRECT;
+	if (WACOM_DIRECT_DEVICE(field))
+		features->device_type |= WACOM_DEVICETYPE_DIRECT;
 
 	if (WACOM_PAD_FIELD(field))
 		wacom_wac_pad_usage_mapping(hdev, field, usage);
