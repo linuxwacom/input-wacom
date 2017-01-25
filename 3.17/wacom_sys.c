@@ -779,8 +779,13 @@ static int wacom_led_control(struct wacom *wacom)
 	if (!buf)
 		return -ENOMEM;
 
-	if (wacom->wacom_wac.features.type >= INTUOS5S &&
-	    wacom->wacom_wac.features.type <= INTUOSPL) {
+	if (wacom->wacom_wac.features.type == HID_GENERIC) {
+		buf[0] = WAC_CMD_LED_CONTROL_GENERIC;
+		buf[1] = wacom->led.llv;
+		buf[2] = wacom->led.groups[0].select & 0x03;
+
+	} else if ((wacom->wacom_wac.features.type >= INTUOS5S &&
+	    wacom->wacom_wac.features.type <= INTUOSPL)) {
 		/*
 		 * Touch Ring and crop mark LED luminance may take on
 		 * one of four values:
@@ -1050,6 +1055,17 @@ static struct attribute_group intuos5_led_attr_group = {
 	.attrs = intuos5_led_attrs,
 };
 
+static struct attribute *generic_led_attrs[] = {
+	&dev_attr_status0_luminance.attr,
+	&dev_attr_status_led0_select.attr,
+	NULL
+};
+
+static struct attribute_group generic_led_attr_group = {
+	.name = "wacom_led",
+	.attrs = generic_led_attrs,
+};
+
 struct wacom_sysfs_group_devres {
 	struct attribute_group *group;
 	struct kobject *root;
@@ -1138,7 +1154,7 @@ static int wacom_led_groups_allocate(struct wacom *wacom, int count)
 	return 0;
 }
 
-static int wacom_initialize_leds(struct wacom *wacom)
+int wacom_initialize_leds(struct wacom *wacom)
 {
 	int error;
 
@@ -1147,6 +1163,22 @@ static int wacom_initialize_leds(struct wacom *wacom)
 
 	/* Initialize default values */
 	switch (wacom->wacom_wac.features.type) {
+	case HID_GENERIC:
+		if (!wacom->generic_has_leds)
+			return 0;
+		wacom->led.llv = 100;
+
+		error = wacom_led_groups_allocate(wacom, 1);
+		if (error) {
+			hid_err(wacom->hdev,
+				"cannot create leds err: %d\n", error);
+			return error;
+		}
+
+		error = wacom_devm_sysfs_create_group(wacom,
+						      &generic_led_attr_group);
+		break;
+
 	case INTUOS4S:
 	case INTUOS4:
 	case INTUOS4WL:

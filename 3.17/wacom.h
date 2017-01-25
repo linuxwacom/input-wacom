@@ -169,6 +169,7 @@ struct wacom {
 	struct work_struct remote_work;
 	struct delayed_work init_work;
 	struct wacom_remote *remote;
+	bool generic_has_leds;
 	struct wacom_leds {
 		struct wacom_group_leds *groups;
 		u8 llv;       /* status led brightness no button (1..127) */
@@ -218,6 +219,7 @@ void wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
 void wacom_battery_work(struct work_struct *work);
 int wacom_equivalent_usage(int usage);
+int wacom_initialize_leds(struct wacom *wacom);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 static int wacom_hid_report_len(struct hid_report *report)
