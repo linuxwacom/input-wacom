@@ -1057,17 +1057,62 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	return 0;
 }
 
-static int wacom_msprot_irq(struct wacom_wac *wacom)
+static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
+					    int contact_id, bool prox,
+					    int x, int y)
 {
 	struct input_dev *input = wacom->input;
+	int slot = find_slot_from_contactid(wacom, contact_id);
+
+	if (slot < 0)
+		return;
+
+	wacom->slots[slot] = prox ? contact_id : -1;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
+	if (wacom->last_finger != slot) {
+		if (x == input->abs[ABS_X])
+			x++;
+		if (y == input->abs[ABS_Y])
+			y++;
+	}
+#endif
+
+	if (wacom->shared)
+		prox = prox && !wacom->shared->stylus_in_proximity;
+
+	if (prox) {
+		input_report_abs(input, ABS_X, x);
+		input_report_abs(input, ABS_Y, y);
+	}
+
+	input_report_abs(input, ABS_MISC, wacom->id[0]);
+	input_report_key(input, wacom->tool[slot+1], prox);
+	wacom->last_finger = slot + 1;
+	if (slot == 0)
+		input_report_key(input, BTN_TOUCH, prox);
+	input_event(input, EV_MSC, MSC_SERIAL, slot + 1);
+	input_sync(input);
+}
+
+static int wacom_multitouch_generic(struct wacom_wac *wacom)
+{
+	struct input_dev *input = wacom->input;
+	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
-	int i;
-	int current_num_contacts = data[2];
-	int contacts_to_send = 0;
+	int i, current_num_contacts, contacts_to_send;
 
 	wacom->tool[1] = BTN_TOOL_DOUBLETAP;
 	wacom->id[0] = TOUCH_DEVICE_ID;
 	wacom->tool[2] = BTN_TOOL_TRIPLETAP;
+
+	switch (features->type) {
+	case WACOM_MSPROT:
+		current_num_contacts = data[2];
+		break;
+	default:
+		return 0;
+	}
 
 	if (current_num_contacts)
 		wacom->num_contacts_left = current_num_contacts;
@@ -1075,42 +1120,27 @@ static int wacom_msprot_irq(struct wacom_wac *wacom)
 	contacts_to_send = min(5, wacom->num_contacts_left);
 
 	for (i = 0; i < contacts_to_send; i++) {
-		int offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
-		bool touch = (data[offset] & 0x1) && !wacom->shared->stylus_in_proximity;
-		int id = get_unaligned_le16(&data[offset + 1]);
-		int slot = find_slot_from_contactid(wacom, id);
+		int contact_id = -1;
+		int x = -1;
+		int y = -1;
+		int prox = -1;
+		int offset;
 
-		if (slot < 0)
+		switch (features->type) {
+		case WACOM_MSPROT:
+			offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
+			prox = data[offset] & 0x01;
+			contact_id = get_unaligned_le16(&data[offset + 1]);
+			x  = get_unaligned_le16(&data[offset + 3]);
+			y  = get_unaligned_le16(&data[offset + 5]);
+			break;
+
+
+		default:
 			continue;
-
-		//input_mt_slot(input, slot);
-		//input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
-		if (touch) {
-			int x = get_unaligned_le16(&data[offset + 3]);
-			int y = get_unaligned_le16(&data[offset + 5]);
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
-			if (wacom->last_finger != slot) {
-				if (x == input->abs[ABS_X])
-					x++;
-
-				if (y == input->abs[ABS_Y])
-					y++;
-			}
-#endif
-
-			input_report_abs(input, ABS_X, x);
-			input_report_abs(input, ABS_Y, y);
 		}
-		wacom->slots[slot] = touch ? id : -1;
 
-		input_report_abs(input, ABS_MISC, wacom->id[0]);
-		input_report_key(input, wacom->tool[slot+1], touch);
-		wacom->last_finger = slot + 1;
-		if (!slot)
-			input_report_key(input, BTN_TOUCH, touch);
-		input_event(input, EV_MSC, MSC_SERIAL, slot + 1);
-		input_sync(input);
+		wacom_multitouch_generic_finger(wacom, contact_id, prox, x, y);
 	}
 
 	wacom->num_contacts_left -= contacts_to_send;
@@ -1120,8 +1150,12 @@ static int wacom_msprot_irq(struct wacom_wac *wacom)
 					    test_bit(BTN_TOOL_TRIPLETAP, input->key);
 	}
 
-	//input_mt_sync_frame(input);
-	return 1;
+	return 0;
+}
+
+static int wacom_msprot_irq(struct wacom_wac *wacom)
+{
+	return wacom_multitouch_generic(wacom);
 }
 
 static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)

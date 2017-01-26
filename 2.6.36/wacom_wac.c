@@ -1200,15 +1200,73 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 	return 0;
 }
 
-static int wacom_msprot_irq(struct wacom_wac *wacom)
+static void wacom_multitouch_generic_emulation(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
-	unsigned char *data = wacom->data;
+	struct input_mt_slot *mt;
+	int x = 0, y = 0;
 	int i;
-	int current_num_contacts = data[2];
-	int contacts_to_send = 0;
-	int sx = 0, sy = 0;
+
+	/* only emulate when a single touch is present */
+	if (features->num_contacts > 1)
+		return;
+
+	for (i = 0; i < features->touch_max; i++) {
+		mt = &input->mt[i];
+		if (input_mt_get_value(mt, ABS_MT_TRACKING_ID) != -1) {
+			x = input_mt_get_value(mt, ABS_MT_POSITION_X);
+			y = input_mt_get_value(mt, ABS_MT_POSITION_Y);
+			break;
+		}
+	}
+
+	input_report_key(input, BTN_TOUCH, features->num_contacts ? 1 : 0);
+	if (features->num_contacts) {
+		input_report_abs(input, ABS_X, x);
+		input_report_abs(input, ABS_Y, y);
+	}
+}
+
+static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
+					    int contact_id, bool prox,
+					    int x, int y)
+{
+	struct wacom_features *features = &wacom->features;
+	struct input_dev *input = wacom->input;
+	int slot = find_slot_from_contactid(wacom, contact_id);
+
+	if (slot < 0)
+		return;
+
+	input_mt_slot(input, slot);
+
+	if (wacom->shared)
+		prox = prox && !wacom->shared->stylus_in_proximity;
+
+	if (prox) {
+		input_report_abs(input, ABS_MT_POSITION_X, x);
+		input_report_abs(input, ABS_MT_POSITION_Y, y);
+
+		features->num_contacts++;
+	}
+
+	input_report_abs(input, ABS_MT_TRACKING_ID, prox ? contact_id : -1);
+}
+
+static int wacom_multitouch_generic(struct wacom_wac *wacom)
+{
+	struct wacom_features *features = &wacom->features;
+	unsigned char *data = wacom->data;
+	int i, current_num_contacts, contacts_to_send;
+
+	switch (features->type) {
+	case WACOM_MSPROT:
+		current_num_contacts = data[2];
+		break;
+	default:
+		return 0;
+	}
 
 	if (current_num_contacts) {
 		features->num_contacts = 0;
@@ -1218,32 +1276,29 @@ static int wacom_msprot_irq(struct wacom_wac *wacom)
 	contacts_to_send = min(5, features->num_contacts_left);
 
 	for (i = 0; i < contacts_to_send; i++) {
-		int offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
-		bool touch = (data[offset] & 0x1) && !wacom->shared->stylus_in_proximity;
-		int id = get_unaligned_le16(&data[offset + 1]);
-		int slot = find_slot_from_contactid(wacom, id);
+		int contact_id = -1;
+		int x = -1;
+		int y = -1;
+		int prox = -1;
+		int offset;
 
-		if (slot < 0)
+		switch (features->type) {
+		case WACOM_MSPROT:
+			offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
+			prox = data[offset] & 0x1;
+			contact_id = get_unaligned_le16(&data[offset + 1]);
+			x = get_unaligned_le16(&data[offset + 3]);
+			y = get_unaligned_le16(&data[offset + 5]);
+			break;
+
+		default:
 			continue;
-
-		input_mt_slot(input, slot);
-		if (touch) {
-			int x = get_unaligned_le16(&data[offset + 3]);
-			int y = get_unaligned_le16(&data[offset + 5]);
-			input_report_abs(input, ABS_MT_POSITION_X, x);
-			input_report_abs(input, ABS_MT_POSITION_Y, y);
-
-			features->num_contacts++;
-			if (features->num_contacts == 1) {
-				sx = x;
-				sy = y;
-			}
 		}
-		else
-			id = -1;
 
-		input_report_abs(input, ABS_MT_TRACKING_ID, id);
+		wacom_multitouch_generic_finger(wacom, contact_id, prox, x, y);
 	}
+
+	wacom_multitouch_generic_emulation(wacom);
 
 	features->num_contacts_left -= contacts_to_send;
 	if (features->num_contacts_left <= 0) {
@@ -1251,13 +1306,12 @@ static int wacom_msprot_irq(struct wacom_wac *wacom)
 		wacom->shared->touch_down = features->num_contacts > 0;
 	}
 
-	if (features->num_contacts <= 1) {
-		input_report_key(input, BTN_TOUCH, features->num_contacts == 1);
-		input_report_abs(input, ABS_X, sx);
-		input_report_abs(input, ABS_Y, sy);
-	}
-
 	return 1;
+}
+
+static int wacom_msprot_irq(struct wacom_wac *wacom)
+{
+	return wacom_multitouch_generic(wacom);
 }
 
 static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
