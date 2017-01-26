@@ -235,11 +235,14 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 					features->device_type = BTN_TOOL_DOUBLETAP;
 					if (features->type == TABLETPC2FG ||
 							 features->type == MTTPC ||
-							 features->type == MTTPC_B) {
+							 features->type == MTTPC_B ||
+							 features->type == WACOM_MSPROT) {
 						/* need to reset back */
 						features->pktlen = WACOM_PKGLEN_TPC2FG;
 						if (features->type == MTTPC || features->type == MTTPC_B)
 							features->pktlen = WACOM_PKGLEN_MTTPC;
+						else if (features->type == WACOM_MSPROT)
+							features->pktlen = WACOM_PKGLEN_MSPROT;
 						features->device_type = BTN_TOOL_TRIPLETAP;
 					}
 					if (features->type == BAMBOO_PT) {
@@ -251,7 +254,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						features->x_max =
 							get_unaligned_le16(&report[i + 8]);
 						i += 15;
-					} else if (features->type == MTTPC_B) {
+					} else if (features->type == WACOM_MSPROT ||
+						   features->type == MTTPC_B) {
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->x_phy =
@@ -291,7 +295,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						features->y_phy =
 							get_unaligned_le16(&report[i + 6]);
 						i += 7;
-					} else if (features->type == MTTPC_B) {
+					} else if (features->type == WACOM_MSPROT ||
+						   features->type == MTTPC_B) {
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->y_phy =
@@ -382,6 +387,15 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 				error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
 					report_id, rep_data, 4, 1);
 			} while ((error < 0 || rep_data[1] != 4) && limit++ < 5);
+		}
+		else if (features->type == WACOM_MSPROT) {
+			do {
+				rep_data[0] = 14;
+				rep_data[1] = 2;
+				report_id = 14;
+				error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
+					report_id, rep_data, 2, 1);
+			} while ((error < 0 || rep_data[1] != 2) && limit++ < 5);
 		}
 	} else if (features->type <= BAMBOO_PT) {
 		do {

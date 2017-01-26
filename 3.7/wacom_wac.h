@@ -35,11 +35,14 @@
 #define WACOM_PKGLEN_DTUS	68
 #define WACOM_PKGLEN_PENABLED	 8
 #define WACOM_PKGLEN_27QHDT	64
+#define WACOM_PKGLEN_MSPRO	64
+#define WACOM_PKGLEN_MSPROT	50
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
 #define WACOM_BYTES_PER_24HDT_PACKET	14
 #define WACOM_BYTES_PER_QHDTHID_PACKET	 6
+#define WACOM_BYTES_PER_MSPROT_PACKET	 9
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -62,10 +65,13 @@
 #define WACOM_REPORT_TPCHID		15
 #define WACOM_REPORT_TPCST		16
 #define WACOM_REPORT_CINTIQ		16
+#define WACOM_REPORT_MSPRO		16
 #define WACOM_REPORT_INTUOS_PEN		16
 #define WACOM_REPORT_CINTIQPAD		17
 #define WACOM_REPORT_DTUS		17
+#define WACOM_REPORT_MSPROPAD		17
 #define WACOM_REPORT_TPC1FGE		18
+#define WACOM_REPORT_MSPRODEVICE	19
 #define WACOM_REPORT_24HDT		1
 #define WACOM_REPORT_WL			128
 #define WACOM_REPORT_USB		192
@@ -107,6 +113,7 @@ enum {
 	WACOM_27QHD,
 	CINTIQ_HYBRID,
 	CINTIQ_COMPANION_2,
+	WACOM_MSPRO,
 	CINTIQ,
 	WACOM_BEE,
 	WACOM_13HD,
@@ -116,6 +123,7 @@ enum {
 	BAMBOO_PT,
 	WACOM_24HDT,
 	WACOM_27QHDT,
+	WACOM_MSPROT,
 	WIRELESS,
 	REMOTE,
 	TABLETPC,   /* add new TPC below */
@@ -138,8 +146,10 @@ struct wacom_features {
 	int x_resolution;
 	int y_resolution;
 	int numbered_buttons;
-	int x_min;
-	int y_min;
+	int offset_left;
+	int offset_right;
+	int offset_top;
+	int offset_bottom;
 	int device_type;
 	int x_phy;
 	int y_phy;

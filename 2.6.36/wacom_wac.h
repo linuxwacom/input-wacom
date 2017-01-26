@@ -26,6 +26,8 @@
 #define WACOM_PKGLEN_MTOUCH	62
 #define WACOM_PKGLEN_BBTOUCH3   64
 #define WACOM_PKGLEN_DTUS	68
+#define WACOM_PKGLEN_MSPRO	64
+#define WACOM_PKGLEN_MSPROT	50
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -36,8 +38,8 @@
 
 /* wacom data packet report IDs */
 #define WACOM_REPORT_PENABLED		2
-#define WACOM_REPORT_INTUOSREAD		5
-#define WACOM_REPORT_INTUOSWRITE	6
+#define WACOM_REPORT_INTUOS_ID1		5
+#define WACOM_REPORT_INTUOS_ID2		6
 #define WACOM_REPORT_INTUOSPAD		12
 #define WACOM_REPORT_INTUOS5PAD         3
 #define WACOM_REPORT_DTUSPAD		21
@@ -46,9 +48,13 @@
 #define WACOM_REPORT_TPCHID		15
 #define WACOM_REPORT_TPCST		16
 #define WACOM_REPORT_DTUS		17
+#define WACOM_REPORT_MSPRO		16
+#define WACOM_REPORT_MSPROPAD		17
+#define WACOM_REPORT_MSPRODEVICE	19
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
+#define WACOM_BYTES_PER_MSPROT_PACKET	9
 
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
@@ -83,10 +89,12 @@ enum {
 	WACOM_22HD,
 	DTK,
 	WACOM_24HD,
+	WACOM_MSPRO,
 	CINTIQ,
 	WACOM_BEE,
 	WACOM_13HD,
 	WACOM_MO,
+ 	WACOM_MSPROT,
 	TABLETPC,
 	TABLETPCE,
 	TABLETPC2FG,
@@ -104,8 +112,11 @@ struct wacom_features {
 	int type;
 	int x_resolution;
 	int y_resolution;
-	int x_min;
-	int y_min;
+	int numbered_buttons;
+	int offset_left;
+	int offset_right;
+	int offset_top;
+	int offset_bottom;
 	int device_type;
 	int x_phy;
 	int y_phy;
@@ -119,7 +130,7 @@ struct wacom_features {
 	unsigned quirks;
 	unsigned touch_max;
 	unsigned num_contacts;
-	unsigned num_contacts_left;
+	int num_contacts_left;
 };
 
 struct wacom_shared {

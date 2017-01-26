@@ -122,6 +122,7 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 	struct hid_data *hid_data = &wacom->wacom_wac.hid_data;
 	u8 *data;
 	int ret;
+	int n;
 
 	switch (usage->hid) {
 	case HID_DG_CONTACTMAX:
@@ -159,21 +160,51 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 
 	case HID_UP_DIGITIZER:
 		if (field->report->id == 0x0B &&
-		    (field->application == WACOM_G9_DIGITIZER ||
-		     field->application == WACOM_G11_DIGITIZER)) {
+		    (field->application == WACOM_HID_G9_PEN ||
+		     field->application == WACOM_HID_G11_PEN)) {
 			wacom->wacom_wac.mode_report = field->report->id;
 			wacom->wacom_wac.mode_value = 0;
 		}
 		break;
 
-	case WACOM_G9_PAGE:
-	case WACOM_G11_PAGE:
+	case WACOM_HID_WD_DATAMODE:
+		wacom->wacom_wac.mode_report = field->report->id;
+		wacom->wacom_wac.mode_value = 2;
+		break;
+
+	case WACOM_HID_UP_G9:
+	case WACOM_HID_UP_G11:
 		if (field->report->id == 0x03 &&
-		    (field->application == WACOM_G9_TOUCHSCREEN ||
-		     field->application == WACOM_G11_TOUCHSCREEN)) {
+		    (field->application == WACOM_HID_G9_TOUCHSCREEN ||
+		     field->application == WACOM_HID_G11_TOUCHSCREEN)) {
 			wacom->wacom_wac.mode_report = field->report->id;
 			wacom->wacom_wac.mode_value = 0;
 		}
+		break;
+	case WACOM_HID_WD_OFFSETLEFT:
+	case WACOM_HID_WD_OFFSETTOP:
+	case WACOM_HID_WD_OFFSETRIGHT:
+	case WACOM_HID_WD_OFFSETBOTTOM:
+		/* read manually */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
+		n = wacom_hid_report_len(field->report);
+#else
+		n = hid_report_len(field->report);
+#endif
+		data = hid_alloc_report_buf(field->report, GFP_KERNEL);
+		if (!data)
+			break;
+		data[0] = field->report->id;
+		ret = wacom_get_report(hdev, HID_FEATURE_REPORT,
+					data, n, WAC_CMD_RETRIES);
+		if (ret == n) {
+			ret = hid_report_raw_event(hdev, HID_FEATURE_REPORT,
+						   data, n, 0);
+		} else {
+			hid_warn(hdev, "%s: could not retrieve sensor offsets\n",
+				 __func__);
+		}
+		kfree(data);
 		break;
 	}
 }
@@ -238,6 +269,30 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 		/* ISDv4 touch devices at least supports one touch point */
 		if (finger && !features->touch_max)
 			features->touch_max = 1;
+	}
+
+	/*
+	 * ISDv4 devices which predate HID's adoption of the
+	 * HID_DG_BARELSWITCH2 usage use 0x000D0000 in its
+	 * position instead. We can accurately detect if a
+	 * usage with that value should be HID_DG_BARRELSWITCH2
+	 * based on the surrounding usages, which have remained
+	 * constant across generations.
+	 */
+	if (features->type == HID_GENERIC &&
+	    usage->hid == 0x000D0000 &&
+	    field->application == HID_DG_PEN &&
+	    field->physical == HID_DG_STYLUS) {
+		int i = usage->usage_index;
+
+		if (i-4 >= 0 && i+1 < field->maxusage &&
+		    field->usage[i-4].hid == HID_DG_TIPSWITCH &&
+		    field->usage[i-3].hid == HID_DG_BARRELSWITCH &&
+		    field->usage[i-2].hid == HID_DG_ERASER &&
+		    field->usage[i-1].hid == HID_DG_INVERT &&
+		    field->usage[i+1].hid == HID_DG_INRANGE) {
+			usage->hid = HID_DG_BARRELSWITCH2;
+		}
 	}
 
 	switch (usage->hid) {
@@ -531,36 +586,95 @@ struct wacom_hdev_data {
 static LIST_HEAD(wacom_udev_list);
 static DEFINE_MUTEX(wacom_udev_list_lock);
 
+static bool compare_device_paths(struct hid_device *hdev_a,
+		struct hid_device *hdev_b, char separator)
+{
+	int n1 = strrchr(hdev_a->phys, separator) - hdev_a->phys;
+	int n2 = strrchr(hdev_b->phys, separator) - hdev_b->phys;
+
+	if (n1 != n2 || n1 <= 0 || n2 <= 0)
+		return false;
+
+	return !strncmp(hdev_a->phys, hdev_b->phys, n1);
+}
+
 static bool wacom_are_sibling(struct hid_device *hdev,
 		struct hid_device *sibling)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_features *features = &wacom->wacom_wac.features;
-	int vid = features->oVid;
-	int pid = features->oPid;
-	int n1,n2;
+	struct wacom *sibling_wacom = hid_get_drvdata(sibling);
+	struct wacom_features *sibling_features = &sibling_wacom->wacom_wac.features;
+	__u32 oVid = features->oVid ? features->oVid : hdev->vendor;
+	__u32 oPid = features->oPid ? features->oPid : hdev->product;
 
-	if (vid == 0 && pid == 0) {
-		vid = hdev->vendor;
-		pid = hdev->product;
+	/* The defined oVid/oPid must match that of the sibling */
+	if (features->oVid != HID_ANY_ID && sibling->vendor != oVid)
+		return false;
+	if (features->oPid != HID_ANY_ID && sibling->product != oPid)
+		return false;
+
+	/*
+	 * Devices with the same VID/PID must share the same physical
+	 * device path, while those with different VID/PID must share
+	 * the same physical parent device path.
+	 */
+	if (hdev->vendor == sibling->vendor && hdev->product == sibling->product) {
+		if (!compare_device_paths(hdev, sibling, '/'))
+			return false;
+	} else {
+		if (!compare_device_paths(hdev, sibling, '.'))
+			return false;
 	}
 
-	if (vid != sibling->vendor || pid != sibling->product)
+	/* Skip the remaining heuristics unless you are a HID_GENERIC device */
+	if (features->type != HID_GENERIC)
+		return true;
+
+	/*
+	 * Direct-input devices may not be siblings of indirect-input
+	 * devices.
+	 */
+	if ((features->device_type & WACOM_DEVICETYPE_DIRECT) &&
+	    !(sibling_features->device_type & WACOM_DEVICETYPE_DIRECT))
 		return false;
 
-	/* Compare the physical path. */
-	n1 = strrchr(hdev->phys, '.') - hdev->phys;
-	n2 = strrchr(sibling->phys, '.') - sibling->phys;
-	if (n1 != n2 || n1 <= 0 || n2 <= 0)
+	/*
+	 * Indirect-input devices may not be siblings of direct-input
+	 * devices.
+	 */
+	if (!(features->device_type & WACOM_DEVICETYPE_DIRECT) &&
+	    (sibling_features->device_type & WACOM_DEVICETYPE_DIRECT))
 		return false;
 
-	return !strncmp(hdev->phys, sibling->phys, n1);
+	/* Pen devices may only be siblings of touch devices */
+	if ((features->device_type & WACOM_DEVICETYPE_PEN) &&
+	    !(sibling_features->device_type & WACOM_DEVICETYPE_TOUCH))
+		return false;
+
+	/* Touch devices may only be siblings of pen devices */
+	if ((features->device_type & WACOM_DEVICETYPE_TOUCH) &&
+	    !(sibling_features->device_type & WACOM_DEVICETYPE_PEN))
+		return false;
+
+	/*
+	 * No reason could be found for these two devices to NOT be
+	 * siblings, so there's a good chance they ARE siblings
+	 */
+	return true;
 }
 
 static struct wacom_hdev_data *wacom_get_hdev_data(struct hid_device *hdev)
 {
 	struct wacom_hdev_data *data;
 
+	/* Try to find an already-probed interface from the same device */
+	list_for_each_entry(data, &wacom_udev_list, list) {
+		if (compare_device_paths(hdev, data->dev, '/'))
+			return data;
+	}
+
+	/* Fallback to finding devices that appear to be "siblings" */
 	list_for_each_entry(data, &wacom_udev_list, list) {
 		if (wacom_are_sibling(hdev, data->dev)) {
 			kref_get(&data->kref);
@@ -1682,6 +1796,19 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 				/* shift everything including the terminator */
 				memmove(gap, gap+1, strlen(gap));
 			}
+
+			/* strip off excessive prefixing */
+			if (strstr(name, "Wacom Co.,Ltd. Wacom ") == name) {
+				int n = strlen(name);
+				int x = strlen("Wacom Co.,Ltd. ");
+				memmove(name, name+x, n-x+1);
+			}
+			if (strstr(name, "Wacom Co., Ltd. Wacom ") == name) {
+				int n = strlen(name);
+				int x = strlen("Wacom Co., Ltd. ");
+				memmove(name, name+x, n-x+1);
+			}
+
 			/* get rid of trailing whitespace */
 			if (name[strlen(name)-1] == ' ')
 				name[strlen(name)-1] = '\0';

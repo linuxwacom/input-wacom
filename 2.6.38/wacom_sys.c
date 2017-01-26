@@ -385,6 +385,10 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						features->pktlen = WACOM_PKGLEN_BBTOUCH;
 						break;
 
+					case WACOM_MSPROT:
+						features->pktlen = WACOM_PKGLEN_MSPROT;
+						break;
+
 					default:
 						features->pktlen = WACOM_PKGLEN_GRAPHIRE;
 						break;
@@ -421,6 +425,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						i += 9;
 						break;
 
+					case WACOM_MSPROT:
 					case MTTPC_B:
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
@@ -491,6 +496,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						i += 12;
 						break;
 
+					case WACOM_MSPROT:
 					case MTTPC_B:
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
@@ -612,6 +618,9 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 		}
 		else if (features->type == WACOM_27QHDT) {
 			return wacom_set_device_mode(intf, 131, 3, 2);
+		}
+		else if (features->type == WACOM_MSPROT) {
+			return wacom_set_device_mode(intf, 14, 2, 2);
 		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
 		if (features->type <= BAMBOO_PT) {
