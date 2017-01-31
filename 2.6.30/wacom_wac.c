@@ -1537,6 +1537,8 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 	tool_uid    = le64_to_cpup((__le64 *)&data[17]);
 	tool_type   = le16_to_cpup((__le16 *)&data[25]);
 
+	wacom->shared->stylus_in_proximity = proximity;
+
 	if (range) {
 		wacom->serial[0] = (tool_uid & 0xFFFFFFFF);
 		wacom->id[0]     = (tool_uid >> 32) | tool_type;
@@ -2374,15 +2376,19 @@ static const struct wacom_features wacom_features_0x47 =
 static const struct wacom_features wacom_features_0x6004 =
 	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800, 8000, 255, 0, TABLETPC };
 static const struct wacom_features wacom_features_0x34A =
-	{ "Wacom MobileStudio Pro 13 Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT }; /* Touch */
+	{ "Wacom MobileStudio Pro 13 Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34d }; /* Touch */
 static const struct wacom_features wacom_features_0x34B =
-	{ "Wacom MobileStudio Pro 16 Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT }; /* Touch */
+	{ "Wacom MobileStudio Pro 16 Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34e }; /* Touch */
 static const struct wacom_features wacom_features_0x34D =
 	{ "Wacom MobileStudio Pro 13", WACOM_PKGLEN_MSPRO, 59552, 33848, 8191, 63,
-	  WACOM_MSPRO, 11, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+	  WACOM_MSPRO, 11, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34a };
 static const struct wacom_features wacom_features_0x34E =
 	{ "Wacom MobileStudio Pro 16", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
-	  WACOM_MSPRO, 13, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+	  WACOM_MSPRO, 13, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34b };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
