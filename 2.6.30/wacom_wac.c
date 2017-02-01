@@ -2194,7 +2194,15 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 	}
 
-	wacom_setup_numbered_buttons(input_dev, features->numbered_buttons);
+	/*
+	 * Because all devices with numbered buttons have the pen and pad on
+	 * the same interface we can rely on this check to avoid creating
+	 * extra pads. Future devices may require creating a more involved
+	 * check.
+	 */
+	if (features->device_type == BTN_TOOL_PEN)
+		wacom_setup_numbered_buttons(input_dev,
+					     features->numbered_buttons);
 }
 
 static const struct wacom_features wacom_features_0x00 =

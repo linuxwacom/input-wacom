@@ -2548,7 +2548,15 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 	}
 
-	wacom_setup_numbered_buttons(input_dev, numbered_buttons);
+	/*
+	 * Because all devices with numbered buttons have the pen and pad on
+	 * the same interface we can rely on this check to avoid creating
+	 * extra pads. Futre devices may require creating a more involved
+	 * check.
+	 */
+	if (features->device_type == BTN_TOOL_PEN || features->type == REMOTE)
+		wacom_setup_numbered_buttons(input_dev, numbered_buttons);
+
 	return 0;
 }
 
