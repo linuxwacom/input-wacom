@@ -22,6 +22,7 @@
 #define HID_USAGE_PAGE			0x04
 #define HID_USAGE_PAGE_DIGITIZER	0x0d
 #define HID_USAGE_PAGE_DESKTOP		0x01
+#define HID_USAGE_PAGE_WACOMTOUCH	0xff00
 #define HID_USAGE			0x08
 #define HID_USAGE_X			((HID_USAGE_PAGE_DESKTOP << 16) | 0x30)
 #define HID_USAGE_Y			((HID_USAGE_PAGE_DESKTOP << 16) | 0x31)
@@ -30,6 +31,10 @@
 #define HID_USAGE_Y_TILT		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x3e)
 #define HID_USAGE_FINGER		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x22)
 #define HID_USAGE_STYLUS		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x20)
+#define HID_USAGE_WT_X			((HID_USAGE_PAGE_WACOMTOUCH << 16) | 0x130)
+#define HID_USAGE_WT_Y			((HID_USAGE_PAGE_WACOMTOUCH << 16) | 0x131)
+#define HID_USAGE_WT_FINGER		((HID_USAGE_PAGE_WACOMTOUCH << 16) | 0x22)
+#define HID_USAGE_WT_STYLUS		((HID_USAGE_PAGE_WACOMTOUCH << 16) | 0x20)
 #define HID_USAGE_CONTACTMAX		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x55)
 #define HID_COLLECTION			0xa0
 #define HID_COLLECTION_LOGICAL		0x02
@@ -351,6 +356,26 @@ static int wacom_parse_hid(struct usb_interface *intf,
 			}
 
 			switch (data) {
+			case HID_USAGE_WT_X:
+				if (finger)
+					features->device_type = BTN_TOOL_FINGER;
+				if (features->type == INTUOSP2) {
+					features->touch_max = 10;
+					features->pktlen = WACOM_PKGLEN_INTUOSP2T;
+					features->unit = report[i+4];
+					features->unitExpo = report[i+6];
+					features->x_phy = get_unaligned_le16(&report[i + 10]);
+					features->x_max = get_unaligned_le16(&report[i + 15]);
+				}
+				break;
+
+			case HID_USAGE_WT_Y:
+				if (features->type == INTUOSP2) {
+					features->y_phy = get_unaligned_le16(&report[i + 4]);
+					features->y_max = get_unaligned_le16(&report[i + 7]);
+				}
+				break;
+
 			case HID_USAGE_X:
 				if (finger) {
 					features->device_type = BTN_TOOL_FINGER;
@@ -510,6 +535,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 				}
 				break;
 
+			case HID_USAGE_WT_FINGER:
 			case HID_USAGE_FINGER:
 				finger = 1;
 				break;
@@ -519,6 +545,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 			 * X/Y values and some cases of invalid Digitizer X/Y
 			 * values commonly reported.
 			 */
+			case HID_USAGE_WT_STYLUS:
 			case HID_USAGE_STYLUS:
 				pen = 1;
 				break;
@@ -797,7 +824,13 @@ static int wacom_led_control(struct wacom *wacom)
 	if (!buf)
 		return -ENOMEM;
 
-	if (wacom->wacom_wac.features.type >= INTUOS5S &&
+	if (wacom->wacom_wac.features.type == INTUOSP2) {
+
+		buf[0] = WAC_CMD_LED_CONTROL_GENERIC;
+		buf[1] = wacom->led.llv;
+		buf[2] = wacom->led.select[0] & 0x03;
+
+	} else if (wacom->wacom_wac.features.type >= INTUOS5S &&
 	    wacom->wacom_wac.features.type <= INTUOSPL) {
 		/*
 		 * Touch Ring and crop mark LED luminance may take on
@@ -1130,6 +1163,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	case INTUOSPS:
 	case INTUOSPM:
 	case INTUOSPL:
+	case INTUOSP2:
 		wacom->led.select[0] = 0;
 		wacom->led.select[1] = 0;
 		wacom->led.llv = 32;

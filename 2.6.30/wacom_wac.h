@@ -29,11 +29,14 @@
 #define WACOM_PKGLEN_DTUS	68
 #define WACOM_PKGLEN_PENABLED	8
 #define WACOM_PKGLEN_MSPRO     64
+#define WACOM_PKGLEN_INTUOSP2  64
+#define WACOM_PKGLEN_INTUOSP2T 44
 #define WACOM_PKGLEN_MSPROT    50
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
 #define WACOM_BYTES_PER_MSPROT_PACKET   9
+#define WACOM_BYTES_PER_INTUOSP2_PACKET 8
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -59,12 +62,15 @@
 #define WACOM_REPORT_CINTIQPAD		17
 #define WACOM_REPORT_MSPROPAD		17
 #define WACOM_REPORT_MSPRODEVICE	19
+#define WACOM_REPORT_VENDOR_DEF_TOUCH	33
+#define WAC_CMD_LED_CONTROL_GENERIC	50
 
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
 #define WACOM_QUIRK_NO_INPUT		0x0002
 #define WACOM_QUIRK_MONITOR		0x0004
 
+#define WACOM_INTUOSP2_RING_UNTOUCHED	0x7f
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
@@ -102,6 +108,7 @@ enum {
 	INTUOSHT2,
 	BAMBOO_PT,
 	WACOM_MSPROT,
+	INTUOSP2,
 	TABLETPC,
 	TABLETPC2FG,
 	MTTPC,
@@ -157,6 +164,8 @@ struct wacom_wac {
 	int num_contacts_left;
 	int contacts_to_send;
 	int slots[10];
+	int previous_buttons;
+	int previous_ring;
 };
 
 #endif
