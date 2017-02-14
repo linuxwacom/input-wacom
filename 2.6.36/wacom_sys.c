@@ -18,10 +18,11 @@
 #define HID_DEVICET_HID		(USB_TYPE_CLASS | 0x01)
 #define HID_DEVICET_REPORT	(USB_TYPE_CLASS | 0x02)
 #define HID_USAGE_UNDEFINED		0x00
-#define HID_USAGE_PAGE			0x05
+#define HID_USAGE_PAGE			0x04
 #define HID_USAGE_PAGE_DIGITIZER	0x0d
 #define HID_USAGE_PAGE_DESKTOP		0x01
-#define HID_USAGE			0x09
+#define HID_USAGE_PAGE_WACOMTOUCH	0xff00
+#define HID_USAGE			0x08
 #define HID_USAGE_X			((HID_USAGE_PAGE_DESKTOP << 16) | 0x30)
 #define HID_USAGE_Y			((HID_USAGE_PAGE_DESKTOP << 16) | 0x31)
 #define HID_USAGE_PRESSURE		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x30)
@@ -29,8 +30,14 @@
 #define HID_USAGE_Y_TILT		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x3e)
 #define HID_USAGE_FINGER		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x22)
 #define HID_USAGE_STYLUS		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x20)
+#define HID_USAGE_WT_X			((HID_USAGE_PAGE_WACOMTOUCH << 16) | 0x130)
+#define HID_USAGE_WT_Y			((HID_USAGE_PAGE_WACOMTOUCH << 16) | 0x131)
+#define HID_USAGE_WT_FINGER		((HID_USAGE_PAGE_WACOMTOUCH << 16) | 0x22)
+#define HID_USAGE_WT_STYLUS		((HID_USAGE_PAGE_WACOMTOUCH << 16) | 0x20)
 #define HID_USAGE_CONTACTMAX		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x55)
-#define HID_COLLECTION			0xc0
+#define HID_COLLECTION			0xa0
+#define HID_COLLECTION_END		0xc0
+#define HID_LONGITEM			0xfc
 
 struct hid_descriptor {
 	struct usb_descriptor_header header;
@@ -208,15 +215,54 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 		goto out2;
 
 	for (i = 0; i < hid_desc->wDescriptorLength; i++) {
+		int item = report[i] & 0xFC;
+		int len = report[i] & 0x03;
+		int data = 0;
 
-		switch (report[i]) {
+		switch (len) {
+		case 3:
+			len = 4;
+			data |= (report[i+4] << 24);
+			data |= (report[i+3] << 16);
+			/* fall through */
+		case 2:
+			data |= (report[i+2] << 8);
+			/* fall through */
+		case 1:
+			data |= (report[i+1]);
+			break;
+		}
+
+		switch (item) {
 		case HID_USAGE_PAGE:
-			page = report[i + 1];
-			i++;
+			page = data;
 			break;
 
 		case HID_USAGE:
-			switch (page << 16 | report[i + 1]) {
+			if (len < 4) {
+				data |= (page << 16);
+			}
+
+			switch (data) {
+			case HID_USAGE_WT_X:
+				features->device_type = BTN_TOOL_TRIPLETAP;
+				if (features->type == INTUOSP2) {
+					features->touch_max = 10;
+					features->pktlen = WACOM_PKGLEN_INTUOSP2T;
+					features->unit = report[i+4];
+					features->unitExpo = report[i+6];
+					features->x_phy = get_unaligned_le16(&report[i + 10]);
+					features->x_max = get_unaligned_le16(&report[i + 15]);
+				}
+				break;
+
+			case HID_USAGE_WT_Y:
+				if (features->type == INTUOSP2) {
+					features->y_phy = get_unaligned_le16(&report[i + 4]);
+					features->y_max = get_unaligned_le16(&report[i + 7]);
+				}
+				break;
+
 			case HID_USAGE_X:
 				if (finger) {
 					features->device_type = BTN_TOOL_FINGER;
@@ -237,7 +283,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							get_unaligned_le16(&report[i + 5]);
 						features->x_max =
 							get_unaligned_le16(&report[i + 8]);
-						i += 15;
 					} else if (features->type == WACOM_MSPROT) {
 						features->touch_max = 10;
 						features->x_max =
@@ -246,7 +291,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							get_unaligned_le16(&report[i + 6]);
 						features->unit = report[i - 5];
 						features->unitExpo = report[i - 3];
-						i += 9;
 					} else {
 						features->touch_max = 1;
 						features->x_max =
@@ -255,13 +299,11 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							get_unaligned_le16(&report[i + 6]);
 						features->unit = report[i + 9];
 						features->unitExpo = report[i + 11];
-						i += 12;
 					}
 				} else if (pen) {
 					features->device_type = BTN_TOOL_PEN;
 					features->x_max =
 						get_unaligned_le16(&report[i + 3]);
-					i += 4;
 				}
 				break;
 
@@ -275,42 +317,37 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							get_unaligned_le16(&report[i + 3]);
 						features->y_phy =
 							get_unaligned_le16(&report[i + 6]);
-						i += 7;
 					} else if (type == BAMBOO_PT) {
 						features->y_phy =
 							get_unaligned_le16(&report[i + 3]);
 						features->y_max =
 							get_unaligned_le16(&report[i + 6]);
-						i += 12;
 					} else if (features->type == WACOM_MSPROT) {
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->y_phy =
 							get_unaligned_le16(&report[i + 6]);
-						i += 9;
 					} else {
 						features->y_max =
 							features->x_max;
 						features->y_phy =
 							get_unaligned_le16(&report[i + 3]);
-						i += 4;
 					}
 				} else if (pen) {
 					features->device_type = BTN_TOOL_PEN;
 					features->y_max =
 						get_unaligned_le16(&report[i + 3]);
-					i += 4;
 				}
 				break;
 
+			case HID_USAGE_WT_FINGER:
 			case HID_USAGE_FINGER:
 				finger = 1;
-				i++;
 				break;
 
+			case HID_USAGE_WT_STYLUS:
 			case HID_USAGE_STYLUS:
 				pen = 1;
-				i++;
 				break;
 
 			case HID_USAGE_CONTACTMAX:
@@ -323,24 +360,33 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 
 				if ((result >= 0) && (rep_data[1] > 2))
 					features->touch_max = rep_data[1];
-				i++;
 				break;
 
 			case HID_USAGE_PRESSURE:
 				if (pen) {
 					features->pressure_max =
 						get_unaligned_le16(&report[i + 3]);
-					i += 4;
 				}
 				break;
 			}
 			break;
 
-		case HID_COLLECTION:
+		case HID_COLLECTION_END:
 			/* reset UsagePage and Finger */
 			finger = page = 0;
 			break;
+
+		case HID_LONGITEM:
+			/*
+			 * HID "Long Items" can contain up to 255 bytes
+			 * of data. We don't use long items, so just
+			 * update the length to skip over it entirely.
+			 */
+			len += data & 0x00FF;
+			break;
 		}
+
+		i += len;
 	}
 
  out2:	result = 0;
@@ -405,7 +451,7 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	/* only devices support touch need to retrieve the info */
 	if ((features->type != TABLETPC) && (features->type != TABLETPC2FG) &&
 	    (features->type != BAMBOO_PT) && (features->type != MTSCREEN) &&
-	    (features->type != WACOM_MSPROT))
+	    (features->type != WACOM_MSPROT) && (features->type != INTUOSP2))
 		goto out;
 
 	if (usb_get_extra_descriptor(interface, HID_DEVICET_HID, &hid_desc)) {
@@ -513,8 +559,13 @@ static int wacom_led_control(struct wacom *wacom)
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
+	if (wacom->wacom_wac.features.type == INTUOSP2) {
 
-	if (wacom->wacom_wac.features.type >= INTUOS5S &&
+		buf[0] = WAC_CMD_LED_CONTROL_GENERIC;
+		buf[1] = wacom->led.llv;
+		buf[2] = wacom->led.select[0] & 0x03;
+
+	} else if (wacom->wacom_wac.features.type >= INTUOS5S &&
 	    wacom->wacom_wac.features.type <= INTUOSPL)	{
 		/* Touch Ring and crop mark LED luminance may take on
 		 * one of four values:
@@ -835,6 +886,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	case INTUOSPS:
 	case INTUOSPM:
 	case INTUOSPL:
+	case INTUOSP2:
 		wacom->led.select[0] = 0;
 		wacom->led.select[1] = 0;
 		wacom->led.llv = 32;

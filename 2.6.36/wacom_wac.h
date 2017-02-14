@@ -28,6 +28,8 @@
 #define WACOM_PKGLEN_DTUS	68
 #define WACOM_PKGLEN_MSPRO	64
 #define WACOM_PKGLEN_MSPROT	50
+#define WACOM_PKGLEN_INTUOSP2   64
+#define WACOM_PKGLEN_INTUOSP2T  44
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -51,10 +53,13 @@
 #define WACOM_REPORT_MSPRO		16
 #define WACOM_REPORT_MSPROPAD		17
 #define WACOM_REPORT_MSPRODEVICE	19
+#define WACOM_REPORT_VENDOR_DEF_TOUCH	33
+#define WAC_CMD_LED_CONTROL_GENERIC	50
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
 #define WACOM_BYTES_PER_MSPROT_PACKET	9
+#define WACOM_BYTES_PER_INTUOSP2_PACKET 8
 
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
@@ -62,6 +67,7 @@
 /* largest reported tracking id */
 #define MAX_TRACKING_ID			0xffff
 
+#define WACOM_INTUOSP2_RING_UNTOUCHED  0x7f
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
@@ -95,6 +101,7 @@ enum {
 	WACOM_13HD,
 	WACOM_MO,
  	WACOM_MSPROT,
+	INTUOSP2,
 	TABLETPC,
 	TABLETPCE,
 	TABLETPC2FG,
@@ -150,6 +157,8 @@ struct wacom_wac {
 	struct wacom_shared *shared;
 	struct input_dev *input;
 	int pid;
+	int previous_buttons;
+	int previous_ring;
 };
 
 #endif
