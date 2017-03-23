@@ -16,6 +16,10 @@
 #include "wacom.h"
 #include <linux/input/mt.h>
 
+#ifndef KEY_ONSCREEN_KEYBOARD
+#define KEY_ONSCREEN_KEYBOARD	0x278
+#endif
+
 /* resolution for penabled devices */
 #define WACOM_PL_RES		20
 #define WACOM_PENPRTN_RES	40
