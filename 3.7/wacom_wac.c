@@ -3082,6 +3082,24 @@ static const struct wacom_features wacom_features_0x34D =
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
           .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34A };
+static const struct wacom_features wacom_features_0x34F =
+	{ "Wacom Cintiq Pro 13 FHD", WACOM_PKGLEN_MSPRO, 59552, 33848, 8191, 63,
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+          .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x353 };
+static const struct wacom_features wacom_features_0x350 =
+	{ "Wacom Cintiq Pro 16UHD", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x354 };
+static const struct wacom_features wacom_features_0x353 =
+	{ "Wacom Cintiq Pro 13FHD Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34f }; /* Touch */
+static const struct wacom_features wacom_features_0x354 =
+	{ "Wacom Cintiq Pro 16UHD Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x350 }; /* Touch */
 static const struct wacom_features wacom_features_0x357 =
 	{ "Wacom Co,.Ltd. Wacom Intuos Pro M", WACOM_PKGLEN_INTUOSP2, 44800, 29600, 8191,
 	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
@@ -3266,6 +3284,10 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x34B) },
 	{ USB_DEVICE_WACOM(0x34D) },
 	{ USB_DEVICE_WACOM(0x34E) },
+	{ USB_DEVICE_WACOM(0x34F) },
+	{ USB_DEVICE_WACOM(0x350) },
+	{ USB_DEVICE_WACOM(0x353) },
+	{ USB_DEVICE_WACOM(0x354) },
 	{ USB_DEVICE_DETAILED(0x357, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x358, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_LENOVO(0x6004) },
