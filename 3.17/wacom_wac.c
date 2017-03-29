@@ -20,6 +20,10 @@
 #define INPUT_PROP_ACCELEROMETER	0x06	/* has accelerometer */
 #endif
 
+#ifndef KEY_ONSCREEN_KEYBOARD
+#define KEY_ONSCREEN_KEYBOARD  0x278
+#endif
+
 /* resolution for penabled devices */
 #define WACOM_PL_RES		20
 #define WACOM_PENPRTN_RES	40
@@ -1772,6 +1776,18 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		break;
 	case WACOM_HID_WD_TOUCHRINGSTATUS:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
+		features->device_type |= WACOM_DEVICETYPE_PAD;
+		break;
+	case WACOM_HID_WD_BUTTONCONFIG:
+		wacom_map_usage(input, usage, field, EV_KEY, KEY_BUTTONCONFIG, 0);
+		features->device_type |= WACOM_DEVICETYPE_PAD;
+		break;
+	case WACOM_HID_WD_ONSCREEN_KEYBOARD:
+		wacom_map_usage(input, usage, field, EV_KEY, KEY_ONSCREEN_KEYBOARD, 0);
+		features->device_type |= WACOM_DEVICETYPE_PAD;
+		break;
+	case WACOM_HID_WD_CONTROLPANEL:
+		wacom_map_usage(input, usage, field, EV_KEY, KEY_CONTROLPANEL, 0);
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	}
