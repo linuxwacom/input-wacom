@@ -3084,10 +3084,10 @@ static const struct wacom_features wacom_features_0x34D =
           .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34A };
 static const struct wacom_features wacom_features_0x357 =
 	{ "Wacom Co,.Ltd. Wacom Intuos Pro M", WACOM_PKGLEN_INTUOSP2, 44800, 29600, 8191,
-	  63, INTUOSP2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 9, .touch_max = 10 };
+	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x358 =
 	{ "Wacom Co,.Ltd. Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191,
-	  63, INTUOSP2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 9, .touch_max = 10 };
+	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x34E =
 	{ "Wacom MobileStudio Pro 16", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
 	  WACOM_MSPRO, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 13,
