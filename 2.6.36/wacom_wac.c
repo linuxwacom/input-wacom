@@ -1296,7 +1296,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 
 		case INTUOSP2:
 			offset = WACOM_BYTES_PER_INTUOSP2_PACKET * i + 2;
-			contact_id = data[offset] & 0x01;
+			contact_id = data[offset];
 			prox = data[offset + 1] & 0x01;
 			x  = get_unaligned_le16(&data[offset + 2]);
 			y  = get_unaligned_le16(&data[offset + 4]);
@@ -2321,13 +2321,13 @@ static const struct wacom_features wacom_features_0x34B =
 	};
 static const struct wacom_features wacom_features_0x34D =
 	{ "Wacom MobileStudio Pro 13", WACOM_PKGLEN_MSPRO, 59552, 33848, 8191, 63,
-	  WACOM_MSPRO, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 11,
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 11,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET
         };
 static const struct wacom_features wacom_features_0x34E =
 	{ "Wacom MobileStudio Pro 16", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
-	  WACOM_MSPRO, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 13,
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 13,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
         };
@@ -2347,10 +2347,10 @@ static const struct wacom_features wacom_features_0x354 =
 	{ "Wacom Cintiq Pro 16UHD Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT }; /* Touch */
 static const struct wacom_features wacom_features_0x357 =
 	{ "Wacom Co,.Ltd. Wacom Intuos Pro M", WACOM_PKGLEN_INTUOSP2, 44800, 29600, 8191,
-	  63, INTUOSP2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 9 };
+	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9 };
 static const struct wacom_features wacom_features_0x358 =
 	{ "Wacom Co,.Ltd. Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191,
-	  63, INTUOSP2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 9 };
+	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9 };
 static const struct wacom_features wacom_features_0x6004 =
 	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800,  8000,  255,
 	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };

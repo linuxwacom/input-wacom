@@ -716,132 +716,6 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	return 0;
 }
 
-static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
-{
-	unsigned char *data = wacom_wac->data;
-	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	struct wacom_remote *remote = wacom->remote;
-	struct input_dev *input;
-	int bat_charging, bat_percent, touch_ring_mode;
-	__u32 serial;
-	int i, index = -1;
-	unsigned long flags;
-
-	if (data[0] != WACOM_REPORT_REMOTE) {
-		dev_dbg(&wacom->intf->dev,
-			"%s: received unknown report #%d", __func__, data[0]);
-		return 0;
-	}
-
-	serial = data[3] + (data[4] << 8) + (data[5] << 16);
-	wacom_wac->id[0] = PAD_DEVICE_ID;
-
-	spin_lock_irqsave(&remote->remote_lock, flags);
-
-	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
-		if (remote->remotes[i].serial == serial) {
-			index = i;
-			break;
-		}
-	}
-
-	input = remote->remotes[index].input;
-
-	if (index < 0 || !remote->remotes[index].registered)
-		goto out;
-
-	input_report_key(input, BTN_0, (data[9] & 0x01));
-	input_report_key(input, BTN_1, (data[9] & 0x02));
-	input_report_key(input, BTN_2, (data[9] & 0x04));
-	input_report_key(input, BTN_3, (data[9] & 0x08));
-	input_report_key(input, BTN_4, (data[9] & 0x10));
-	input_report_key(input, BTN_5, (data[9] & 0x20));
-	input_report_key(input, BTN_6, (data[9] & 0x40));
-	input_report_key(input, BTN_7, (data[9] & 0x80));
-
-	input_report_key(input, BTN_8, (data[10] & 0x01));
-	input_report_key(input, BTN_9, (data[10] & 0x02));
-	input_report_key(input, BTN_A, (data[10] & 0x04));
-	input_report_key(input, BTN_B, (data[10] & 0x08));
-	input_report_key(input, BTN_C, (data[10] & 0x10));
-	input_report_key(input, BTN_X, (data[10] & 0x20));
-	input_report_key(input, BTN_Y, (data[10] & 0x40));
-	input_report_key(input, BTN_Z, (data[10] & 0x80));
-
-	input_report_key(input, BTN_BASE, (data[11] & 0x01));
-	input_report_key(input, BTN_BASE2, (data[11] & 0x02));
-
-	if (data[12] & 0x80)
-		input_report_abs(input, ABS_WHEEL, (data[12] & 0x7f));
-	else
-		input_report_abs(input, ABS_WHEEL, 0);
-
-	bat_percent = data[7] & 0x7f;
-	bat_charging = !!(data[7] & 0x80);
-
-	if (data[9] | data[10] | (data[11] & 0x03) | data[12])
-		input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
-	else
-		input_report_abs(input, ABS_MISC, 0);
-
-	input_event(input, EV_MSC, MSC_SERIAL, serial);
-
-	input_sync(input);
-
-	/*Which mode select (LED light) is currently on?*/
-	touch_ring_mode = (data[11] & 0xC0) >> 6;
-
-	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
-		if (remote->remotes[i].serial == serial)
-			wacom->led.select[i] = touch_ring_mode;
-	}
-
-	__wacom_notify_battery(&remote->remotes[index].battery, bat_percent,
-		bat_charging, 1, bat_charging);
-
-out:
-	spin_unlock_irqrestore(&remote->remote_lock, flags);
-	return 0;
-}
-
-static void wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
-{
-	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	struct device *dev = &wacom->intf->dev;
-	unsigned char *data = wacom_wac->data;
-	struct wacom_remote *remote = wacom->remote;
-	struct wacom_remote_data remote_data;
-	unsigned long flags;
-	int i, ret;
-
-	if (data[0] != WACOM_REPORT_DEVICE_LIST)
-		return;
-
-	memset(&remote_data, 0, sizeof(struct wacom_remote_data));
-
-	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
-		int j = i * 6;
-		int serial = (data[j+6] << 16) + (data[j+5] << 8) + data[j+4];
-		bool connected = data[j+2];
-
-		remote_data.remote[i].serial = serial;
-		remote_data.remote[i].connected = connected;
-	}
-
-	spin_lock_irqsave(&remote->remote_lock, flags);
-
-	ret = kfifo_in(&remote->remote_fifo, &remote_data, sizeof(remote_data));
-	if (ret != sizeof(remote_data)) {
-		spin_unlock_irqrestore(&remote->remote_lock, flags);
-		dev_err(dev, "Can't queue Remote status event.\n");
-		return;
-	}
-
-	spin_unlock_irqrestore(&remote->remote_lock, flags);
-
-	wacom_schedule_work(wacom_wac, WACOM_WORKER_REMOTE);
-}
-
 static inline bool report_touch_events(struct wacom_wac *wacom)
 {
 	return (touch_arbitration ? !wacom->shared->stylus_in_proximity : 1);
@@ -1053,6 +927,132 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	return 0;
 }
 
+static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
+{
+	unsigned char *data = wacom_wac->data;
+	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	struct wacom_remote *remote = wacom->remote;
+	struct input_dev *input;
+	int bat_charging, bat_percent, touch_ring_mode;
+	__u32 serial;
+	int i, index = -1;
+	unsigned long flags;
+
+	if (data[0] != WACOM_REPORT_REMOTE) {
+		dev_dbg(&wacom->intf->dev,
+			"%s: received unknown report #%d", __func__, data[0]);
+		return 0;
+	}
+
+	serial = data[3] + (data[4] << 8) + (data[5] << 16);
+	wacom_wac->id[0] = PAD_DEVICE_ID;
+
+	spin_lock_irqsave(&remote->remote_lock, flags);
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		if (remote->remotes[i].serial == serial) {
+			index = i;
+			break;
+		}
+	}
+
+	input = remote->remotes[index].input;
+
+	if (index < 0 || !remote->remotes[index].registered)
+		goto out;
+
+	input_report_key(input, BTN_0, (data[9] & 0x01));
+	input_report_key(input, BTN_1, (data[9] & 0x02));
+	input_report_key(input, BTN_2, (data[9] & 0x04));
+	input_report_key(input, BTN_3, (data[9] & 0x08));
+	input_report_key(input, BTN_4, (data[9] & 0x10));
+	input_report_key(input, BTN_5, (data[9] & 0x20));
+	input_report_key(input, BTN_6, (data[9] & 0x40));
+	input_report_key(input, BTN_7, (data[9] & 0x80));
+
+	input_report_key(input, BTN_8, (data[10] & 0x01));
+	input_report_key(input, BTN_9, (data[10] & 0x02));
+	input_report_key(input, BTN_A, (data[10] & 0x04));
+	input_report_key(input, BTN_B, (data[10] & 0x08));
+	input_report_key(input, BTN_C, (data[10] & 0x10));
+	input_report_key(input, BTN_X, (data[10] & 0x20));
+	input_report_key(input, BTN_Y, (data[10] & 0x40));
+	input_report_key(input, BTN_Z, (data[10] & 0x80));
+
+	input_report_key(input, BTN_BASE, (data[11] & 0x01));
+	input_report_key(input, BTN_BASE2, (data[11] & 0x02));
+
+	if (data[12] & 0x80)
+		input_report_abs(input, ABS_WHEEL, (data[12] & 0x7f));
+	else
+		input_report_abs(input, ABS_WHEEL, 0);
+
+	bat_percent = data[7] & 0x7f;
+	bat_charging = !!(data[7] & 0x80);
+
+	if (data[9] | data[10] | (data[11] & 0x03) | data[12])
+		input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
+	else
+		input_report_abs(input, ABS_MISC, 0);
+
+	input_event(input, EV_MSC, MSC_SERIAL, serial);
+
+	input_sync(input);
+
+	/*Which mode select (LED light) is currently on?*/
+	touch_ring_mode = (data[11] & 0xC0) >> 6;
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		if (remote->remotes[i].serial == serial)
+			wacom->led.select[i] = touch_ring_mode;
+	}
+
+	__wacom_notify_battery(&remote->remotes[index].battery, bat_percent,
+		bat_charging, 1, bat_charging);
+
+out:
+	spin_unlock_irqrestore(&remote->remote_lock, flags);
+	return 0;
+}
+
+static void wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
+{
+	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	struct device *dev = &wacom->intf->dev;
+	unsigned char *data = wacom_wac->data;
+	struct wacom_remote *remote = wacom->remote;
+	struct wacom_remote_data remote_data;
+	unsigned long flags;
+	int i, ret;
+
+	if (data[0] != WACOM_REPORT_DEVICE_LIST)
+		return;
+
+	memset(&remote_data, 0, sizeof(struct wacom_remote_data));
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		int j = i * 6;
+		int serial = (data[j+6] << 16) + (data[j+5] << 8) + data[j+4];
+		bool connected = data[j+2];
+
+		remote_data.remote[i].serial = serial;
+		remote_data.remote[i].connected = connected;
+	}
+
+	spin_lock_irqsave(&remote->remote_lock, flags);
+
+	ret = kfifo_in(&remote->remote_fifo, &remote_data, sizeof(remote_data));
+	if (ret != sizeof(remote_data)) {
+		spin_unlock_irqrestore(&remote->remote_lock, flags);
+		dev_err(dev, "Can't queue Remote status event.\n");
+		return;
+	}
+
+	spin_unlock_irqrestore(&remote->remote_lock, flags);
+
+	wacom_schedule_work(wacom_wac, WACOM_WORKER_REMOTE);
+}
+
 static int find_slot_from_contactid(struct wacom_wac *wacom, int contactid)
 {
 	int touch_max = wacom->features.touch_max;
@@ -1177,7 +1177,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 
 		case INTUOSP2:
 			offset = WACOM_BYTES_PER_INTUOSP2_PACKET * i + 2;
-			contact_id = data[offset] & 0x01;
+			contact_id = data[offset];
 			prox = data[offset + 1] & 0x01;
 			x  = get_unaligned_le16(&data[offset + 2]);
 			y  = get_unaligned_le16(&data[offset + 4]);
@@ -2900,6 +2900,7 @@ static const struct wacom_features wacom_features_0x59 = /* Pen */
 	{ "Wacom DTH2242",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047,
 	  63, DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 6,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5D };
 static const struct wacom_features wacom_features_0x5D = /* Touch */
 	{ "Wacom DTH2242",       .type = WACOM_24HDT,
@@ -3138,10 +3139,16 @@ static const struct wacom_features wacom_features_0x34B =
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34E };
 static const struct wacom_features wacom_features_0x34D =
 	{ "Wacom MobileStudio Pro 13", WACOM_PKGLEN_MSPRO, 59552, 33848, 8191, 63,
-	  WACOM_MSPRO, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 11,
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 11,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
           .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34A };
+static const struct wacom_features wacom_features_0x34E =
+	{ "Wacom MobileStudio Pro 16", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 13,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+          .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34B };
 static const struct wacom_features wacom_features_0x34F =
 	{ "Wacom Cintiq Pro 13 FHD", WACOM_PKGLEN_MSPRO, 59552, 33848, 8191, 63,
 	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
@@ -3166,12 +3173,6 @@ static const struct wacom_features wacom_features_0x357 =
 static const struct wacom_features wacom_features_0x358 =
 	{ "Wacom Co,.Ltd. Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191,
 	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
-static const struct wacom_features wacom_features_0x34E =
-	{ "Wacom MobileStudio Pro 16", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
-	  WACOM_MSPRO, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 13,
-	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
-	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
-          .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34B };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
