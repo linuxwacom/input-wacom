@@ -1124,8 +1124,8 @@ static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
 		input_report_abs(input, ABS_MT_POSITION_Y, y);
 
 		if (w >= 0 && h >= 0) {
-			input_report_abs(input, ABS_MT_WIDTH_MAJOR, max(w, h));
-			input_report_abs(input, ABS_MT_WIDTH_MINOR, min(w, h));
+			input_report_abs(input, ABS_MT_TOUCH_MAJOR, max(w, h));
+			input_report_abs(input, ABS_MT_TOUCH_MINOR, min(w, h));
 			input_report_abs(input, ABS_MT_ORIENTATION, w > h);
 		}
 	}
@@ -2468,12 +2468,19 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		}
 		break;
 
-	case WACOM_MSPROT:
 	case WACOM_24HDT:
 		if (features->device_type == BTN_TOOL_FINGER) {
-			input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, features->x_max, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, features->x_max, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_WIDTH_MINOR, 0, features->y_max, 0, 0);
+		}
+		/* fall through */
+
+	case WACOM_MSPROT:
+		if (features->device_type == BTN_TOOL_FINGER) {
+			input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, features->x_max, 0, 0);
+			if (features->type != WACOM_24HDT)
+				input_set_abs_params(input_dev, ABS_MT_TOUCH_MINOR,
+						     0, features->y_max, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
 		}
 		/* fall through */
