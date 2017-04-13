@@ -1134,16 +1134,16 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
 			prox = data[offset] & 0x01;
 			contact_id = get_unaligned_le16(&data[offset + 1]);
-			x  = get_unaligned_le16(&data[offset + 3]);
-			y  = get_unaligned_le16(&data[offset + 5]);
+			x = get_unaligned_le16(&data[offset + 3]);
+			y = get_unaligned_le16(&data[offset + 5]);
 			break;
 
 		case INTUOSP2:
 			offset = WACOM_BYTES_PER_INTUOSP2_PACKET * i + 2;
 			contact_id = data[offset];
 			prox = data[offset + 1] & 0x01;
-			x  = get_unaligned_le16(&data[offset + 2]);
-			y  = get_unaligned_le16(&data[offset + 4]);
+			x = get_unaligned_le16(&data[offset + 2]);
+			y = get_unaligned_le16(&data[offset + 4]);
 			break;
 
 		default:
