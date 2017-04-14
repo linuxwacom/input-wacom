@@ -1791,7 +1791,8 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 			buttons = data[1] | (data[3] << 8);
 			break;
 		default:
-			dev_warn(input->dev.parent, "%s: unsupported device #%d\n", __func__, data[0]);
+			if (nbuttons)
+				dev_warn(input->dev.parent, "%s: unsupported device #%d\n", __func__, data[0]);
 			return 0;
 	}
 
