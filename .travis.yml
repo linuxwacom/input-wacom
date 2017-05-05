@@ -17,6 +17,9 @@ env:
   - KERNEL="linux-3.3"      # Conditional 2.6.38
   - KERNEL="linux-2.6.35"   # Conditional 2.6.30
 
+dist: trusty
+sudo: false
+
 addons:
   apt:
     packages:
