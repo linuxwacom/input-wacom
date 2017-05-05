@@ -67,18 +67,18 @@ static void __wacom_notify_battery(struct wacom_battery *battery,
 				   bool bat_connected, bool ps_connected)
 {
 	bool changed = battery->battery_capacity != bat_capacity  ||
-			 battery->bat_charging     != bat_charging  ||
-			 battery->bat_connected    != bat_connected ||
-			 battery->ps_connected     != ps_connected;
+		       battery->bat_charging     != bat_charging  ||
+		       battery->bat_connected    != bat_connected ||
+		       battery->ps_connected     != ps_connected;
 
 	if (changed) {
-		 battery->battery_capacity = bat_capacity;
-		 battery->bat_charging = bat_charging;
-		 battery->bat_connected = bat_connected;
-		 battery->ps_connected = ps_connected;
+		battery->battery_capacity = bat_capacity;
+		battery->bat_charging = bat_charging;
+		battery->bat_connected = bat_connected;
+		battery->ps_connected = ps_connected;
 
-		 if (WACOM_POWERSUPPLY_DEVICE(battery->battery))
-			  power_supply_changed(WACOM_POWERSUPPLY_REF(battery->battery));
+		if (WACOM_POWERSUPPLY_DEVICE(battery->battery))
+			power_supply_changed(WACOM_POWERSUPPLY_REF(battery->battery));
 	}
 }
 
@@ -1080,7 +1080,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	}
 
 	__wacom_notify_battery(&remote->remotes[index].battery, bat_percent,
-			       bat_charging, 1, bat_charging);
+				bat_charging, 1, bat_charging);
 
 
 out:
