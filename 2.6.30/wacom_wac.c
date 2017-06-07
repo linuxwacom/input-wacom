@@ -1307,7 +1307,9 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 	wacom->tool[2] = BTN_TOOL_TRIPLETAP;
 
 	/* MTTPC does not support Height and Width */
-	if (wacom->features.type == MTTPC || wacom->features.type == MTTPC_B)
+	if (wacom->features.type == MTTPC ||
+	    wacom->features.type == MTTPC_B ||
+	    wacom->features.type == MTTPC_C)
 		x_offset = -4;
 
 	/*
@@ -1758,6 +1760,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case TABLETPC2FG:
 	case MTTPC:
 	case MTTPC_B:
+	case MTTPC_C:
 		sync = wacom_tpc_irq(wacom_wac, len);
 		break;
 
@@ -2150,6 +2153,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case MTTPC:
 	case MTTPC_B:
+	case MTTPC_C:
 	case WACOM_MSPROT:
 		if (features->device_type == BTN_TOOL_TRIPLETAP) {
 			for (i = 0; i < 10; i++)
@@ -2471,6 +2475,12 @@ static const struct wacom_features wacom_features_0x5010 =
 	{ "Wacom ISDv4 5010",       WACOM_PKGLEN_MTTPC,   13756, 7736,  1023,  0, MTTPC_B };
 static const struct wacom_features wacom_features_0x5013 =
 	{ "Wacom ISDv4 5013",      WACOM_PKGLEN_MTTPC,    11752, 6612,  1023,  0, MTTPC_B };
+static const struct wacom_features wacom_features_0x5044 =
+	{ "Wacom ISDv4 5044",      WACOM_PKGLEN_MTTPC,     27648, 15552, 2047, 0, MTTPC_C };
+static const struct wacom_features wacom_features_0x5048 =
+	{ "Wacom ISDv4 5048",      WACOM_PKGLEN_MTTPC,     27648, 15552, 2047, 0, MTTPC_C };
+static const struct wacom_features wacom_features_0x5090 =
+	{ "Wacom ISDv4 5090",      WACOM_PKGLEN_MTTPC,     27648, 15552, 2047, 0, MTTPC_C };
 static const struct wacom_features wacom_features_0x47 =
 	{ "Wacom Intuos2 6x8",    WACOM_PKGLEN_INTUOS,    20320, 16240, 1023, 31, INTUOS };
 static const struct wacom_features wacom_features_0x6004 =
@@ -2632,6 +2642,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x5002) },
 	{ USB_DEVICE_WACOM(0x5010) },
 	{ USB_DEVICE_WACOM(0x5013) },
+	{ USB_DEVICE_WACOM(0x5044) },
+	{ USB_DEVICE_WACOM(0x5048) },
+	{ USB_DEVICE_WACOM(0x5090) },
 	{ USB_DEVICE_WACOM(0x300) },
 	{ USB_DEVICE_WACOM(0x301) },
 	{ USB_DEVICE_DETAILED(0x302, USB_CLASS_HID, 0, 0) },

@@ -113,6 +113,7 @@ enum {
 	TABLETPC2FG,
 	MTTPC,
 	MTTPC_B,
+	MTTPC_C,
 	MAX_TYPE
 };
 
