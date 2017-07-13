@@ -262,7 +262,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							 features->type == MTTPC ||
 							 features->type == MTTPC_B ||
 							 features->type == MTTPC_C ||
-							 features->type == WACOM_MSPROT) {
+							 features->type == WACOM_MSPROT ||
+							 features->type == DTH1152T) {
 						/* need to reset back */
 						features->pktlen = WACOM_PKGLEN_TPC2FG;
 						if (features->type == MTTPC ||
@@ -271,6 +272,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							features->pktlen = WACOM_PKGLEN_MTTPC;
 						else if (features->type == WACOM_MSPROT)
 							features->pktlen = WACOM_PKGLEN_MSPROT;
+						else if (features->type == DTH1152T)
+							features->pktlen = WACOM_PKGLEN_27QHDT;
 						features->device_type = BTN_TOOL_TRIPLETAP;
 					}
 					if (features->type == BAMBOO_PT) {
@@ -290,6 +293,13 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						features->unit = report[i - 5];
 						features->unitExpo = report[i - 3];
 					} else if (features->type == MTTPC_C) {
+						features->x_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->x_phy =
+							get_unaligned_le16(&report[i + 8]);
+						features->unit = report[i - 1];
+						features->unitExpo = report[i - 3];
+					} else if (features->type == DTH1152T) {
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->x_phy =
@@ -341,6 +351,11 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							get_unaligned_le16(&report[i + 3]);
 						features->y_max =
 							get_unaligned_le16(&report[i + 6]);
+					} else if (features->type == DTH1152T) {
+						features->y_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->y_phy =
+							get_unaligned_le16(&report[i - 2]);
 					} else {
 						features->y_max =
 							features->x_max;
@@ -432,8 +447,9 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 				error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
 					report_id, rep_data, 4, 1);
 			} while ((error < 0 || rep_data[1] != 4) && limit++ < 5);
-		}
-		else if (features->type == WACOM_MSPROT) {
+
+		} else if (features->type == WACOM_MSPROT ||
+			   features->type == DTH1152T) {
 			do {
 				rep_data[0] = 14;
 				rep_data[1] = 2;
