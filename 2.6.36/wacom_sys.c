@@ -275,6 +275,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						features->pktlen = WACOM_PKGLEN_MTOUCH;
 					else if (features->type == WACOM_MSPROT)
 						features->pktlen = WACOM_PKGLEN_MSPROT;
+					else if (features->type == DTH1152T)
+						features->pktlen = WACOM_PKGLEN_27QHDT;
 
 					if (features->type == BAMBOO_PT) {
 						features->pktlen = WACOM_PKGLEN_BBTOUCH;
@@ -290,6 +292,13 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						features->x_phy =
 							get_unaligned_le16(&report[i + 6]);
 						features->unit = report[i - 5];
+						features->unitExpo = report[i - 3];
+					} else if (features->type == DTH1152T) {
+						features->x_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->x_phy =
+							get_unaligned_le16(&report[i + 8]);
+						features->unit = report[i - 1];
 						features->unitExpo = report[i - 3];
 					} else {
 						features->touch_max = 1;
@@ -327,6 +336,11 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							get_unaligned_le16(&report[i + 3]);
 						features->y_phy =
 							get_unaligned_le16(&report[i + 6]);
+					} else if (features->type == DTH1152T) {
+						features->y_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->y_phy =
+							get_unaligned_le16(&report[i - 2]);
 					} else {
 						features->y_max =
 							features->x_max;
@@ -451,7 +465,8 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	/* only devices support touch need to retrieve the info */
 	if ((features->type != TABLETPC) && (features->type != TABLETPC2FG) &&
 	    (features->type != BAMBOO_PT) && (features->type != MTSCREEN) &&
-	    (features->type != WACOM_MSPROT) && (features->type != INTUOSP2))
+	    (features->type != WACOM_MSPROT) && (features->type != INTUOSP2) &&
+	    (features->type != DTH1152T))
 		goto out;
 
 	if (usb_get_extra_descriptor(interface, HID_DEVICET_HID, &hid_desc)) {

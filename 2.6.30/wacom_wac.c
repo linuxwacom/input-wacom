@@ -464,6 +464,37 @@ static int wacom_dtus_irq(struct wacom_wac *wacom)
 	}
 }
 
+static int wacom_dth1152_irq(struct wacom_wac *wacom)
+{
+	unsigned char *data = wacom->data;
+	struct input_dev *input = wacom->input;
+	unsigned short prox, pressure = 0;
+
+	if (data[0] != WACOM_REPORT_DTUS) {
+		dev_dbg(input->dev.parent,
+			"%s: received unknown report #%d", __func__, data[0]);
+		return 0;
+	} else {
+		prox = data[1] & 0x80;
+		if (prox) {
+			wacom->tool[0] = BTN_TOOL_PEN;
+			wacom->id[0] = STYLUS_DEVICE_ID;
+		}
+		input_report_key(input, BTN_STYLUS, data[1] & 0x20);
+		input_report_abs(input, ABS_X, get_unaligned_le16(&data[4]));
+		input_report_abs(input, ABS_Y, get_unaligned_le16(&data[6]));
+		pressure = data[2] | (data[3] << 8);
+		input_report_abs(input, ABS_PRESSURE, pressure);
+		input_report_key(input, BTN_TOUCH, data[1] & 0x10);
+
+		if (!prox)
+			wacom->id[0] = 0;
+		input_report_key(input, wacom->tool[0], prox);
+		input_report_abs(input, ABS_MISC, wacom->id[0]);
+		return 1;
+	}
+}
+
 static int wacom_graphire_irq(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
@@ -1108,6 +1139,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 
 	switch (features->type) {
 	case WACOM_MSPROT:
+	case DTH1152T:
 		current_num_contacts = data[2];
 		break;
 	case INTUOSP2:
@@ -1144,6 +1176,14 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			prox = data[offset + 1] & 0x01;
 			x = get_unaligned_le16(&data[offset + 2]);
 			y = get_unaligned_le16(&data[offset + 4]);
+			break;
+
+		case DTH1152T:
+			offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
+			prox = data[offset] & 0x1;
+			contact_id = get_unaligned_le16(&data[offset + 1]);
+			x = get_unaligned_le16(&data[offset + 3]);
+			y = get_unaligned_le16(&data[offset + 5]);
 			break;
 
 		default:
@@ -1307,7 +1347,9 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 	wacom->tool[2] = BTN_TOOL_TRIPLETAP;
 
 	/* MTTPC does not support Height and Width */
-	if (wacom->features.type == MTTPC || wacom->features.type == MTTPC_B)
+	if (wacom->features.type == MTTPC ||
+	    wacom->features.type == MTTPC_B ||
+	    wacom->features.type == MTTPC_C)
 		x_offset = -4;
 
 	/*
@@ -1708,6 +1750,10 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		sync = wacom_dtus_irq(wacom_wac);
 		break;
 
+	case DTH1152:
+		sync = wacom_dth1152_irq(wacom_wac);
+		break;
+
 	case INTUOS:
 	case INTUOS3S:
 	case INTUOS3:
@@ -1730,6 +1776,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		sync = wacom_mspro_irq(wacom_wac);
 		break;
 
+	case DTH1152T:
 	case WACOM_MSPROT:
 		sync = wacom_multitouch_generic(wacom_wac);
 		break;
@@ -1758,6 +1805,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case TABLETPC2FG:
 	case MTTPC:
 	case MTTPC_B:
+	case MTTPC_C:
 		sync = wacom_tpc_irq(wacom_wac, len);
 		break;
 
@@ -2150,6 +2198,8 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case MTTPC:
 	case MTTPC_B:
+	case MTTPC_C:
+	case DTH1152T:
 	case WACOM_MSPROT:
 		if (features->device_type == BTN_TOOL_TRIPLETAP) {
 			for (i = 0; i < 10; i++)
@@ -2182,6 +2232,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case PL:
 	case PTU:
 	case DTU:
+	case DTH1152:
 		if (features->type == DTUS) {
 			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
 		}
@@ -2471,6 +2522,12 @@ static const struct wacom_features wacom_features_0x5010 =
 	{ "Wacom ISDv4 5010",       WACOM_PKGLEN_MTTPC,   13756, 7736,  1023,  0, MTTPC_B };
 static const struct wacom_features wacom_features_0x5013 =
 	{ "Wacom ISDv4 5013",      WACOM_PKGLEN_MTTPC,    11752, 6612,  1023,  0, MTTPC_B };
+static const struct wacom_features wacom_features_0x5044 =
+	{ "Wacom ISDv4 5044",      WACOM_PKGLEN_MTTPC,     27648, 15552, 2047, 0, MTTPC_C };
+static const struct wacom_features wacom_features_0x5048 =
+	{ "Wacom ISDv4 5048",      WACOM_PKGLEN_MTTPC,     27648, 15552, 2047, 0, MTTPC_C };
+static const struct wacom_features wacom_features_0x5090 =
+	{ "Wacom ISDv4 5090",      WACOM_PKGLEN_MTTPC,     27648, 15552, 2047, 0, MTTPC_C };
 static const struct wacom_features wacom_features_0x47 =
 	{ "Wacom Intuos2 6x8",    WACOM_PKGLEN_INTUOS,    20320, 16240, 1023, 31, INTUOS };
 static const struct wacom_features wacom_features_0x6004 =
@@ -2507,6 +2564,12 @@ static const struct wacom_features wacom_features_0x357 =
 	{ "Wacom Co,.Ltd. Wacom Intuos Pro M", WACOM_PKGLEN_INTUOSP2, 44800, 29600, 8191, 63, INTUOSP2, 9 };
 static const struct wacom_features wacom_features_0x358 =
 	{ "Wacom Co,.Ltd. Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191, 63, INTUOSP2, 9 };
+static const struct wacom_features wacom_features_0x35A =
+	{ "Wacom Co.,Ltd. DTH-1152", WACOM_PKGLEN_DTH1152, 22320, 12555, 1024,
+	  0, DTH1152, .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x368 };
+static const struct wacom_features wacom_features_0x368 =
+	{ "Wacom Co.,Ltd. DTH-1152 Touch", WACOM_PKGLEN_27QHDT, .type = DTH1152T,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x35a }; /* Touch */
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -2632,6 +2695,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x5002) },
 	{ USB_DEVICE_WACOM(0x5010) },
 	{ USB_DEVICE_WACOM(0x5013) },
+	{ USB_DEVICE_WACOM(0x5044) },
+	{ USB_DEVICE_WACOM(0x5048) },
+	{ USB_DEVICE_WACOM(0x5090) },
 	{ USB_DEVICE_WACOM(0x300) },
 	{ USB_DEVICE_WACOM(0x301) },
 	{ USB_DEVICE_DETAILED(0x302, USB_CLASS_HID, 0, 0) },
@@ -2667,6 +2733,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x354) },
 	{ USB_DEVICE_DETAILED(0x357, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x358, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x35A) },
+	{ USB_DEVICE_WACOM(0x368) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };

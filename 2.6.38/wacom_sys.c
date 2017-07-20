@@ -399,12 +399,14 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						features->pktlen = WACOM_PKGLEN_MTOUCH;
 						break;
 
+					case DTH1152T:
 					case WACOM_27QHDT:
 						features->pktlen = WACOM_PKGLEN_27QHDT;
 						break;
 
 					case MTTPC:
 					case MTTPC_B:
+					case MTTPC_C:
 						features->pktlen = WACOM_PKGLEN_MTTPC;
 						break;
 
@@ -429,6 +431,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 							get_unaligned_le16(&report[i + 8]);
 						break;
 
+					case DTH1152T:
 					case WACOM_24HDT:
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
@@ -456,6 +459,15 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						features->x_phy =
 							get_unaligned_le16(&report[i + 6]);
 						features->unit = report[i - 5];
+						features->unitExpo = report[i - 3];
+						break;
+
+					case MTTPC_C:
+						features->x_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->x_phy =
+							get_unaligned_le16(&report[i + 8]);
+						features->unit = report[i - 1];
 						features->unitExpo = report[i - 3];
 						break;
 
@@ -490,7 +502,9 @@ static int wacom_parse_hid(struct usb_interface *intf,
 							get_unaligned_le16(&report[i + 6]);
 						break;
 
+					case DTH1152T:
 					case WACOM_24HDT:
+					case MTTPC_C:
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->y_phy =
@@ -646,7 +660,8 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 		else if (features->type == WACOM_27QHDT) {
 			return wacom_set_device_mode(intf, 131, 3, 2);
 		}
-		else if (features->type == WACOM_MSPROT) {
+		else if (features->type == WACOM_MSPROT ||
+			 features->type == DTH1152T) {
 			return wacom_set_device_mode(intf, 14, 2, 2);
 		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
@@ -1219,7 +1234,9 @@ static int wacom_battery_get_property(struct power_supply *psy,
 			val->intval = battery->battery_capacity;
 			break;
 		case POWER_SUPPLY_PROP_STATUS:
-			if (battery->bat_charging)
+			if (battery->bat_status != WACOM_POWER_SUPPLY_STATUS_AUTO)
+				val->intval = battery->bat_status;
+			else if (battery->bat_charging)
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			else if (battery->battery_capacity == 100 &&
 				    battery->ps_connected)
