@@ -3183,17 +3183,17 @@ static const struct wacom_features wacom_features_0x354 =
 	{ "Wacom Cintiq Pro 16UHD Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x350 }; /* Touch */
 static const struct wacom_features wacom_features_0x357 =
-	{ "Wacom Co,.Ltd. Wacom Intuos Pro M", WACOM_PKGLEN_INTUOSP2, 44800, 29600, 8191,
+	{ "Wacom Intuos Pro M", WACOM_PKGLEN_INTUOSP2, 44800, 29600, 8191,
 	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x358 =
-	{ "Wacom Co,.Ltd. Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191,
+	{ "Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191,
 	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x35A =
-	{ "Wacom Co.,Ltd. DTH-1152", WACOM_PKGLEN_DTH1152, 22320, 12555, 1024,
+	{ "Wacom DTH-1152", WACOM_PKGLEN_DTH1152, 22320, 12555, 1024,
 	  0, DTH1152, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x368 };
 static const struct wacom_features wacom_features_0x368 =
-	{ "Wacom Co.,Ltd. DTH-1152 Touch", WACOM_PKGLEN_27QHDT,
+	{ "Wacom DTH-1152 Touch", WACOM_PKGLEN_27QHDT,
 	  .type = DTH1152T, .touch_max = 10, .oVid = USB_VENDOR_ID_WACOM,
 	  .oPid = 0x35A }; /* Touch */
 
