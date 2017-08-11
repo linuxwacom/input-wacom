@@ -29,7 +29,7 @@ static int __wacom_is_usb_parent(struct usb_device *usbdev, void *ptr)
 	struct usb_host_config *config = usbdev->actconfig;
 	int i;
 
-	for (i = 0; i < config->desc.bNumInterfaces; i++) {
+	for (i = 0; config && i < config->desc.bNumInterfaces; i++) {
 		if (&config->interface[i]->dev == parent)
 			return 1;
 	}
