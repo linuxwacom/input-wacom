@@ -1519,7 +1519,7 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
 	int nbuttons = wacom->features.numbered_buttons;
-	bool prox;
+	bool prox, ringstatus;
 	int buttons, ring;
 
 	switch (nbuttons) {
@@ -1536,11 +1536,27 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 	}
 
 	ring = le16_to_cpup((__le16 *)&data[4]);
+	ringstatus = ring & 0x80;
 
-	prox = buttons || ring;
+	if (input->id.product == 0x34d || input->id.product == 0x34e) {
+		/* MobileStudio Pro */
+		ring = 35 - (ring & 0x7F);
+		ring += 36/2;
+		if (ring > 35)
+			ring -= 36;
+	}
+	else {
+		/* "Standard" devices */
+		ring = 71 - (ring & 0x7F);
+		ring += 72/4;
+		if (ring > 71)
+			ring -= 72;
+	}
+
+	prox = buttons || ringstatus;
 
 	wacom_report_numbered_buttons(input, nbuttons, buttons);
-	input_report_abs(input, ABS_WHEEL, (ring & 0x80) ? (ring & 0x7f) : 0);
+	input_report_abs(input, ABS_WHEEL, ringstatus ? ring : 0);
 
 	input_report_key(input, wacom->tool[1], prox ? 1 : 0);
 	input_report_abs(input, ABS_MISC, prox ? PAD_DEVICE_ID : 0);
@@ -1556,7 +1572,7 @@ static int wacom_intuosp2_pad_irq(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 	int nbuttons = wacom->features.numbered_buttons;
 	bool prox;
-	int buttons, ring;
+	int buttons, ring, ringvalue;
 	bool active = false;
 
 	switch (nbuttons) {
@@ -1569,6 +1585,18 @@ static int wacom_intuosp2_pad_irq(struct wacom_wac *wacom)
 	}
 
 	ring = le16_to_cpup((__le16 *)&data[4]);
+	/* Fix touchring data: userspace expects 0 at left and increasing clockwise */
+	ringvalue = 71 - (ring & 0x7F);
+	if (input->id.product == 0x357 || input->id.product == 0x358) {
+		/* 2nd-gen Intuos Pro */
+		ringvalue += 3*72/16;
+	}
+	else {
+		/* "Standard" devices */
+		ringvalue += 72/4;
+	}
+	if (ringvalue > 71)
+		ringvalue -= 72;
 
 	if (ring != WACOM_INTUOSP2_RING_UNTOUCHED)
 		prox = buttons || ring;
@@ -1576,7 +1604,7 @@ static int wacom_intuosp2_pad_irq(struct wacom_wac *wacom)
 		prox = buttons;
 
 	wacom_report_numbered_buttons(input, nbuttons, buttons);
-	input_report_abs(input, ABS_WHEEL, (ring & 0x80) ? (ring & 0x7f) : 0);
+	input_report_abs(input, ABS_WHEEL, (ring & 0x80) ? ringvalue : 0);
 
 	input_report_key(input, wacom->tool[1], prox ? 1 : 0);
 
@@ -1648,6 +1676,11 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 	 * the events with.
 	 */
 	if (wacom->tool[0]) {
+		/* Fix rotation alignment: userspace expects zero at left */
+		rotation += 1800/4;
+		if (rotation > 899)
+			rotation -= 1800;
+
 		input_report_key(input, BTN_TOUCH, tip);
 		input_report_key(input, BTN_STYLUS, sw1);
 		input_report_key(input, BTN_STYLUS2, sw2);
