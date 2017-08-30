@@ -1931,9 +1931,9 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 	x           = le32_to_cpup((__le32 *)&data[2]) & 0xFFFFFF;
 	y           = le32_to_cpup((__le32 *)&data[5]) & 0xFFFFFF;
 	pressure    = le16_to_cpup((__le16 *)&data[8]);
-	tilt_x      = data[10];
-	tilt_y      = data[11];
-	rotation    = le16_to_cpup((__le16 *)&data[12]);
+	tilt_x      = (char)data[10];
+	tilt_y      = (char)data[11];
+	rotation    = (int16_t)le16_to_cpup((__le16 *)&data[12]);
 	fingerwheel = le16_to_cpup((__le16 *)&data[14]);
 	height      = data[16];
 	tool_uid    = le64_to_cpup((__le64 *)&data[17]);
