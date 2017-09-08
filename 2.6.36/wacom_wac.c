@@ -1538,10 +1538,10 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 		input_report_abs(input, ABS_WHEEL, fingerwheel);
 		input_report_abs(input, ABS_DISTANCE, height);
 		input_event(input, EV_MSC, MSC_SERIAL, wacom->serial[0]);
-		input_report_abs(input, ABS_MISC, range ? wacom_intuos_id_mangle(wacom->id[0]) : 0);
-		input_report_key(input, wacom->tool[0], range ? 1 : 0);
+		input_report_abs(input, ABS_MISC, proximity ? wacom_intuos_id_mangle(wacom->id[0]) : 0);
+		input_report_key(input, wacom->tool[0], proximity ? 1 : 0);
 
-		if (!range)
+		if (!proximity)
 			wacom->tool[0] = 0;
 	}
 
