@@ -1982,17 +1982,18 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 		if (rotation > 899)
 			rotation -= 1800;
 
-		input_report_key(input, BTN_TOUCH, tip);
-		input_report_key(input, BTN_STYLUS, sw1);
-		input_report_key(input, BTN_STYLUS2, sw2);
-		input_report_abs(input, ABS_X, x);
-		input_report_abs(input, ABS_Y, y);
-		input_report_abs(input, ABS_PRESSURE, pressure);
-		input_report_abs(input, ABS_TILT_X, tilt_x);
-		input_report_abs(input, ABS_TILT_Y, tilt_y);
-		input_report_abs(input, ABS_Z, rotation);
-		input_report_abs(input, ABS_WHEEL, fingerwheel);
-		input_report_abs(input, ABS_DISTANCE, height);
+		input_report_key(input, BTN_TOUCH,    proximity ? tip         : 0);
+		input_report_key(input, BTN_STYLUS,   proximity ? sw1         : 0);
+		input_report_key(input, BTN_STYLUS2,  proximity ? sw2         : 0);
+		input_report_abs(input, ABS_X,        proximity ? x           : 0);
+		input_report_abs(input, ABS_Y,        proximity ? y           : 0);
+		input_report_abs(input, ABS_PRESSURE, proximity ? pressure    : 0);
+		input_report_abs(input, ABS_TILT_X,   proximity ? tilt_x      : 0);
+		input_report_abs(input, ABS_TILT_Y,   proximity ? tilt_y      : 0);
+		input_report_abs(input, ABS_Z,        proximity ? rotation    : 0);
+		input_report_abs(input, ABS_WHEEL,    proximity ? fingerwheel : 0);
+		input_report_abs(input, ABS_DISTANCE, proximity ? height      : 0);
+
 		input_event(input, EV_MSC, MSC_SERIAL, wacom->serial[0]);
 		input_report_abs(input, ABS_MISC, proximity ? wacom_intuos_id_mangle(wacom->id[0]) : 0);
 		input_report_key(input, wacom->tool[0], proximity ? 1 : 0);
