@@ -2563,7 +2563,7 @@ static const struct wacom_features wacom_features_0x354 =
 static const struct wacom_features wacom_features_0x357 =
 	{ "Wacom Intuos Pro M", WACOM_PKGLEN_INTUOSP2, 44800, 29600, 8191, 63, INTUOSP2, 9 };
 static const struct wacom_features wacom_features_0x358 =
-	{ "Wacom Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191, 63, INTUOSP2, 9 };
+	{ "Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191, 63, INTUOSP2, 9 };
 static const struct wacom_features wacom_features_0x35A =
 	{ "Wacom DTH-1152", WACOM_PKGLEN_DTH1152, 22320, 12555, 1024,
 	  0, DTH1152, .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x368 };
