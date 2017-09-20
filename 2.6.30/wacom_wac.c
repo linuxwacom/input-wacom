@@ -1516,11 +1516,13 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 
 static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 {
+	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
-	int nbuttons = wacom->features.numbered_buttons;
-	bool prox, ringstatus;
-	int buttons, ring;
+	int nbuttons = features->numbered_buttons;
+	bool prox;
+	int buttons, ring, ringvalue;
+	bool active = false;
 
 	switch (nbuttons) {
 		case 11:
@@ -1529,53 +1531,6 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 		case 13:
 			buttons = data[1] | (data[3] << 8);
 			break;
-		default:
-			if (nbuttons)
-				dev_warn(input->dev.parent, "%s: unsupported device #%d\n", __func__, data[0]);
-			return 0;
-	}
-
-	ring = le16_to_cpup((__le16 *)&data[4]);
-	ringstatus = ring & 0x80;
-
-	if (input->id.product == 0x34d || input->id.product == 0x34e) {
-		/* MobileStudio Pro */
-		ring = 35 - (ring & 0x7F);
-		ring += 36/2;
-		if (ring > 35)
-			ring -= 36;
-	}
-	else {
-		/* "Standard" devices */
-		ring = 71 - (ring & 0x7F);
-		ring += 72/4;
-		if (ring > 71)
-			ring -= 72;
-	}
-
-	prox = buttons || ringstatus;
-
-	wacom_report_numbered_buttons(input, nbuttons, buttons);
-	input_report_abs(input, ABS_WHEEL, ringstatus ? ring : 0);
-
-	input_report_key(input, wacom->tool[1], prox ? 1 : 0);
-	input_report_abs(input, ABS_MISC, prox ? PAD_DEVICE_ID : 0);
-
-	input_event(input, EV_MSC, MSC_SERIAL, 0xffffffff);
-
-	return 1;
-}
-
-static int wacom_intuosp2_pad_irq(struct wacom_wac *wacom)
-{
-	unsigned char *data = wacom->data;
-	struct input_dev *input = wacom->input;
-	int nbuttons = wacom->features.numbered_buttons;
-	bool prox;
-	int buttons, ring, ringvalue;
-	bool active = false;
-
-	switch (nbuttons) {
 		case 9:
 			buttons = (data[1]) | (data[3] << 8);
 			break;
@@ -1586,17 +1541,27 @@ static int wacom_intuosp2_pad_irq(struct wacom_wac *wacom)
 
 	ring = le16_to_cpup((__le16 *)&data[4]);
 	/* Fix touchring data: userspace expects 0 at left and increasing clockwise */
-	ringvalue = 71 - (ring & 0x7F);
 	if (input->id.product == 0x357 || input->id.product == 0x358) {
 		/* 2nd-gen Intuos Pro */
+		ringvalue = 71 - (ring & 0x7F);
 		ringvalue += 3*72/16;
+		if (ringvalue > 71)
+			ringvalue -= 72;
+	}
+	else if (input->id.product == 0x34d || input->id.product == 0x34e) {
+		/* MobileStudio Pro */
+		ringvalue = 35 - (ring & 0x7F);
+		ringvalue += 36/2;
+		if (ringvalue > 35)
+			ringvalue -= 36;
 	}
 	else {
 		/* "Standard" devices */
+		ringvalue = 71 - (ring & 0x7F);
 		ringvalue += 72/4;
+		if (ringvalue > 71)
+			ringvalue -= 72;
 	}
-	if (ringvalue > 71)
-		ringvalue -= 72;
 
 	if (ring != WACOM_INTUOSP2_RING_UNTOUCHED)
 		prox = buttons || ring;
@@ -1726,26 +1691,6 @@ static int wacom_mspro_irq(struct wacom_wac *wacom)
 	return 0;
 }
 
-static int wacom_intuosp2_irq(struct wacom_wac *wacom)
-{
-	unsigned char *data = wacom->data;
-	struct input_dev *input = wacom->input;
-
-	switch (data[0]) {
-		case WACOM_REPORT_MSPRO:
-			return wacom_mspro_pen_irq(wacom);
-		case WACOM_REPORT_MSPROPAD:
-			return wacom_intuosp2_pad_irq(wacom);
-		case WACOM_REPORT_MSPRODEVICE:
-			return 0;
-		default:
-			dev_dbg(input->dev.parent,
-				"%s: received unknown report #%d\n", __func__, data[0]);
-			break;
-	}
-	return 0;
-}
-
 void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 {
 	bool sync;
@@ -1807,7 +1752,12 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 
 	case WACOM_MSPRO:
-		sync = wacom_mspro_irq(wacom_wac);
+	case INTUOSP2:
+		if (len == WACOM_PKGLEN_INTUOSP2T &&
+		    wacom_wac->data[0] == WACOM_REPORT_VENDOR_DEF_TOUCH)
+			sync = wacom_multitouch_generic(wacom_wac);
+		else
+			sync = wacom_mspro_irq(wacom_wac);
 		break;
 
 	case DTH1152T:
@@ -1825,14 +1775,6 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 			sync = wacom_bpt3_touch(wacom_wac);
 		else
 			sync = wacom_intuos_irq(wacom_wac);
-		break;
-
-	case INTUOSP2:
-		if (len == WACOM_PKGLEN_INTUOSP2T &&
-		    wacom_wac->data[0] == WACOM_REPORT_VENDOR_DEF_TOUCH)
-			sync = wacom_multitouch_generic(wacom_wac);
-		else
-			sync = wacom_intuosp2_irq(wacom_wac);
 		break;
 
 	case TABLETPC:
