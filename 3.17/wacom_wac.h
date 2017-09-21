@@ -361,6 +361,7 @@ struct wacom_wac {
 	bool has_mute_touch_switch;
 	bool has_mode_change;
 	bool is_direct_mode;
+
 };
 
 #endif

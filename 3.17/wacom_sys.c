@@ -1444,7 +1444,7 @@ err:
 static int wacom_initialize_battery(struct wacom *wacom)
 {
 	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY)
-		 return __wacom_initialize_battery(wacom, &wacom->battery);
+		return __wacom_initialize_battery(wacom, &wacom->battery);
 
 	return 0;
 }
@@ -2219,8 +2219,8 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
 	if (WACOM_POWERSUPPLY_DEVICE(remote->remotes[index].battery.battery))
-		 devres_release_group(&wacom->hdev->dev,
-				      &remote->remotes[index].battery.bat_desc);
+		devres_release_group(&wacom->hdev->dev,
+				     &remote->remotes[index].battery.bat_desc);
 #else
 	if (remote->remotes[index].battery.battery.dev)
 		wacom_destroy_remote_battery(&remote->remotes[index].battery);
@@ -2307,6 +2307,7 @@ static int wacom_remote_attach_battery(struct wacom *wacom, int index)
 {
 	struct wacom_remote *remote = wacom->remote;
 	int error;
+
 	if (!remote->remotes[index].registered)
 		return 0;
 
@@ -2317,7 +2318,7 @@ static int wacom_remote_attach_battery(struct wacom *wacom, int index)
 		return 0;
 
 	error = __wacom_initialize_battery(wacom,
-					   &wacom->remote->remotes[index].battery);
+					&wacom->remote->remotes[index].battery);
 	if (error)
 		return error;
 

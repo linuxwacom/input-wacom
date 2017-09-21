@@ -21,7 +21,7 @@
 #endif
 
 #ifndef KEY_ONSCREEN_KEYBOARD
-#define KEY_ONSCREEN_KEYBOARD  0x278
+#define KEY_ONSCREEN_KEYBOARD	0x278
 #endif
 
 #ifndef KEY_BUTTONCONFIG
@@ -1095,7 +1095,6 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 				WACOM_POWER_SUPPLY_STATUS_AUTO, bat_percent,
 				bat_charging, 1, bat_charging);
 
-
 out:
 	spin_unlock_irqrestore(&remote->remote_lock, flags);
 	return 0;
@@ -1990,7 +1989,7 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 			is_touch_on = wacom_wac->shared->is_touch_on;
 		}
 
-               /* fall through*/
+		/* fall through*/
 	case WACOM_HID_WD_TOUCHONOFF:
 		if (wacom_wac->shared->touch_input) {
 			input_report_switch(wacom_wac->shared->touch_input,
@@ -2364,7 +2363,7 @@ static void wacom_wac_finger_slot(struct wacom_wac *wacom_wac,
 		    report_touch_events(wacom_wac);
 
 	if (wacom_wac->shared->has_mute_touch_switch &&
-		!wacom_wac->shared->is_touch_on) {
+	    !wacom_wac->shared->is_touch_on) {
 		if (!wacom_wac->shared->touch_down)
 			return;
 		prox = 0;
