@@ -109,7 +109,7 @@ static int wacom_set_report(struct usb_interface *intf, u8 type, u8 id,
 	} while ((retval == -ETIMEDOUT || retval == -EAGAIN) && --retries);
 
 	if (retval < 0)
-		dev_err(&intf->dev, "%s - ran out of retries (last error = %d\n",
+		dev_err(&intf->dev, "%s - ran out of retries (last error = %d)\n",
 			__func__, retval);
 	return retval;
 }
@@ -773,6 +773,29 @@ static struct wacom_usbdev_data *wacom_get_usbdev_data(struct usb_device *dev)
 	return NULL;
 }
 
+static void wacom_release_shared_data(struct kref *kref)
+{
+	struct wacom_usbdev_data *data =
+		container_of(kref, struct wacom_usbdev_data, kref);
+
+	mutex_lock(&wacom_udev_list_lock);
+	list_del(&data->list);
+	mutex_unlock(&wacom_udev_list_lock);
+
+	kfree(data);
+}
+
+static void wacom_remove_shared_data(struct wacom_wac *wacom)
+{
+	struct wacom_usbdev_data *data;
+
+	if (wacom->shared) {
+		data = container_of(wacom->shared, struct wacom_usbdev_data, shared);
+		kref_put(&data->kref, wacom_release_shared_data);
+		wacom->shared = NULL;
+	}
+}
+
 static int wacom_add_shared_data(struct wacom_wac *wacom,
 				 struct usb_device *dev)
 {
@@ -799,29 +822,6 @@ static int wacom_add_shared_data(struct wacom_wac *wacom,
 out:
 	mutex_unlock(&wacom_udev_list_lock);
 	return retval;
-}
-
-static void wacom_release_shared_data(struct kref *kref)
-{
-	struct wacom_usbdev_data *data =
-		container_of(kref, struct wacom_usbdev_data, kref);
-
-	mutex_lock(&wacom_udev_list_lock);
-	list_del(&data->list);
-	mutex_unlock(&wacom_udev_list_lock);
-
-	kfree(data);
-}
-
-static void wacom_remove_shared_data(struct wacom_wac *wacom)
-{
-	struct wacom_usbdev_data *data;
-
-	if (wacom->shared) {
-		data = container_of(wacom->shared, struct wacom_usbdev_data, shared);
-		kref_put(&data->kref, wacom_release_shared_data);
-		wacom->shared = NULL;
-	}
 }
 
 static int wacom_led_control(struct wacom *wacom)
@@ -1107,8 +1107,8 @@ static void wacom_devm_sysfs_group_release(struct device *dev, void *res)
 }
 
 static int __wacom_devm_sysfs_create_group(struct wacom *wacom,
-					 struct kobject *root,
-					 struct attribute_group *group)
+					   struct kobject *root,
+					   struct attribute_group *group)
 {
 	struct wacom_sysfs_group_devres *devres;
 	int error;
@@ -1214,9 +1214,7 @@ static int wacom_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
 {
-	struct wacom_battery *battery = container_of(psy, struct wacom_battery,
-						     battery);
-
+	struct wacom_battery *battery = container_of(psy, struct wacom_battery, battery);
 	int ret = 0;
 
 	switch (psp) {
@@ -1349,7 +1347,8 @@ DEVICE_EKR_ATTR_GROUP(2);
 DEVICE_EKR_ATTR_GROUP(3);
 DEVICE_EKR_ATTR_GROUP(4);
 
-static int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial, int index)
+static int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial,
+					  int index)
 {
 	int error = 0;
 	struct wacom_remote *remote = wacom->remote;
@@ -1811,7 +1810,7 @@ static void wacom_wireless_work(struct work_struct *work)
 		/* Touch interface */
 		if (wacom_wac1->features.touch_max ||
 		    (wacom_wac1->features.type >= INTUOSHT &&
-		    wacom_wac1->features.type <= BAMBOO_PT) ){
+		    wacom_wac1->features.type <= BAMBOO_PT)) {
 			wacom_wac2->features =
 				*((struct wacom_features *)id->driver_info);
 			wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
@@ -1881,7 +1880,7 @@ static void wacom_remote_work(struct work_struct *work)
 	count = kfifo_out(&remote->remote_fifo, &data, sizeof(data));
 
 	if (count != sizeof(data)) {
-			dev_err(dev,
+		dev_err(dev,
 			"workitem triggered without status available\n");
 		spin_unlock_irqrestore(&remote->remote_lock, flags);
 		return;

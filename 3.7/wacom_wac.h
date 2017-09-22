@@ -67,11 +67,11 @@
 #define WACOM_REPORT_TPCMT		13
 #define WACOM_REPORT_TPCMT2		3
 #define WACOM_REPORT_TPCHID		15
-#define WACOM_REPORT_TPCST		16
 #define WACOM_REPORT_CINTIQ		16
 #define WACOM_REPORT_MSPRO		16
 #define WACOM_REPORT_INTUOS_PEN		16
 #define WACOM_REPORT_CINTIQPAD		17
+#define WACOM_REPORT_TPCST		16
 #define WACOM_REPORT_DTUS		17
 #define WACOM_REPORT_MSPROPAD		17
 #define WACOM_REPORT_TPC1FGE		18
@@ -165,8 +165,8 @@ struct wacom_features {
 	int device_type;
 	int x_phy;
 	int y_phy;
-	unsigned char unit;
-	unsigned char unitExpo;
+	unsigned unit;
+	int unitExpo;
 	int x_fuzz;
 	int y_fuzz;
 	int pressure_fuzz;

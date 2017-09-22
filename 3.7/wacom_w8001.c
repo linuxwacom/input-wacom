@@ -524,6 +524,7 @@ static int w8001_setup_touch(struct w8001 *w8001, char *basename,
 				"failed to initialize MT slots: %d\n", error);
 			return error;
 		}
+
 		input_set_abs_params(dev, ABS_MT_POSITION_X,
 					0, touch.x, 0, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y,
