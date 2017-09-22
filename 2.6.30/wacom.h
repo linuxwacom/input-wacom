@@ -89,6 +89,9 @@
 #include <linux/init.h>
 #include <linux/usb/input.h>
 #include <asm/unaligned.h>
+# ifndef LINUX_VERSION_CODE
+# include <linux/version.h>
+# endif 
 
 /*
  * Version Information
@@ -96,7 +99,7 @@
 #ifndef WACOM_VERSION_SUFFIX
 #define WACOM_VERSION_SUFFIX ""
 #endif
-#define DRIVER_VERSION "v1.52"WACOM_VERSION_SUFFIX
+#define DRIVER_VERSION "v1.53"WACOM_VERSION_SUFFIX
 #define DRIVER_AUTHOR "Vojtech Pavlik <vojtech@ucw.cz>"
 #define DRIVER_DESC "USB Wacom tablet driver"
 #define DRIVER_LICENSE "GPL"
@@ -118,9 +121,9 @@ struct wacom {
 	bool open;
 	char phys[32];
 	struct wacom_led {
-		u8 select[2]; /* status led selector (0...3) */
-		u8 llv;       /* status led brightness no button */
-		u8 hlv;       /* status led brightness button pressed */
+		u8 select[2]; /* status led selector (0..3) */
+		u8 llv;       /* status led brightness no button (1..127) */
+		u8 hlv;       /* status led brightness button pressed (1..127) */
 	} led;
 };
 

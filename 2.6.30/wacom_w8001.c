@@ -54,12 +54,12 @@ MODULE_LICENSE("GPL");
 #define W8001_TOUCH_RESOLUTION  10
 
 struct w8001_coord {
-	u16 x;
-	u16 y;
 	u8 rdy;
 	u8 tsw;
 	u8 f1;
 	u8 f2;
+	u16 x;
+	u16 y;
 	u16 pen_pressure;
 	u8 tilt_x;
 	u8 tilt_y;
@@ -67,11 +67,11 @@ struct w8001_coord {
 
 /* touch query reply packet */
 struct w8001_touch_query {
+	u16 x;
+	u16 y;
 	u8 panel_res;
 	u8 capacity_res;
 	u8 sensor_id;
-	u16 x;
-	u16 y;
 };
 
 /*
@@ -125,7 +125,17 @@ static void parse_single_touch(u8 *data, struct w8001_coord *coord)
 {
 	coord->x = (data[1] << 7) | data[2];
 	coord->y = (data[3] << 7) | data[4];
-	coord->tsw = data[0] & 0x1;
+	coord->tsw = data[0] & 0x01;
+}
+
+static void scale_touch_coordinates(struct w8001 *w8001,
+				    unsigned int *x, unsigned int *y)
+{
+	if (w8001->max_pen_x && w8001->max_touch_x)
+		*x = *x * w8001->max_pen_x / w8001->max_touch_x;
+
+	if (w8001->max_pen_y && w8001->max_touch_y)
+		*y = *y * w8001->max_pen_y / w8001->max_touch_y;
 }
 
 static void parse_touchquery(u8 *data, struct w8001_touch_query *query)
@@ -144,7 +154,7 @@ static void parse_touchquery(u8 *data, struct w8001_touch_query *query)
 	query->y |= data[6] << 2;
 	query->y |= (data[2] >> 3) & 0x3;
 
-	/* Early days' one finger touch models need the following defaults */
+	/* Early days' single-finger touch models need the following defaults */
 	if (!query->x && !query->y) {
 		query->x = 1024;
 		query->y = 1024;
@@ -164,7 +174,7 @@ static void report_pen_events(struct w8001 *w8001, struct w8001_coord *coord)
 	/*
 	 * We have 1 bit for proximity (rdy) and 3 bits for tip, side,
 	 * side2/eraser. If rdy && f2 are set, this can be either pen + side2,
-	 * or eraser. Assume
+	 * or eraser. Assume:
 	 * - if dev is already in proximity and f2 is toggled → pen + side2
 	 * - if dev comes into proximity with f2 set → eraser
 	 * If f2 disappears after assuming eraser, fake proximity out for
@@ -196,6 +206,7 @@ static void report_pen_events(struct w8001 *w8001, struct w8001_coord *coord)
 
 	default:
 		input_report_key(dev, BTN_STYLUS2, coord->f2);
+		break;
 	}
 
 	input_report_abs(dev, ABS_X, coord->x);
@@ -217,11 +228,7 @@ static void report_single_touch(struct w8001 *w8001, struct w8001_coord *coord)
 	unsigned int y = coord->y;
 
 	/* scale to pen maximum */
-	if (w8001->max_pen_x && w8001->max_touch_x)
-		x = x * w8001->max_pen_x / w8001->max_touch_x;
-
-	if (w8001->max_pen_y && w8001->max_touch_y)
-		y = y * w8001->max_pen_y / w8001->max_touch_y;
+	scale_touch_coordinates(w8001, &x, &y);
 
 	input_report_abs(dev, ABS_X, x);
 	input_report_abs(dev, ABS_Y, y);
@@ -251,7 +258,7 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 
 	case W8001_PKTLEN_TOUCH93 - 1:
 	case W8001_PKTLEN_TOUCH9A - 1:
-		tmp = (w8001->data[0] & W8001_TOUCH_BYTE);
+		tmp = w8001->data[0] & W8001_TOUCH_BYTE;
 		if (tmp != W8001_TOUCH_BYTE)
 			break;
 
@@ -271,7 +278,7 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 		if (unlikely(tmp == W8001_TAB_BYTE))
 			break;
 
-		tmp = (w8001->data[0] & W8001_TOUCH_BYTE);
+		tmp = w8001->data[0] & W8001_TOUCH_BYTE;
 		if (tmp == W8001_TOUCH_BYTE)
 			break;
 
@@ -282,7 +289,7 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 
 	/* control packet */
 	case W8001_PKTLEN_TPCCTL - 1:
-		tmp = (w8001->data[0] & W8001_TOUCH_MASK);
+		tmp = w8001->data[0] & W8001_TOUCH_MASK;
 		if (tmp == W8001_TOUCH_BYTE)
 			break;
 
@@ -306,6 +313,7 @@ static int w8001_command(struct w8001 *w8001, unsigned char command,
 
 	rc = serio_write(w8001->serio, command);
 	if (rc == 0 && wait_response) {
+
 		wait_for_completion_timeout(&w8001->cmd_done, HZ);
 		if (w8001->response_type != W8001_QUERY_PACKET)
 			rc = -EIO;
