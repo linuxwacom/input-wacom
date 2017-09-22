@@ -451,6 +451,7 @@ static int w8001_setup_pen(struct w8001 *w8001, char *basename,
 		input_set_abs_params(dev, ABS_TILT_X, 0, coord.tilt_x, 0, 0);
 		input_set_abs_params(dev, ABS_TILT_Y, 0, coord.tilt_y, 0, 0);
 	}
+
 	w8001->id = 0x90;
 	strlcat(basename, " Penabled", basename_sz);
 
@@ -523,6 +524,7 @@ static int w8001_setup_touch(struct w8001 *w8001, char *basename,
 				"failed to initialize MT slots: %d\n", error);
 			return error;
 		}
+
 		input_set_abs_params(dev, ABS_MT_POSITION_X,
 					0, touch.x, 0, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y,

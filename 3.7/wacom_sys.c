@@ -1288,7 +1288,7 @@ static int __wacom_initialize_battery(struct wacom *wacom,
 static int wacom_initialize_battery(struct wacom *wacom)
 {
 	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY)
-		 return __wacom_initialize_battery(wacom, &wacom->battery);
+		return __wacom_initialize_battery(wacom, &wacom->battery);
 
 	return 0;
 }
