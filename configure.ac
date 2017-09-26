@@ -106,6 +106,16 @@ package and try again.])
 fi
 WCM_ENV_KERNEL="yes"
 
+dnl Check for RedHat entreprise Linux >= 7.4
+AC_MSG_CHECKING(RHEL7 minor release)
+RHEL7_RELEASE=[$(sed -n 's/^Red Hat Enterprise Linux .*release 7.\(.*\) .*$/\1/gp' "/etc/redhat-release" 2> /dev/null | head -n1)]
+dnl RHEL7_RELEASE=""
+if test "$RHEL7_RELEASE" = ""; then
+	RHEL7_RELEASE="0"
+elif test "$RHEL7_RELEASE" -gt "3"; then
+	RHEL7_RELEASE="4"
+fi
+AC_MSG_RESULT([$RHEL7_RELEASE])
 
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
@@ -126,12 +136,18 @@ else
 	WCM_KERNEL_VER="4.5"
 fi
 
+dnl overwrite for RHEL distribution
+if test "$RHEL7_RELEASE" = "4"; then
+        WCM_KERNEL_VER="3.7 3.17"
+fi
+
 dnl Separate test output from file-generation output
 echo 
 
 WCM_SRC_SUBDIRS=". $WCM_KERNEL_VER"
 AC_SUBST(WCM_KERNEL_DIR)
 AC_SUBST(WCM_KERNEL_VER)
+AC_SUBST(RHEL7_RELEASE)
 AC_SUBST(MODUTS)
 
 AC_CONFIG_FILES([Makefile

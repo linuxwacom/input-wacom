@@ -1150,7 +1150,7 @@ static void wacom_led_groups_release(void *data)
 	wacom->led.groups = NULL;
 }
 
-static inline int devm_add_action_or_reset(struct device *dev,
+static inline int wac_devm_add_action_or_reset(struct device *dev,
 					   void (*action)(void *), void *data)
 {
 	int ret;
@@ -1173,7 +1173,7 @@ static int wacom_led_groups_allocate(struct wacom *wacom, int count)
 	if (!groups)
 		return -ENOMEM;
 
-	error = devm_add_action_or_reset(&wacom->hdev->dev,
+	error = wac_devm_add_action_or_reset(&wacom->hdev->dev,
 					 wacom_led_groups_release,
 					 wacom);
 	if (error)
@@ -1692,7 +1692,7 @@ static int wacom_initialize_remotes(struct wacom *wacom)
 		remote->remotes[i].serial = 0;
 	}
 
-	error = devm_add_action_or_reset(&wacom->hdev->dev,
+	error = wac_devm_add_action_or_reset(&wacom->hdev->dev,
 					 wacom_remotes_destroy, wacom);
 	if (error)
 		return error;

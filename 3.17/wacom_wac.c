@@ -24,6 +24,14 @@
 #define KEY_ONSCREEN_KEYBOARD  0x278
 #endif
 
+#ifndef KEY_BUTTONCONFIG
+#define KEY_BUTTONCONFIG		0x240
+#endif
+
+#ifndef KEY_CONTROLPANEL
+#define KEY_CONTROLPANEL		0x243
+#endif
+
 /* resolution for penabled devices */
 #define WACOM_PL_RES		20
 #define WACOM_PENPRTN_RES	40
