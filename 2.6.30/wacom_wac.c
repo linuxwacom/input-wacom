@@ -2570,6 +2570,10 @@ static const struct wacom_features wacom_features_0x35A =
 static const struct wacom_features wacom_features_0x368 =
 	{ "Wacom DTH-1152 Touch", WACOM_PKGLEN_27QHDT, .type = DTH1152T,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x35a }; /* Touch */
+static const struct wacom_features wacom_features_0x37A =
+	{ "One by Wacom CTL472",    WACOM_PKGLEN_BBPEN,    14720,  9225, 2047, 63, BAMBOO_PT };
+static const struct wacom_features wacom_features_0x37B =
+	{ "One by Wacom CTL672",    WACOM_PKGLEN_BBPEN,    21648, 13530, 2047, 63, BAMBOO_PT };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -2736,6 +2740,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x35A) },
 	{ USB_DEVICE_WACOM(0x368) },
 	{ USB_DEVICE_LENOVO(0x6004) },
+	{ USB_DEVICE_WACOM(0x37A) },
+	{ USB_DEVICE_WACOM(0x37B) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, wacom_ids);
