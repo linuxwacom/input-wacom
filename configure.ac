@@ -108,7 +108,7 @@ WCM_ENV_KERNEL="yes"
 
 dnl Check for RedHat entreprise Linux >= 7.4
 AC_MSG_CHECKING(RHEL7 minor release)
-RHEL7_RELEASE=[$(sed -n 's/^Red Hat Enterprise Linux .*release 7.\(.*\) .*$/\1/gp' "/etc/redhat-release" 2> /dev/null | head -n1)]
+RHEL7_RELEASE=[$(sed -n 's/^\(Red Hat Enterprise\|CentOS\) Linux .*release 7.\([0-9]*\).*$/\2/gp' "/etc/redhat-release" 2> /dev/null | head -n1)]
 dnl RHEL7_RELEASE=""
 if test "$RHEL7_RELEASE" = ""; then
 	RHEL7_RELEASE="0"
