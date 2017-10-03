@@ -240,25 +240,6 @@ get_section() {
 	return 1
     fi
 
-    if [ x"$section" = xmesa ]; then
-	section=`echo $module_url | cut -d'/' -f2`
-	if [ $? -ne 0 ]; then
-	    echo "Error: unable to extract section from $module_url second field."
-	    return 1
-	elif [ x"$section" != xdrm ]; then
-	    echo "Error: section $section is not supported, only libdrm is."
-	    return 1
-	fi
-    fi
-
-    if [ x"$section" = xwayland ]; then
-	section=`echo $module_url | cut -d'/' -f2`
-	if [ $? -ne 0 ]; then
-	    echo "Error: unable to extract section from $module_url second field."
-	    return 1
-	fi
-    fi
-
     if [ x"$section" = xlinuxwacom ]; then
 	section=`echo $module_url | cut -d'/' -f2`
 	if [ $? -ne 0 ]; then
@@ -406,18 +387,7 @@ process_module() {
 	return 1
     fi
 
-    # wayland/weston/libinput tag with the version number only
     tag_name="$tar_name"
-    if [ x"$section" = xwayland ] ||
-       [ x"$section" = xweston ] ||
-       [ x"$section" = xlibinput ]; then
-	tag_name="$pkg_version"
-    fi
-
-    # evemu tag with the version number prefixed by 'v'
-    if [ x"$section" = xevemu ]; then
-        tag_name="v$pkg_version"
-    fi
 
     gpgsignerr=0
     siggz="$(sign_or_fail ${targz})"
@@ -512,90 +482,11 @@ process_module() {
 
     # --------- Now the tarballs are ready to upload ----------
 
-    # The hostname which is used to connect to the development resources
-    hostname="annarchy.freedesktop.org"
-
     # Some hostnames are also used as /srv subdirs
-    host_fdo="www.freedesktop.org"
-    host_xorg="xorg.freedesktop.org"
-    host_dri="dri.freedesktop.org"
-    host_wayland="wayland.freedesktop.org"
     host_linuxwacom="shell.sourceforge.net"
 
-    # Mailing lists where to post the all [Announce] e-mails
-    list_to="xorg-announce@lists.freedesktop.org"
-
-    # Mailing lists to be CC according to the project (xorg|dri|xkb)
-    list_xorg_user="xorg@lists.freedesktop.org"
-    list_dri_devel="dri-devel@lists.freedesktop.org"
-    list_xkb="xkb@listserv.bat.ru"
-    list_xcb="xcb@lists.freedesktop.org"
-    list_nouveau="nouveau@lists.freedesktop.org"
-    list_wayland="wayland-devel@lists.freedesktop.org"
-    list_linuxwacom="linuxwacom-discuss@lists.sourceforge.net"
-
-    # nouveau is very special.. sigh
-    if [ x"$section" = xnouveau ]; then
-            section=driver
-            list_cc=$list_nouveau
-    else
-            list_cc=$list_xorg_user
-    fi
-
-    host_current=$host_xorg
     section_path=archive/individual/$section
     srv_path="/srv/$host_current/$section_path"
-
-    # Handle special cases such as non xorg projects or migrated xorg projects
-    # Xcb has a separate mailing list
-    if [ x"$section" = xxcb ]; then
-	list_cc=$list_xcb
-    fi
-
-    # Module mesa/drm goes in the dri "libdrm" section
-    if [ x"$section" = xdrm ]; then
-        host_current=$host_dri
-        section_path=libdrm
-        srv_path="/srv/$host_current/www/$section_path"
-        list_cc=$list_dri_devel
-    fi
-
-    # Module xkeyboard-config goes in a subdir of the xorg "data" section
-    if [ x"$section" = xxkeyboard-config ]; then
-	host_current=$host_xorg
-	section_path=archive/individual/data/$section
-	srv_path="/srv/$host_current/$section_path"
-	list_cc=$list_xkb
-    fi
-
-    if [ x"$section" = xlibevdev ]; then
-	host_current=$host_fdo
-	section_path="software/$section"
-	srv_path="/srv/$host_current/www/$section_path"
-	list_to=input-tools@lists.freedesktop.org
-	unset list_cc
-    fi
-
-    if [ x"$section" = xwayland ] ||
-       [ x"$section" = xweston ]; then
-        host_current=$host_wayland
-        section_path="releases"
-        srv_path="/srv/$host_current/www/releases"
-        list_to=$list_wayland
-        unset list_cc
-    elif [ x"$section" = xlibinput ]; then
-        host_current=$host_fdo
-        section_path="software/libinput"
-        srv_path="/srv/$host_current/www/$section_path"
-        list_to=$list_wayland
-        unset list_cc
-    elif [ x"$section" = xevemu ]; then
-        host_current=$host_fdo
-        section_path="software/evemu"
-        srv_path="/srv/$host_current/www/$section_path"
-        list_to=input-tools@lists.freedesktop.org
-        unset list_cc
-    fi
 
     if [ x"$section" = xxf86-input-wacom ] ||
        [ x"$section" = xinput-wacom ] ||
@@ -610,7 +501,7 @@ process_module() {
         section_path="projects/linuxwacom/files/$section"
         srv_path="/home/frs/project/linuxwacom/$section"
         list_to="linuxwacom-announce@lists.sourceforge.net"
-        list_cc=$list_linuxwacom
+        list_cc="linuxwacom-discuss@lists.sourceforge.net"
 
         echo "creating shell on sourceforge for $USER"
         ssh ${USER_NAME%@},linuxwacom@$hostname create
@@ -700,25 +591,6 @@ process_module() {
     generate_announce > "$tar_name.announce"
     echo "Info: [ANNOUNCE] template generated in \"$tar_name.announce\" file."
     echo "      Please pgp sign and send it."
-
-    # --------- Update the JH Build moduleset -----------------
-    # Failing to update the jh moduleset is not considered a fatal error
-    if [ x"$JH_MODULESET" != x ]; then
-	for tarball in $targz $tarbz2 $tarxz; do
-	    if [ x$DRY_RUN = x ]; then
-		sha1sum=`$SHA1SUM $tarball | cut -d' ' -f1`
-		$top_src/util/modular/update-moduleset.sh $JH_MODULESET $sha1sum $tarball
-		echo "Info: updated jh moduleset: \"$JH_MODULESET\""
-	    else
-		echo "Info: skipping jh moduleset \"$JH_MODULESET\" update in dry-run mode."
-	    fi
-
-	    # $tar* may be unset, so simply loop through all of them and the
-	    # first one that is set updates the module file
-	    break
-	done
-    fi
-
 
     # --------- Successful completion --------------------------
     cd $top_src
