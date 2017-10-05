@@ -89,11 +89,79 @@ fi
 }
 
 #------------------------------------------------------------------------------
+#			Function: check_json_message
+#------------------------------------------------------------------------------
+#
+# if we get json with a "message" from github there was an error
+# $1 the JSON to parse
+check_json_message() {
+
+    message=`echo $1 | jq ".message"`
+    if [ "$message" != "null" ] ; then
+        echo "Github release error: $1"
+        exit 1
+    fi
+}
+
+#------------------------------------------------------------------------------
+#			Function: release_to_github
+#------------------------------------------------------------------------------
+#
+release_to_github() {
+    # Creating a release on Github automatically creates a tag.
+
+    #dependency 'jq' for reading the json github sends us back
+
+    #note git_username should include the suffix ":KEY" if the user has enabled 2FA
+    #example skomra:de0e4dc3efbf2d008053027708227b365b7f80bf
+
+    GH_REPO=linuxwacom
+    release_description="Temporary Empty Release Description"
+    release_descr=$(jq -n --arg release_description "$release_description" '$release_description')
+
+    # Create a Release
+    api_json=$(printf '{"tag_name": "%s",
+                        "target_commitish": "master",
+                        "name": "%s",
+                        "body": %s,
+                        "draft": false,
+                        "prerelease": false}' "$tar_name" "$tar_name" "$release_descr")
+    create_result=`curl -s --data "$api_json" -u $GH_USERNAME https://api.github.com/repos/$GH_REPO/input-wacom/releases`
+    GH_RELEASE_ID=`echo $create_result | jq '.id'`
+
+    check_json_message "$create_result"
+
+    # Upload the tar to the release
+    upload_result=`curl -s -u $GH_USERNAME \
+        -H "Content-Type: application/x-bzip" \
+        --data-binary @$tarbz2 \
+        "https://uploads.github.com/repos/$GH_REPO/input-wacom/releases/$GH_RELEASE_ID/assets?name=$tarbz2"`
+    GH_DL_URL=`echo $upload_result | jq -r '.browser_download_url'`
+
+    check_json_message "$upload_result"
+
+    # Upload the sig to the release
+    sig_result=`curl -s -u $GH_USERNAME \
+        -H "Content-Type: application/pgp-signature" \
+        --data-binary @$tarbz2.sig \
+        "https://uploads.github.com/repos/$GH_REPO/input-wacom/releases/$GH_RELEASE_ID/assets?name=$tarbz2.sig"`
+    GH_SIG_URL=`echo $sig_result | jq -r '.browser_download_url'`
+
+    check_json_message "$sig_result"
+
+    echo "Github release created"
+}
+
+#------------------------------------------------------------------------------
 #			Function: generate_announce
 #------------------------------------------------------------------------------
 #
 generate_announce()
 {
+    MD5SUM=`which md5sum || which gmd5sum`
+    SHA1SUM=`which sha1sum || which gsha1sum`
+    SHA256SUM=`which sha256sum || which gsha256sum`
+
     cat <<RELEASE
 Subject: [ANNOUNCE] $pkg_name $pkg_version
 To: $list_to
@@ -107,11 +175,11 @@ RELEASE
 
     for tarball in $tarbz2 $targz $tarxz; do
 	cat <<RELEASE
-http://$host_current/$section_path/$tarball
+$GH_DL_URL
 MD5:  `$MD5SUM $tarball`
 SHA1: `$SHA1SUM $tarball`
 SHA256: `$SHA256SUM $tarball`
-PGP:  http://${host_current}/${section_path}/${tarball}.sig
+PGP: $GH_SIG_URL
 
 RELEASE
     done
@@ -221,7 +289,7 @@ get_section() {
 	module_url=`echo $module_url | cut -d'/' -f3,4`
     else
 	# The look for mesa, xcb, etc...
-	module_url=`echo "$full_module_url" | $GREP -o -e "/mesa/.*" -e "/xcb/.*" -e "/xkeyboard-config" -e "/nouveau/xf86-video-nouveau" -e "/libevdev" -e "/wayland/.*" -e "/evemu" -e "/linuxwacom/.*"`
+	module_url=`echo "$full_module_url" | $GREP -o -e "linuxwacom/.*" -e "/linuxwacom/.*" -e "Pinglinux/.*" -e "jigpu/.*" -e "skomra/.*"`
 	if [ $? -eq 0 ]; then
 	     module_url=`echo $module_url | cut -d'/' -f2,3`
 	else
@@ -503,7 +571,7 @@ process_module() {
         list_to="linuxwacom-announce@lists.sourceforge.net"
         list_cc="linuxwacom-discuss@lists.sourceforge.net"
 
-        echo "creating shell on sourceforge for $USER"
+        echo "creating shell on sourceforge for $USER_NAME"
         ssh ${USER_NAME%@},linuxwacom@$hostname create
         #echo "Simply log out once you get to the prompt"
         #ssh -t ${USER_NAME%@},linuxwacom@$hostname create
@@ -564,9 +632,7 @@ process_module() {
 	echo "Info: skipped pushing tag \"$tag_name\" to the remote repository in dry-run mode."
     fi
 
-    MD5SUM=`which md5sum || which gmd5sum`
-    SHA1SUM=`which sha1sum || which gsha1sum`
-    SHA256SUM=`which sha256sum || which gsha256sum`
+    release_to_github
 
     # --------- Generate the announce e-mail ------------------
     # Failing to generate the announce is not considered a fatal error
@@ -591,6 +657,24 @@ process_module() {
     generate_announce > "$tar_name.announce"
     echo "Info: [ANNOUNCE] template generated in \"$tar_name.announce\" file."
     echo "      Please pgp sign and send it."
+
+    # --------- Update the "body" text of the Github release with the .announce file -----------------
+
+    if [ -n "$GH_RELEASE_ID" ]; then
+        # Read the announce email and then escape it as a string in order to add it to the JSON
+        read -r -d '' release_description <"$tar_name.announce"
+        release_descr=$(jq -n --arg release_description "$release_description" '$release_description')
+        api_json=$(printf '{"tag_name": "%s",
+                            "target_commitish": "master",
+                            "name": "%s",
+                            "body": %s,
+                            "draft": false,
+                            "prerelease": false}' "$tar_name" "$tar_name" "$release_descr")
+        create_result=`curl -s -X PATCH --data "$api_json" -u $GH_USERNAME https://api.github.com/repos/$GH_REPO/input-wacom/releases/$GH_RELEASE_ID`
+
+        check_json_message "$create_result"
+        echo "Announcement posted to release at Github."
+    fi
 
     # --------- Successful completion --------------------------
     cd $top_src
@@ -702,6 +786,11 @@ do
     --no-quit)
 	NO_QUIT=yes
 	;;
+    # Github username with possible Personal Access Token
+    --github)
+	GH_USERNAME=$2
+	shift
+	;;
     # Username of your fdo account if not configured in ssh
     --user)
 	check_option_args $1 $2
@@ -736,6 +825,11 @@ do
 
     shift
 done
+
+if [ x$GH_USERNAME = x ] ; then
+    echo "--github option required"
+    exit 1
+fi
 
 # If no modules specified (blank cmd line) display help
 check_modules_specification
