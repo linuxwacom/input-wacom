@@ -89,6 +89,79 @@ fi
 }
 
 #------------------------------------------------------------------------------
+#			Function: release_to_sourceforge
+#------------------------------------------------------------------------------
+#
+release_to_sourceforge () {
+
+    # Some hostnames are also used as /srv subdirs
+    host_linuxwacom="shell.sourceforge.net"
+
+    section_path=archive/individual/$section
+    srv_path="/srv/$host_current/$section_path"
+
+    if [ x"$section" = xxf86-input-wacom ] ||
+       [ x"$section" = xinput-wacom ] ||
+       [ x"$section" = xlibwacom ]; then
+        # input-wacom files are in a subdirectory for whatever reason
+        if [ x"$section" = xinput-wacom ]; then
+            section="xf86-input-wacom/input-wacom"
+        fi
+
+        hostname=$host_linuxwacom
+        host_current="sourceforge.net"
+        section_path="projects/linuxwacom/files/$section"
+        srv_path="/home/frs/project/linuxwacom/$section"
+
+        echo "creating shell on sourceforge for $USER_NAME"
+        ssh ${USER_NAME%@},linuxwacom@$hostname create
+        #echo "Simply log out once you get to the prompt"
+        #ssh -t ${USER_NAME%@},linuxwacom@$hostname create
+        #echo "Sleeping for 30 seconds, because this sometimes helps against sourceforge's random authentication denials"
+        #sleep 30
+    fi
+
+    # Use personal web space on the host for unit testing (leave commented out)
+    # srv_path="~/public_html$srv_path"
+
+    # Check that the server path actually does exist
+    ssh $USER_NAME$hostname ls $srv_path >/dev/null 2>&1 ||
+    if [ $? -ne 0 ]; then
+	echo "Error: the path \"$srv_path\" on the web server does not exist."
+	cd $top_src
+	return 1
+    fi
+
+    # Check for already existing tarballs
+    for tarball in $targz $tarbz2 $tarxz; do
+	ssh $USER_NAME$hostname ls $srv_path/$tarball  >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+	    if [ "x$FORCE" = "xyes" ]; then
+		echo "Warning: overwriting released tarballs due to --force option."
+	    else
+		echo "Error: tarball $tar_name already exists. Use --force to overwrite."
+		cd $top_src
+		return 1
+	    fi
+	fi
+    done
+
+    # Upload to host using the 'scp' remote file copy program
+    if [ x"$DRY_RUN" = x ]; then
+	echo "Info: uploading tarballs to web server:"
+	scp $targz $tarbz2 $tarxz $siggz $sigbz2 $sigxz $USER_NAME$hostname:$srv_path
+	if [ $? -ne 0 ]; then
+	    echo "Error: the tarballs uploading failed."
+	    cd $top_src
+	    return 1
+	fi
+    else
+	echo "Info: skipping tarballs uploading in dry-run mode."
+	echo "      \"$srv_path\"."
+    fi
+}
+
+#------------------------------------------------------------------------------
 #			Function: check_json_message
 #------------------------------------------------------------------------------
 #
@@ -550,74 +623,6 @@ process_module() {
 
     # --------- Now the tarballs are ready to upload ----------
 
-    # Some hostnames are also used as /srv subdirs
-    host_linuxwacom="shell.sourceforge.net"
-
-    section_path=archive/individual/$section
-    srv_path="/srv/$host_current/$section_path"
-
-    if [ x"$section" = xxf86-input-wacom ] ||
-       [ x"$section" = xinput-wacom ] ||
-       [ x"$section" = xlibwacom ]; then
-        # input-wacom files are in a subdirectory for whatever reason
-        if [ x"$section" = xinput-wacom ]; then
-            section="xf86-input-wacom/input-wacom"
-        fi
-
-        hostname=$host_linuxwacom
-        host_current="sourceforge.net"
-        section_path="projects/linuxwacom/files/$section"
-        srv_path="/home/frs/project/linuxwacom/$section"
-        list_to="linuxwacom-announce@lists.sourceforge.net"
-        list_cc="linuxwacom-discuss@lists.sourceforge.net"
-
-        echo "creating shell on sourceforge for $USER_NAME"
-        ssh ${USER_NAME%@},linuxwacom@$hostname create
-        #echo "Simply log out once you get to the prompt"
-        #ssh -t ${USER_NAME%@},linuxwacom@$hostname create
-        #echo "Sleeping for 30 seconds, because this sometimes helps against sourceforge's random authentication denials"
-        #sleep 30
-    fi
-
-    # Use personal web space on the host for unit testing (leave commented out)
-    # srv_path="~/public_html$srv_path"
-
-    # Check that the server path actually does exist
-    ssh $USER_NAME$hostname ls $srv_path >/dev/null 2>&1 ||
-    if [ $? -ne 0 ]; then
-	echo "Error: the path \"$srv_path\" on the web server does not exist."
-	cd $top_src
-	return 1
-    fi
-
-    # Check for already existing tarballs
-    for tarball in $targz $tarbz2 $tarxz; do
-	ssh $USER_NAME$hostname ls $srv_path/$tarball  >/dev/null 2>&1
-	if [ $? -eq 0 ]; then
-	    if [ "x$FORCE" = "xyes" ]; then
-		echo "Warning: overwriting released tarballs due to --force option."
-	    else
-		echo "Error: tarball $tar_name already exists. Use --force to overwrite."
-		cd $top_src
-		return 1
-	    fi
-	fi
-    done
-
-    # Upload to host using the 'scp' remote file copy program
-    if [ x"$DRY_RUN" = x ]; then
-	echo "Info: uploading tarballs to web server:"
-	scp $targz $tarbz2 $tarxz $siggz $sigbz2 $sigxz $USER_NAME$hostname:$srv_path
-	if [ $? -ne 0 ]; then
-	    echo "Error: the tarballs uploading failed."
-	    cd $top_src
-	    return 1
-	fi
-    else
-	echo "Info: skipping tarballs uploading in dry-run mode."
-	echo "      \"$srv_path\"."
-    fi
-
     # Pushing the top commit tag to the remote repository
     if [ x$DRY_RUN = x ]; then
 	echo "Info: pushing tag \"$tag_name\" to remote \"$remote_name\":"
@@ -632,10 +637,17 @@ process_module() {
 	echo "Info: skipped pushing tag \"$tag_name\" to the remote repository in dry-run mode."
     fi
 
+    if [ -n "$USER_NAME" ]; then
+        release_to_sourceforge
+    fi
+
     release_to_github
 
     # --------- Generate the announce e-mail ------------------
     # Failing to generate the announce is not considered a fatal error
+
+    list_to="linuxwacom-announce@lists.sourceforge.net"
+    list_cc="linuxwacom-discuss@lists.sourceforge.net"
 
     # Git-describe returns only "the most recent tag", it may not be the expected one
     # However, we only use it for the commit history which will be the same anyway.
