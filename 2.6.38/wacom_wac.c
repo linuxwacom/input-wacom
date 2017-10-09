@@ -1933,7 +1933,7 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 
 	if (range) {
 		wacom->serial[0] = (tool_uid & 0xFFFFFFFF);
-		wacom->id[0]     = (tool_uid >> 32) | tool_type;
+		wacom->id[0]     = ((tool_uid >> 32) & 0xFFFFF) | tool_type;
 		wacom->tool[0] = wacom_intuos_get_tool_type(wacom->id[0] & 0xFFFFF);
 	}
 
