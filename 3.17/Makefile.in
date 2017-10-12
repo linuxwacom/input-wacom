@@ -1,3 +1,10 @@
+RHEL7_RELEASE := @RHEL7_RELEASE@
+MODULE_NAME := wacom
+
+ifeq ($(RHEL7_RELEASE),4)
+MODULE_NAME := hid-wacom
+endif # RHEL7_RELEASE
+
 ############################ kernel specific compile ###############################
 ifneq ($(KERNELRELEASE),)
 # We were called by kbuild
@@ -7,8 +14,8 @@ ifneq ($(KERNELRELEASE),)
 ifneq ($(CONFIG_HID_WACOM),y)
 WCM_VERSION := $(shell cd $(KBUILD_EXTMOD)/.. && ./git-version-gen)
 ccflags-y := -DWACOM_VERSION_SUFFIX=\"-$(WCM_VERSION)\" -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers $(EXTRA_CFLAGS)
-wacom-objs := wacom_wac.o wacom_sys.o
-obj-m += wacom.o
+$(MODULE_NAME)-objs := wacom_wac.o wacom_sys.o
+obj-m += $(MODULE_NAME).o
 obj-m += wacom_w8001.o
 else
 $(error You requested to build wacom with configure, but wacom is configured as built-in in your kernel config)
