@@ -696,8 +696,10 @@ static struct wacom_hdev_data *wacom_get_hdev_data(struct hid_device *hdev)
 
 	/* Try to find an already-probed interface from the same device */
 	list_for_each_entry(data, &wacom_udev_list, list) {
-		if (compare_device_paths(hdev, data->dev, '/'))
+		if (compare_device_paths(hdev, data->dev, '/')) {
+			kref_get(&data->kref);
 			return data;
+		}
 	}
 
 	/* Fallback to finding devices that appear to be "siblings" */
@@ -1150,7 +1152,7 @@ static void wacom_led_groups_release(void *data)
 	wacom->led.groups = NULL;
 }
 
-static inline int devm_add_action_or_reset(struct device *dev,
+static inline int wac_devm_add_action_or_reset(struct device *dev,
 					   void (*action)(void *), void *data)
 {
 	int ret;
@@ -1173,7 +1175,7 @@ static int wacom_led_groups_allocate(struct wacom *wacom, int count)
 	if (!groups)
 		return -ENOMEM;
 
-	error = devm_add_action_or_reset(&wacom->hdev->dev,
+	error = wac_devm_add_action_or_reset(&wacom->hdev->dev,
 					 wacom_led_groups_release,
 					 wacom);
 	if (error)
@@ -1692,7 +1694,7 @@ static int wacom_initialize_remotes(struct wacom *wacom)
 		remote->remotes[i].serial = 0;
 	}
 
-	error = devm_add_action_or_reset(&wacom->hdev->dev,
+	error = wac_devm_add_action_or_reset(&wacom->hdev->dev,
 					 wacom_remotes_destroy, wacom);
 	if (error)
 		return error;

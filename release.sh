@@ -89,11 +89,152 @@ fi
 }
 
 #------------------------------------------------------------------------------
+#			Function: release_to_sourceforge
+#------------------------------------------------------------------------------
+#
+release_to_sourceforge () {
+
+    # Some hostnames are also used as /srv subdirs
+    host_linuxwacom="shell.sourceforge.net"
+
+    section_path=archive/individual/$section
+    srv_path="/srv/$host_current/$section_path"
+
+    if [ x"$section" = xxf86-input-wacom ] ||
+       [ x"$section" = xinput-wacom ] ||
+       [ x"$section" = xlibwacom ]; then
+        # input-wacom files are in a subdirectory for whatever reason
+        if [ x"$section" = xinput-wacom ]; then
+            section="xf86-input-wacom/input-wacom"
+        fi
+
+        hostname=$host_linuxwacom
+        host_current="sourceforge.net"
+        section_path="projects/linuxwacom/files/$section"
+        srv_path="/home/frs/project/linuxwacom/$section"
+
+        echo "creating shell on sourceforge for $USER_NAME"
+        ssh ${USER_NAME%@},linuxwacom@$hostname create
+        #echo "Simply log out once you get to the prompt"
+        #ssh -t ${USER_NAME%@},linuxwacom@$hostname create
+        #echo "Sleeping for 30 seconds, because this sometimes helps against sourceforge's random authentication denials"
+        #sleep 30
+    fi
+
+    # Use personal web space on the host for unit testing (leave commented out)
+    # srv_path="~/public_html$srv_path"
+
+    # Check that the server path actually does exist
+    ssh $USER_NAME$hostname ls $srv_path >/dev/null 2>&1 ||
+    if [ $? -ne 0 ]; then
+	echo "Error: the path \"$srv_path\" on the web server does not exist."
+	cd $top_src
+	return 1
+    fi
+
+    # Check for already existing tarballs
+    for tarball in $targz $tarbz2 $tarxz; do
+	ssh $USER_NAME$hostname ls $srv_path/$tarball  >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+	    if [ "x$FORCE" = "xyes" ]; then
+		echo "Warning: overwriting released tarballs due to --force option."
+	    else
+		echo "Error: tarball $tar_name already exists. Use --force to overwrite."
+		cd $top_src
+		return 1
+	    fi
+	fi
+    done
+
+    # Upload to host using the 'scp' remote file copy program
+    if [ x"$DRY_RUN" = x ]; then
+	echo "Info: uploading tarballs to web server:"
+	scp $targz $tarbz2 $tarxz $siggz $sigbz2 $sigxz $USER_NAME$hostname:$srv_path
+	if [ $? -ne 0 ]; then
+	    echo "Error: the tarballs uploading failed."
+	    cd $top_src
+	    return 1
+	fi
+    else
+	echo "Info: skipping tarballs uploading in dry-run mode."
+	echo "      \"$srv_path\"."
+    fi
+}
+
+#------------------------------------------------------------------------------
+#			Function: check_json_message
+#------------------------------------------------------------------------------
+#
+# if we get json with a "message" from github there was an error
+# $1 the JSON to parse
+check_json_message() {
+
+    message=`echo $1 | jq ".message"`
+    if [ "$message" != "null" ] ; then
+        echo "Github release error: $1"
+        exit 1
+    fi
+}
+
+#------------------------------------------------------------------------------
+#			Function: release_to_github
+#------------------------------------------------------------------------------
+#
+release_to_github() {
+    # Creating a release on Github automatically creates a tag.
+
+    #dependency 'jq' for reading the json github sends us back
+
+    #note git_username should include the suffix ":KEY" if the user has enabled 2FA
+    #example skomra:de0e4dc3efbf2d008053027708227b365b7f80bf
+
+    GH_REPO=linuxwacom
+    release_description="Temporary Empty Release Description"
+    release_descr=$(jq -n --arg release_description "$release_description" '$release_description')
+
+    # Create a Release
+    api_json=$(printf '{"tag_name": "%s",
+                        "target_commitish": "master",
+                        "name": "%s",
+                        "body": %s,
+                        "draft": false,
+                        "prerelease": false}' "$tar_name" "$tar_name" "$release_descr")
+    create_result=`curl -s --data "$api_json" -u $GH_USERNAME https://api.github.com/repos/$GH_REPO/input-wacom/releases`
+    GH_RELEASE_ID=`echo $create_result | jq '.id'`
+
+    check_json_message "$create_result"
+
+    # Upload the tar to the release
+    upload_result=`curl -s -u $GH_USERNAME \
+        -H "Content-Type: application/x-bzip" \
+        --data-binary @$tarbz2 \
+        "https://uploads.github.com/repos/$GH_REPO/input-wacom/releases/$GH_RELEASE_ID/assets?name=$tarbz2"`
+    GH_DL_URL=`echo $upload_result | jq -r '.browser_download_url'`
+
+    check_json_message "$upload_result"
+
+    # Upload the sig to the release
+    sig_result=`curl -s -u $GH_USERNAME \
+        -H "Content-Type: application/pgp-signature" \
+        --data-binary @$tarbz2.sig \
+        "https://uploads.github.com/repos/$GH_REPO/input-wacom/releases/$GH_RELEASE_ID/assets?name=$tarbz2.sig"`
+    GH_SIG_URL=`echo $sig_result | jq -r '.browser_download_url'`
+
+    check_json_message "$sig_result"
+
+    echo "Github release created"
+}
+
+#------------------------------------------------------------------------------
 #			Function: generate_announce
 #------------------------------------------------------------------------------
 #
 generate_announce()
 {
+    MD5SUM=`which md5sum || which gmd5sum`
+    SHA1SUM=`which sha1sum || which gsha1sum`
+    SHA256SUM=`which sha256sum || which gsha256sum`
+
     cat <<RELEASE
 Subject: [ANNOUNCE] $pkg_name $pkg_version
 To: $list_to
@@ -107,11 +248,11 @@ RELEASE
 
     for tarball in $tarbz2 $targz $tarxz; do
 	cat <<RELEASE
-http://$host_current/$section_path/$tarball
+$GH_DL_URL
 MD5:  `$MD5SUM $tarball`
 SHA1: `$SHA1SUM $tarball`
 SHA256: `$SHA256SUM $tarball`
-PGP:  http://${host_current}/${section_path}/${tarball}.sig
+PGP: $GH_SIG_URL
 
 RELEASE
     done
@@ -221,7 +362,7 @@ get_section() {
 	module_url=`echo $module_url | cut -d'/' -f3,4`
     else
 	# The look for mesa, xcb, etc...
-	module_url=`echo "$full_module_url" | $GREP -o -e "/mesa/.*" -e "/xcb/.*" -e "/xkeyboard-config" -e "/nouveau/xf86-video-nouveau" -e "/libevdev" -e "/wayland/.*" -e "/evemu" -e "/linuxwacom/.*"`
+	module_url=`echo "$full_module_url" | $GREP -o -e "linuxwacom/.*" -e "/linuxwacom/.*" -e "Pinglinux/.*" -e "jigpu/.*" -e "skomra/.*"`
 	if [ $? -eq 0 ]; then
 	     module_url=`echo $module_url | cut -d'/' -f2,3`
 	else
@@ -238,25 +379,6 @@ get_section() {
     if [ $? -ne 0 ]; then
 	echo "Error: unable to extract section from $module_url first field."
 	return 1
-    fi
-
-    if [ x"$section" = xmesa ]; then
-	section=`echo $module_url | cut -d'/' -f2`
-	if [ $? -ne 0 ]; then
-	    echo "Error: unable to extract section from $module_url second field."
-	    return 1
-	elif [ x"$section" != xdrm ]; then
-	    echo "Error: section $section is not supported, only libdrm is."
-	    return 1
-	fi
-    fi
-
-    if [ x"$section" = xwayland ]; then
-	section=`echo $module_url | cut -d'/' -f2`
-	if [ $? -ne 0 ]; then
-	    echo "Error: unable to extract section from $module_url second field."
-	    return 1
-	fi
     fi
 
     if [ x"$section" = xlinuxwacom ]; then
@@ -406,18 +528,7 @@ process_module() {
 	return 1
     fi
 
-    # wayland/weston/libinput tag with the version number only
     tag_name="$tar_name"
-    if [ x"$section" = xwayland ] ||
-       [ x"$section" = xweston ] ||
-       [ x"$section" = xlibinput ]; then
-	tag_name="$pkg_version"
-    fi
-
-    # evemu tag with the version number prefixed by 'v'
-    if [ x"$section" = xevemu ]; then
-        tag_name="v$pkg_version"
-    fi
 
     gpgsignerr=0
     siggz="$(sign_or_fail ${targz})"
@@ -512,153 +623,6 @@ process_module() {
 
     # --------- Now the tarballs are ready to upload ----------
 
-    # The hostname which is used to connect to the development resources
-    hostname="annarchy.freedesktop.org"
-
-    # Some hostnames are also used as /srv subdirs
-    host_fdo="www.freedesktop.org"
-    host_xorg="xorg.freedesktop.org"
-    host_dri="dri.freedesktop.org"
-    host_wayland="wayland.freedesktop.org"
-    host_linuxwacom="shell.sourceforge.net"
-
-    # Mailing lists where to post the all [Announce] e-mails
-    list_to="xorg-announce@lists.freedesktop.org"
-
-    # Mailing lists to be CC according to the project (xorg|dri|xkb)
-    list_xorg_user="xorg@lists.freedesktop.org"
-    list_dri_devel="dri-devel@lists.freedesktop.org"
-    list_xkb="xkb@listserv.bat.ru"
-    list_xcb="xcb@lists.freedesktop.org"
-    list_nouveau="nouveau@lists.freedesktop.org"
-    list_wayland="wayland-devel@lists.freedesktop.org"
-    list_linuxwacom="linuxwacom-discuss@lists.sourceforge.net"
-
-    # nouveau is very special.. sigh
-    if [ x"$section" = xnouveau ]; then
-            section=driver
-            list_cc=$list_nouveau
-    else
-            list_cc=$list_xorg_user
-    fi
-
-    host_current=$host_xorg
-    section_path=archive/individual/$section
-    srv_path="/srv/$host_current/$section_path"
-
-    # Handle special cases such as non xorg projects or migrated xorg projects
-    # Xcb has a separate mailing list
-    if [ x"$section" = xxcb ]; then
-	list_cc=$list_xcb
-    fi
-
-    # Module mesa/drm goes in the dri "libdrm" section
-    if [ x"$section" = xdrm ]; then
-        host_current=$host_dri
-        section_path=libdrm
-        srv_path="/srv/$host_current/www/$section_path"
-        list_cc=$list_dri_devel
-    fi
-
-    # Module xkeyboard-config goes in a subdir of the xorg "data" section
-    if [ x"$section" = xxkeyboard-config ]; then
-	host_current=$host_xorg
-	section_path=archive/individual/data/$section
-	srv_path="/srv/$host_current/$section_path"
-	list_cc=$list_xkb
-    fi
-
-    if [ x"$section" = xlibevdev ]; then
-	host_current=$host_fdo
-	section_path="software/$section"
-	srv_path="/srv/$host_current/www/$section_path"
-	list_to=input-tools@lists.freedesktop.org
-	unset list_cc
-    fi
-
-    if [ x"$section" = xwayland ] ||
-       [ x"$section" = xweston ]; then
-        host_current=$host_wayland
-        section_path="releases"
-        srv_path="/srv/$host_current/www/releases"
-        list_to=$list_wayland
-        unset list_cc
-    elif [ x"$section" = xlibinput ]; then
-        host_current=$host_fdo
-        section_path="software/libinput"
-        srv_path="/srv/$host_current/www/$section_path"
-        list_to=$list_wayland
-        unset list_cc
-    elif [ x"$section" = xevemu ]; then
-        host_current=$host_fdo
-        section_path="software/evemu"
-        srv_path="/srv/$host_current/www/$section_path"
-        list_to=input-tools@lists.freedesktop.org
-        unset list_cc
-    fi
-
-    if [ x"$section" = xxf86-input-wacom ] ||
-       [ x"$section" = xinput-wacom ] ||
-       [ x"$section" = xlibwacom ]; then
-        # input-wacom files are in a subdirectory for whatever reason
-        if [ x"$section" = xinput-wacom ]; then
-            section="xf86-input-wacom/input-wacom"
-        fi
-
-        hostname=$host_linuxwacom
-        host_current="sourceforge.net"
-        section_path="projects/linuxwacom/files/$section"
-        srv_path="/home/frs/project/linuxwacom/$section"
-        list_to="linuxwacom-announce@lists.sourceforge.net"
-        list_cc=$list_linuxwacom
-
-        echo "creating shell on sourceforge for $USER"
-        ssh ${USER_NAME%@},linuxwacom@$hostname create
-        #echo "Simply log out once you get to the prompt"
-        #ssh -t ${USER_NAME%@},linuxwacom@$hostname create
-        #echo "Sleeping for 30 seconds, because this sometimes helps against sourceforge's random authentication denials"
-        #sleep 30
-    fi
-
-    # Use personal web space on the host for unit testing (leave commented out)
-    # srv_path="~/public_html$srv_path"
-
-    # Check that the server path actually does exist
-    ssh $USER_NAME$hostname ls $srv_path >/dev/null 2>&1 ||
-    if [ $? -ne 0 ]; then
-	echo "Error: the path \"$srv_path\" on the web server does not exist."
-	cd $top_src
-	return 1
-    fi
-
-    # Check for already existing tarballs
-    for tarball in $targz $tarbz2 $tarxz; do
-	ssh $USER_NAME$hostname ls $srv_path/$tarball  >/dev/null 2>&1
-	if [ $? -eq 0 ]; then
-	    if [ "x$FORCE" = "xyes" ]; then
-		echo "Warning: overwriting released tarballs due to --force option."
-	    else
-		echo "Error: tarball $tar_name already exists. Use --force to overwrite."
-		cd $top_src
-		return 1
-	    fi
-	fi
-    done
-
-    # Upload to host using the 'scp' remote file copy program
-    if [ x"$DRY_RUN" = x ]; then
-	echo "Info: uploading tarballs to web server:"
-	scp $targz $tarbz2 $tarxz $siggz $sigbz2 $sigxz $USER_NAME$hostname:$srv_path
-	if [ $? -ne 0 ]; then
-	    echo "Error: the tarballs uploading failed."
-	    cd $top_src
-	    return 1
-	fi
-    else
-	echo "Info: skipping tarballs uploading in dry-run mode."
-	echo "      \"$srv_path\"."
-    fi
-
     # Pushing the top commit tag to the remote repository
     if [ x$DRY_RUN = x ]; then
 	echo "Info: pushing tag \"$tag_name\" to remote \"$remote_name\":"
@@ -673,12 +637,17 @@ process_module() {
 	echo "Info: skipped pushing tag \"$tag_name\" to the remote repository in dry-run mode."
     fi
 
-    MD5SUM=`which md5sum || which gmd5sum`
-    SHA1SUM=`which sha1sum || which gsha1sum`
-    SHA256SUM=`which sha256sum || which gsha256sum`
+    if [ -n "$USER_NAME" ]; then
+        release_to_sourceforge
+    fi
+
+    release_to_github
 
     # --------- Generate the announce e-mail ------------------
     # Failing to generate the announce is not considered a fatal error
+
+    list_to="linuxwacom-announce@lists.sourceforge.net"
+    list_cc="linuxwacom-discuss@lists.sourceforge.net"
 
     # Git-describe returns only "the most recent tag", it may not be the expected one
     # However, we only use it for the commit history which will be the same anyway.
@@ -701,24 +670,23 @@ process_module() {
     echo "Info: [ANNOUNCE] template generated in \"$tar_name.announce\" file."
     echo "      Please pgp sign and send it."
 
-    # --------- Update the JH Build moduleset -----------------
-    # Failing to update the jh moduleset is not considered a fatal error
-    if [ x"$JH_MODULESET" != x ]; then
-	for tarball in $targz $tarbz2 $tarxz; do
-	    if [ x$DRY_RUN = x ]; then
-		sha1sum=`$SHA1SUM $tarball | cut -d' ' -f1`
-		$top_src/util/modular/update-moduleset.sh $JH_MODULESET $sha1sum $tarball
-		echo "Info: updated jh moduleset: \"$JH_MODULESET\""
-	    else
-		echo "Info: skipping jh moduleset \"$JH_MODULESET\" update in dry-run mode."
-	    fi
+    # --------- Update the "body" text of the Github release with the .announce file -----------------
 
-	    # $tar* may be unset, so simply loop through all of them and the
-	    # first one that is set updates the module file
-	    break
-	done
+    if [ -n "$GH_RELEASE_ID" ]; then
+        # Read the announce email and then escape it as a string in order to add it to the JSON
+        read -r -d '' release_description <"$tar_name.announce"
+        release_descr=$(jq -n --arg release_description "$release_description" '$release_description')
+        api_json=$(printf '{"tag_name": "%s",
+                            "target_commitish": "master",
+                            "name": "%s",
+                            "body": %s,
+                            "draft": false,
+                            "prerelease": false}' "$tar_name" "$tar_name" "$release_descr")
+        create_result=`curl -s -X PATCH --data "$api_json" -u $GH_USERNAME https://api.github.com/repos/$GH_REPO/input-wacom/releases/$GH_RELEASE_ID`
+
+        check_json_message "$create_result"
+        echo "Announcement posted to release at Github."
     fi
-
 
     # --------- Successful completion --------------------------
     cd $top_src
@@ -830,6 +798,11 @@ do
     --no-quit)
 	NO_QUIT=yes
 	;;
+    # Github username with possible Personal Access Token
+    --github)
+	GH_USERNAME=$2
+	shift
+	;;
     # Username of your fdo account if not configured in ssh
     --user)
 	check_option_args $1 $2
@@ -864,6 +837,11 @@ do
 
     shift
 done
+
+if [ x$GH_USERNAME = x ] ; then
+    echo "--github option required"
+    exit 1
+fi
 
 # If no modules specified (blank cmd line) display help
 check_modules_specification
