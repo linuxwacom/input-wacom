@@ -1658,29 +1658,17 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 	tool_uid    = le64_to_cpup((__le64 *)&data[17]);
 	tool_type   = le16_to_cpup((__le16 *)&data[25]);
 
-	if (range) {
-		bool first_in_range = wacom->tool[0] == 0;
+	wacom->shared->stylus_in_proximity = proximity;
 
+	if (range) {
 		wacom->serial[0] = (tool_uid & 0xFFFFFFFF);
 		wacom->id[0]     = (tool_uid >> 32) | tool_type;
 		wacom->tool[0] = wacom_intuos_get_tool_type(wacom->id[0] & 0xFFFFF);
-
-		if (first_in_range &&
-		     wacom->shared->stylus_in_proximity &&
-		     wacom->tool[0] != BTN_TOOL_PEN) { /* entering range from prox */
-				input_report_key(input, BTN_TOOL_PEN, 0);
-		}
 	}
 
 	/* pointer going from fully "in range" to merely "in proximity" */
 	if (!range && wacom->tool[0]) {
 		height = wacom->features.distance_max;
-	}
-
-	/* entering prox from out-of-prox */
-	if (!range && !wacom->tool[0]) {
-		input_report_key(input, BTN_TOOL_PEN, proximity);
-		input_report_key(input, BTN_TOUCH, 0);
 	}
 
 	/*
