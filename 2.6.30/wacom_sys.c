@@ -263,17 +263,22 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							 features->type == MTTPC ||
 							 features->type == MTTPC_B ||
 							 features->type == MTTPC_C ||
+							 features->type == WACOM_24HDT ||
 							 features->type == WACOM_MSPROT ||
-							 features->type == DTH1152T) {
+							 features->type == DTH1152T ||
+							 features->type == WACOM_27QHDT) {
 						/* need to reset back */
 						features->pktlen = WACOM_PKGLEN_TPC2FG;
 						if (features->type == MTTPC ||
 						    features->type == MTTPC_B ||
 						    features->type == MTTPC_C)
 							features->pktlen = WACOM_PKGLEN_MTTPC;
+						else if (features->type == WACOM_24HDT)
+							features->pktlen = WACOM_PKGLEN_MTOUCH;
 						else if (features->type == WACOM_MSPROT)
 							features->pktlen = WACOM_PKGLEN_MSPROT;
-						else if (features->type == DTH1152T)
+						else if (features->type == DTH1152T ||
+							 features->type == WACOM_27QHDT)
 							features->pktlen = WACOM_PKGLEN_27QHDT;
 						features->device_type = BTN_TOOL_TRIPLETAP;
 					}
@@ -290,12 +295,24 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						break;
 
 					case DTH1152T:
+					case WACOM_24HDT:
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->x_phy =
 							get_unaligned_le16(&report[i + 8]);
 						features->unit = report[i - 1];
 						features->unitExpo = report[i - 3];
+						break;
+
+					case WACOM_27QHDT:
+						if (!features->x_max) {
+							features->x_max =
+								get_unaligned_le16(&report[i - 4]);
+							features->x_phy =
+								get_unaligned_le16(&report[i - 7]);
+							features->unit = report[i - 13];
+							features->unitExpo = report[i - 11];
+						}
 						break;
 
 					case WACOM_MSPROT:
@@ -351,11 +368,21 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						break;
 
 					case DTH1152T:
+					case WACOM_24HDT:
 					case MTTPC_C:
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->y_phy =
 							get_unaligned_le16(&report[i - 2]);
+						break;
+
+					case WACOM_27QHDT:
+						if (!features->y_max) {
+							features->y_max =
+								get_unaligned_le16(&report[i - 2]);
+							features->y_phy =
+								get_unaligned_le16(&report[i - 5]);
+						}
 						break;
 
 					case BAMBOO_PT:
@@ -466,7 +493,24 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 				error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
 					report_id, rep_data, 4, 1);
 			} while ((error < 0 || rep_data[1] != 4) && limit++ < 5);
-
+		}
+		else if (features->type == WACOM_24HDT) {
+			do {
+				rep_data[0] = 18;
+				rep_data[1] = 2;
+				report_id = 18;
+				error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
+					report_id, rep_data, 3, 1);
+			} while ((error < 0 || rep_data[1] != 2) && limit++ < 5);
+		}
+		else if (features->type == WACOM_27QHDT) {
+			do {
+				rep_data[0] = 131;
+				rep_data[1] = 2;
+				report_id = 131;
+				error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
+					report_id, rep_data, 3, 1);
+			} while ((error < 0 || rep_data[1] != 2) && limit++ < 5);
 		} else if (features->type == WACOM_MSPROT ||
 			   features->type == DTH1152T) {
 			do {

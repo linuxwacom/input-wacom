@@ -1289,15 +1289,35 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
-	int i, current_num_contacts, contacts_to_send;
+	int current_num_contacts, contacts_to_send, contacts_per_packet;
+	int bytes_per_packet, bytes_header;
+	int i;
 
 	switch (features->type) {
-	case DTH1152T:
+	case WACOM_24HDT:
+		current_num_contacts = data[61];
+		contacts_per_packet = 4;
+		bytes_per_packet = WACOM_BYTES_PER_24HDT_PACKET;
+		bytes_header = 1;
+		break;
+	case WACOM_27QHDT:
+		current_num_contacts = data[63];
+		contacts_per_packet = 10;
+		bytes_per_packet = WACOM_BYTES_PER_QHDTHID_PACKET;
+		bytes_header = 1;
+		break;
 	case WACOM_MSPROT:
+	case DTH1152T:
 		current_num_contacts = data[2];
+		contacts_per_packet = 5;
+		bytes_per_packet = WACOM_BYTES_PER_MSPROT_PACKET;
+		bytes_header = 3;
 		break;
 	case INTUOSP2:
 		current_num_contacts = data[1];
+		contacts_per_packet = 5;
+		bytes_per_packet = WACOM_BYTES_PER_INTUOSP2_PACKET;
+		bytes_header = 2;
 		break;
 	default:
 		return 0;
@@ -1308,7 +1328,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		features->num_contacts_left = current_num_contacts;
 	}
 
-	contacts_to_send = min(5, features->num_contacts_left);
+	contacts_to_send = min(contacts_per_packet, features->num_contacts_left);
 
 	for (i = 0; i < contacts_to_send; i++) {
 		int contact_id = -1;
@@ -1318,6 +1338,20 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		int offset = bytes_per_packet * i + bytes_header;
 
 		switch (features->type) {
+		case WACOM_24HDT:
+			prox = data[offset] & 0x01;
+			contact_id = data[offset + 1];
+			x   = get_unaligned_le16(&data[offset + 2]);
+			y   = get_unaligned_le16(&data[offset + 6]);
+			break;
+
+		case WACOM_27QHDT:
+			prox = data[offset] & 0x01;
+			contact_id = data[offset + 1];
+			x = get_unaligned_le16(&data[offset + 2]);
+			y = get_unaligned_le16(&data[offset + 4]);
+			break;
+
 		case WACOM_MSPROT:
 			prox = data[offset] & 0x1;
 			contact_id = get_unaligned_le16(&data[offset + 1]);
@@ -1604,6 +1638,8 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 			sync = wacom_mspro_irq(wacom_wac);
 		break;
 
+	case WACOM_24HDT:
+	case WACOM_27QHDT:
 	case DTH1152T:
 	case WACOM_MSPROT:
 		sync = wacom_multitouch_generic(wacom_wac);
@@ -1910,10 +1946,18 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		wacom_setup_intuos(wacom_wac);
 		break;
 
+	case WACOM_24HDT:
+		if (features->device_type == BTN_TOOL_FINGER) {
+			input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, features->x_max, 0, 0);
+			input_set_abs_params(input_dev, ABS_MT_WIDTH_MINOR, 0, features->y_max, 0, 0);
+		}
+		/* fall through */
+
 	case DTH1152T:
 	case WACOM_MSPROT:
 	case TABLETPC2FG:
 	case MTSCREEN:
+	case WACOM_27QHDT:
 		if (features->device_type == BTN_TOOL_FINGER) {
 			input_mt_create_slots(input_dev, features->touch_max);
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
@@ -2195,6 +2239,9 @@ static const struct wacom_features wacom_features_0xF8 =
 	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 16,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0xF6 =
+	{ "Wacom Cintiq 24HD touch", .type = WACOM_24HDT, /* Touch */
+	  .touch_max = 10 };
 static const struct wacom_features wacom_features_0x57 =
 	{ "Wacom DTK2241",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047,
 	  63, DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 6,
@@ -2205,6 +2252,9 @@ static const struct wacom_features wacom_features_0x59 =
 	  63, DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 6,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x5D = /* Touch */
+	{ "Wacom DTH2242",       .type = WACOM_24HDT,
+	  .touch_max = 10 };
 static const struct wacom_features wacom_features_0x3F =
 	{ "Wacom Cintiq 21UX",    WACOM_PKGLEN_INTUOS,    87200, 65600, 1023,
 	  63, CINTIQ, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 8 };
@@ -2224,6 +2274,9 @@ static const struct wacom_features wacom_features_0x333 =
 	  63, WACOM_13HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x335 =
+	{ "Wacom Cintiq 13HD touch", .type = WACOM_24HDT, /* Touch */
+	  .touch_max = 10 };
 static const struct wacom_features wacom_features_0xC7 =
 	{ "Wacom DTU1931",        WACOM_PKGLEN_GRAPHIRE,  37832, 30305,  511,
 	  0, PL, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2263,6 +2316,9 @@ static const struct wacom_features wacom_features_0x5B =
 	  63, WACOM_22HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 18,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x5E =
+	{ "Wacom Cintiq 22HDT", .type = WACOM_24HDT,
+	  .touch_max = 10 };
 static const struct wacom_features wacom_features_0x90 =
 	{ "Wacom ISDv4 90",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
 	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2380,7 +2436,7 @@ static const struct wacom_features wacom_features_0x35A =
 	  0, DTH1152, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x368 =
 	{ "Wacom DTH-1152 Touch", WACOM_PKGLEN_27QHDT,
-	  .type = DTH1152T }; /* Touch */
+	  .type = DTH1152T, .touch_max = 10 }; /* Touch */
 static const struct wacom_features wacom_features_0x6004 =
 	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800,  8000,  255,
 	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2445,6 +2501,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x57) },
 	{ USB_DEVICE_WACOM(0x59) },
 	{ USB_DEVICE_WACOM(0x5B) },
+	{ USB_DEVICE_DETAILED(0x5D, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_DETAILED(0x5E, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0xB0) },
 	{ USB_DEVICE_WACOM(0xB1) },
 	{ USB_DEVICE_WACOM(0xB2) },
@@ -2500,9 +2558,11 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x315, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x317, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x333) },
+	{ USB_DEVICE_WACOM(0x335) },
 	{ USB_DEVICE_WACOM(0x336) },
 	{ USB_DEVICE_WACOM(0x47) },
 	{ USB_DEVICE_WACOM(0xF4) },
+	{ USB_DEVICE_DETAILED(0xF6, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0xF8) },
 	{ USB_DEVICE_WACOM(0xFA) },
 	{ USB_DEVICE_WACOM(0xFB) },
