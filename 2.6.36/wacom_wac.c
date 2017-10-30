@@ -1315,11 +1315,10 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		int x = -1;
 		int y = -1;
 		int prox = -1;
-		int offset;
+		int offset = bytes_per_packet * i + bytes_header;
 
 		switch (features->type) {
 		case WACOM_MSPROT:
-			offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
 			prox = data[offset] & 0x1;
 			contact_id = get_unaligned_le16(&data[offset + 1]);
 			x = get_unaligned_le16(&data[offset + 3]);
@@ -1327,7 +1326,6 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			break;
 
 		case INTUOSP2:
-			offset = WACOM_BYTES_PER_INTUOSP2_PACKET * i + 2;
 			contact_id = data[offset];
 			prox = data[offset + 1] & 0x01;
 			x = get_unaligned_le16(&data[offset + 2]);
@@ -1335,7 +1333,6 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			break;
 
 		case DTH1152T:
-			offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
 			prox = data[offset] & 0x1;
 			contact_id = get_unaligned_le16(&data[offset + 1]);
 			x = get_unaligned_le16(&data[offset + 3]);

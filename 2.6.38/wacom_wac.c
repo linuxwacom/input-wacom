@@ -1142,7 +1142,8 @@ static int wacom_wac_finger_count_touches(struct wacom_wac *wacom)
 
 static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
 					    int contact_id, bool prox,
-					    int x, int y, int w, int h)
+					    int x, int y, int w, int h,
+					    int c_x, int c_y)
 {
 	struct input_dev *input = wacom->input;
 	int slot = find_slot_from_contactid(wacom, contact_id);
@@ -1163,6 +1164,12 @@ static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
 			input_report_abs(input, ABS_MT_TOUCH_MAJOR, max(w, h));
 			input_report_abs(input, ABS_MT_TOUCH_MINOR, min(w, h));
 			input_report_abs(input, ABS_MT_ORIENTATION, w > h);
+
+			if (c_x >= 0 && c_y >= 0) {
+				input_report_abs(input, ABS_MT_WIDTH_MAJOR,
+						 min(w, h) + int_dist(x, y, c_x, c_y));
+				input_report_abs(input, ABS_MT_WIDTH_MINOR, min(w, h));
+			}
 		}
 	}
 	wacom->slots[slot] = prox ? contact_id : -1;
@@ -1173,15 +1180,35 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
-	int i, current_num_contacts, contacts_to_send;
+	int current_num_contacts, contacts_to_send, contacts_per_packet;
+	int bytes_per_packet, bytes_header;
+	int i;
 
 	switch (features->type) {
+	case WACOM_24HDT:
+		current_num_contacts = data[61];
+		contacts_per_packet = 4;
+		bytes_per_packet = WACOM_BYTES_PER_24HDT_PACKET;
+		bytes_header = 1;
+		break;
+	case WACOM_27QHDT:
+		current_num_contacts = data[63];
+		contacts_per_packet = 10;
+		bytes_per_packet = WACOM_BYTES_PER_QHDTHID_PACKET;
+		bytes_header = 1;
+		break;
 	case WACOM_MSPROT:
 	case DTH1152T:
 		current_num_contacts = data[2];
+		contacts_per_packet = 5;
+		bytes_per_packet = WACOM_BYTES_PER_MSPROT_PACKET;
+		bytes_header = 3;
 		break;
 	case INTUOSP2:
 		current_num_contacts = data[1];
+		contacts_per_packet = 5;
+		bytes_per_packet = WACOM_BYTES_PER_INTUOSP2_PACKET;
+		bytes_header = 2;
 		break;
 	default:
 		return 0;
@@ -1190,7 +1217,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 	if (current_num_contacts)
 		wacom->num_contacts_left = current_num_contacts;
 
-	contacts_to_send = min(5, wacom->num_contacts_left);
+	contacts_to_send = min(contacts_per_packet, wacom->num_contacts_left);
 
 	for (i = 0; i < contacts_to_send; i++) {
 		int contact_id = -1;
@@ -1198,12 +1225,31 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		int y = -1;
 		int w = -1;
 		int h = -1;
+		int c_x = -1;
+		int c_y = -1;
 		int prox = -1;
-		int offset;
+		int offset = bytes_per_packet * i + bytes_header;
 
 		switch (features->type) {
+		case WACOM_24HDT:
+			prox = data[offset] & 0x01;
+			contact_id = data[offset + 1];
+			x   = get_unaligned_le16(&data[offset + 2]);
+			c_x = get_unaligned_le16(&data[offset + 4]);
+			y   = get_unaligned_le16(&data[offset + 6]);
+			c_y = get_unaligned_le16(&data[offset + 8]);
+			w   = get_unaligned_le16(&data[offset + 10]);
+			h   = get_unaligned_le16(&data[offset + 12]);
+			break;
+
+		case WACOM_27QHDT:
+			prox = data[offset] & 0x01;
+			contact_id = data[offset + 1];
+			x = get_unaligned_le16(&data[offset + 2]);
+			y = get_unaligned_le16(&data[offset + 4]);
+			break;
+
 		case WACOM_MSPROT:
-			offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
 			prox = data[offset] & 0x1;
 			contact_id = get_unaligned_le16(&data[offset + 1]);
 			x = get_unaligned_le16(&data[offset + 3]);
@@ -1213,7 +1259,6 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			break;
 
 		case INTUOSP2:
-			offset = WACOM_BYTES_PER_INTUOSP2_PACKET * i + 2;
 			contact_id = data[offset];
 			prox = data[offset + 1] & 0x01;
 			x = get_unaligned_le16(&data[offset + 2]);
@@ -1223,7 +1268,6 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			break;
 
 		case DTH1152T:
-			offset = WACOM_BYTES_PER_MSPROT_PACKET * i + 3;
 			prox = data[offset] & 0x1;
 			contact_id = get_unaligned_le16(&data[offset + 1]);
 			x = get_unaligned_le16(&data[offset + 3]);
@@ -1236,7 +1280,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			continue;
 		}
 
-		wacom_multitouch_generic_finger(wacom, contact_id, prox, x, y, w, h);
+		wacom_multitouch_generic_finger(wacom, contact_id, prox, x, y, w, h, c_x, c_y);
 	}
 
 	wacom->num_contacts_left -= contacts_to_send;
@@ -1246,76 +1290,6 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 	}
 
 	input_mt_report_pointer_emulation(input, true);
-	return 1;
-}
-
-static int wacom_24hdt_irq(struct wacom_wac *wacom)
-{
-	struct input_dev *input = wacom->input;
-	unsigned char *data = wacom->data;
-	int i;
-	int current_num_contacts = data[61];
-	int contacts_to_send = 0;
-	int num_contacts_left = 4; /* maximum contacts per packet */
-	int byte_per_packet = WACOM_BYTES_PER_24HDT_PACKET;
-	int y_offset = 2;
-
-	if (wacom->features.type == WACOM_27QHDT) {
-		current_num_contacts = data[63];
-		num_contacts_left = 10;
-		byte_per_packet = WACOM_BYTES_PER_QHDTHID_PACKET;
-		y_offset = 0;
-	}
-
-	/*
-	 * First packet resets the counter since only the first
-	 * packet in series will have non-zero current_num_contacts.
-	 */
-	if (current_num_contacts)
-		wacom->num_contacts_left = current_num_contacts;
-
-	contacts_to_send = min(num_contacts_left, wacom->num_contacts_left);
-
-	for (i = 0; i < contacts_to_send; i++) {
-		int offset = (byte_per_packet * i) + 1;
-		bool touch = (data[offset] & 0x1) && report_touch_events(wacom);
-		int id = data[offset + 1];
-		int slot = find_slot_from_contactid(wacom, id);
-
-		if (slot < 0)
-			continue;
-		input_mt_slot(input, slot);
-		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
-
-		if (touch) {
-			int t_x = get_unaligned_le16(&data[offset + 2]);
-			int t_y = get_unaligned_le16(&data[offset + 4 + y_offset]);
-
-			input_report_abs(input, ABS_MT_POSITION_X, t_x);
-			input_report_abs(input, ABS_MT_POSITION_Y, t_y);
-
-			if (wacom->features.type != WACOM_27QHDT) {
-				int c_x = get_unaligned_le16(&data[offset + 4]);
-				int c_y = get_unaligned_le16(&data[offset + 8]);
-				int w = get_unaligned_le16(&data[offset + 10]);
-				int h = get_unaligned_le16(&data[offset + 12]);
-
-				input_report_abs(input, ABS_MT_TOUCH_MAJOR, min(w,h));
-				input_report_abs(input, ABS_MT_WIDTH_MAJOR,
-						 min(w, h) + int_dist(t_x, t_y, c_x, c_y));
-				input_report_abs(input, ABS_MT_WIDTH_MINOR, min(w, h));
-				input_report_abs(input, ABS_MT_ORIENTATION, w > h);
-			}
-		}
-		wacom->slots[slot] = touch ? id : -1;
-	}
-	input_mt_report_pointer_emulation(input, true);
-
-	wacom->num_contacts_left -= contacts_to_send;
-	if (wacom->num_contacts_left <= 0) {
-		wacom->num_contacts_left = 0;
-		wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
-	}
 	return 1;
 }
 
@@ -2067,14 +2041,11 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 			sync = wacom_mspro_irq(wacom_wac);
 		break;
 
+	case WACOM_24HDT:
+	case WACOM_27QHDT:
 	case DTH1152T:
 	case WACOM_MSPROT:
 		sync = wacom_multitouch_generic(wacom_wac);
-		break;
-
-	case WACOM_24HDT:
-	case WACOM_27QHDT:
-		sync = wacom_24hdt_irq(wacom_wac);
 		break;
 
 	case INTUOS5S:
