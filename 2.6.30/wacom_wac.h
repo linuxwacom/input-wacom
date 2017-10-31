@@ -77,6 +77,10 @@
 #define WACOM_QUIRK_NO_INPUT		0x0002
 #define WACOM_QUIRK_MONITOR		0x0004
 
+#ifndef BTN_STYLUS3
+#define BTN_STYLUS3                     0x149
+#endif
+
 #define WACOM_INTUOSP2_RING_UNTOUCHED	0x7f
 enum {
 	PENPARTNER = 0,

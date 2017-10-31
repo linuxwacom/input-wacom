@@ -1679,6 +1679,8 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 	 * the events with.
 	 */
 	if (wacom->tool[0]) {
+		unsigned int sw_state = sw1 | (sw2 << 1);
+
 		/* Fix rotation alignment: userspace expects zero at left */
 		rotation += 1800/4;
 		if (rotation > 899)
@@ -1688,17 +1690,18 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 		tilt_x += 64;
 		tilt_y += 64;
 
-		input_report_key(input, BTN_TOUCH,    proximity ? tip         : 0);
-		input_report_key(input, BTN_STYLUS,   proximity ? sw1         : 0);
-		input_report_key(input, BTN_STYLUS2,  proximity ? sw2         : 0);
-		input_report_abs(input, ABS_X,        proximity ? x           : 0);
-		input_report_abs(input, ABS_Y,        proximity ? y           : 0);
-		input_report_abs(input, ABS_PRESSURE, proximity ? pressure    : 0);
-		input_report_abs(input, ABS_TILT_X,   proximity ? tilt_x      : 0);
-		input_report_abs(input, ABS_TILT_Y,   proximity ? tilt_y      : 0);
-		input_report_abs(input, ABS_Z,        proximity ? rotation    : 0);
-		input_report_abs(input, ABS_WHEEL,    proximity ? fingerwheel : 0);
-		input_report_abs(input, ABS_DISTANCE, proximity ? height      : 0);
+		input_report_key(input, BTN_TOUCH,    proximity ? tip           : 0);
+		input_report_key(input, BTN_STYLUS,   proximity ? sw_state == 1 : 0);
+		input_report_key(input, BTN_STYLUS2,  proximity ? sw_state == 2 : 0);
+		input_report_key(input, BTN_STYLUS3,  proximity ? sw_state == 3 : 0);
+		input_report_abs(input, ABS_X,        proximity ? x             : 0);
+		input_report_abs(input, ABS_Y,        proximity ? y             : 0);
+		input_report_abs(input, ABS_PRESSURE, proximity ? pressure      : 0);
+		input_report_abs(input, ABS_TILT_X,   proximity ? tilt_x        : 0);
+		input_report_abs(input, ABS_TILT_Y,   proximity ? tilt_y        : 0);
+		input_report_abs(input, ABS_Z,        proximity ? rotation      : 0);
+		input_report_abs(input, ABS_WHEEL,    proximity ? fingerwheel   : 0);
+		input_report_abs(input, ABS_DISTANCE, proximity ? height        : 0);
 
 		input_event(input, EV_MSC, MSC_SERIAL, wacom->serial[0]);
 		input_report_abs(input, ABS_MISC, proximity ? wacom_intuos_id_mangle(wacom->id[0]) : 0);
@@ -2051,6 +2054,12 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(BTN_STYLUS2, input_dev->keybit);
 		break;
 
+	case WACOM_MSPRO:
+		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
+		__set_bit(BTN_STYLUS3, input_dev->keybit);
+		wacom_setup_cintiq(wacom_wac);
+		break;
+
 	case WACOM_24HD:
 		__set_bit(KEY_PROG1, input_dev->keybit);
 		__set_bit(KEY_PROG2, input_dev->keybit);
@@ -2060,7 +2069,6 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case WACOM_13HD:
-	case WACOM_MSPRO:
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		/* fall through */
 
@@ -2133,6 +2141,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 			input_set_abs_params(input_dev, ABS_RY, 0, features->y_phy, 0, 0);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 		} else {
+			__set_bit(BTN_STYLUS3, input_dev->keybit);
 			wacom_wac->previous_ring = WACOM_INTUOSP2_RING_UNTOUCHED;
 		}
 	case INTUOS5:

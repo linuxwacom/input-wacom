@@ -90,6 +90,10 @@
 #define WACOM_QUIRK_MONITOR		0x0004
 #define WACOM_QUIRK_BATTERY		0x0008
 
+#ifndef BTN_STYLUS3
+#define BTN_STYLUS3                     0x149
+#endif
+
 #define WACOM_INTUOSP2_RING_UNTOUCHED	0x7f
 #define WACOM_POWER_SUPPLY_STATUS_AUTO  -1
 enum {

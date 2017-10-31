@@ -71,6 +71,10 @@
 /* largest reported tracking id */
 #define MAX_TRACKING_ID			0xffff
 
+#ifndef BTN_STYLUS3
+#define BTN_STYLUS3			0x149
+#endif
+
 #define WACOM_INTUOSP2_RING_UNTOUCHED  0x7f
 enum {
 	PENPARTNER = 0,
