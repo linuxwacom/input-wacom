@@ -1490,6 +1490,10 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 		if (rotation > 899)
 			rotation -= 1800;
 
+		/* Fix tilt zero-point: wacom_setup_cintiq declares 0..127, not -63..+64 */
+		tilt_x += 64;
+		tilt_y += 64;
+
 		input_report_key(input, BTN_TOUCH,    proximity ? tip         : 0);
 		input_report_key(input, BTN_STYLUS,   proximity ? sw1         : 0);
 		input_report_key(input, BTN_STYLUS2,  proximity ? sw2         : 0);
