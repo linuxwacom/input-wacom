@@ -2432,10 +2432,24 @@ static const struct wacom_features wacom_features_0x350 =
 	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x351 =
+	{ "Wacom Cintiq Pro 24", WACOM_PKGLEN_MSPRO, 105286, 59574, 8191, 63, /* Pen & Touch */
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x352 =
+	{ "Wacom Cintiq Pro 32", WACOM_PKGLEN_MSPRO, 140384, 79316, 8191, 63,
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x353 =
 	{ "Wacom Cintiq Pro 13FHD Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT }; /* Touch */
 static const struct wacom_features wacom_features_0x354 =
 	{ "Wacom Cintiq Pro 16UHD Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT }; /* Touch */
+static const struct wacom_features wacom_features_0x355 =
+	{ "Wacom Cintiq Pro 24 Touch", WACOM_PKGLEN_27QHDT, .type = WACOM_27QHDT, .touch_max = 10 }; /* Touch */
+static const struct wacom_features wacom_features_0x356 =
+	{ "Wacom Cintiq Pro 32 Touch", WACOM_PKGLEN_27QHDT, .type = WACOM_27QHDT, .touch_max = 10 }; /* Touch */
 static const struct wacom_features wacom_features_0x357 =
 	{ "Wacom Intuos Pro M", WACOM_PKGLEN_INTUOSP2, 44800, 29600, 8191,
 	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9 };
@@ -2448,6 +2462,11 @@ static const struct wacom_features wacom_features_0x35A =
 static const struct wacom_features wacom_features_0x368 =
 	{ "Wacom DTH-1152 Touch", WACOM_PKGLEN_27QHDT,
 	  .type = DTH1152T, .touch_max = 10 }; /* Touch */
+static const struct wacom_features wacom_features_0x37C =
+	{ "Wacom Cintiq Pro 24", WACOM_PKGLEN_MSPRO, 105286, 59574, 8191, 63, /* Pen-only */
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x6004 =
 	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800,  8000,  255,
 	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2587,12 +2606,17 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x34E) },
 	{ USB_DEVICE_WACOM(0x34F) },
 	{ USB_DEVICE_WACOM(0x350) },
+	{ USB_DEVICE_WACOM(0x351) },
+	{ USB_DEVICE_WACOM(0x352) },
 	{ USB_DEVICE_WACOM(0x353) },
 	{ USB_DEVICE_WACOM(0x354) },
+	{ USB_DEVICE_WACOM(0x355) },
+	{ USB_DEVICE_WACOM(0x356) },
 	{ USB_DEVICE_DETAILED(0x357, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x358, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x35A) },
 	{ USB_DEVICE_WACOM(0x368) },
+	{ USB_DEVICE_WACOM(0x37C) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };
