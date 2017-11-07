@@ -112,6 +112,10 @@
 #define HID_DG_TWIST                    (HID_UP_DIGITIZER | 0x41)
 #endif
 
+#ifndef BTN_STYLUS3
+#define BTN_STYLUS3                     0x149
+#endif
+
 #define WACOM_POWER_SUPPLY_STATUS_AUTO  -1
 
 #define WACOM_HID_UP_WACOMDIGITIZER     0xff0d0000
@@ -307,6 +311,8 @@ struct hid_data {
 	bool inrange_state;
 	bool invert_state;
 	bool tipswitch;
+	bool barrelswitch;
+	bool barrelswitch2;
 	int x;
 	int y;
 	int pressure;
