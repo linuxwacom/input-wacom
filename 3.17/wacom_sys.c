@@ -22,6 +22,14 @@
 #define DEV_ATTR_WO_PERM (S_IWUSR | S_IWGRP)
 #define DEV_ATTR_RO_PERM (S_IRUSR | S_IRGRP)
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
+static int wacom_hid_report_len(struct hid_report *report)
+{
+	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
+	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
+}
+#endif
+
 static int __wacom_is_usb_parent(struct usb_device *usbdev, void *ptr)
 {
 	struct hid_device *hdev = ptr;
