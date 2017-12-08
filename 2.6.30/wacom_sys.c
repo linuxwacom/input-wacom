@@ -1018,6 +1018,14 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail4;
 
+	if (wacom_wac->features.touch_max && wacom_wac->shared) {
+		if (wacom_wac->features.device_type == BTN_TOOL_DOUBLETAP ||
+		    wacom_wac->features.device_type == BTN_TOOL_TRIPLETAP) {
+			wacom_wac->shared->type = wacom_wac->features.type;
+			wacom_wac->shared->touch_input = wacom_wac->input;
+		}
+	}
+
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(intf, features);
 

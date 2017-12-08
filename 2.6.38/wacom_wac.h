@@ -189,6 +189,8 @@ struct wacom_shared {
 	unsigned touch_max;
 	int type;
 	struct input_dev *touch_input;
+	bool has_mute_touch_switch;
+	bool is_touch_on;
 };
 
 struct wacom_remote_data {

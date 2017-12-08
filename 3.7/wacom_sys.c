@@ -2028,9 +2028,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			goto fail4;
 	}
 
-	if ((wacom_wac->features.type == INTUOSHT ||
-	     wacom_wac->features.type == INTUOSHT2) &&
-	     wacom_wac->features.touch_max) {
+	if (wacom_wac->features.touch_max && wacom_wac->shared) {
 		if (wacom_wac->features.device_type == BTN_TOOL_FINGER) {
 			wacom_wac->shared->type = wacom_wac->features.type;
 			wacom_wac->shared->touch_input = wacom_wac->input;

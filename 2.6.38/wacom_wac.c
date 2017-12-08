@@ -1160,6 +1160,13 @@ static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
 	struct input_dev *input = wacom->input;
 	int slot = find_slot_from_contactid(wacom, contact_id);
 
+	if (wacom->shared->has_mute_touch_switch &&
+	    !wacom->shared->is_touch_on) {
+		if (!wacom->shared->touch_down)
+			return;
+		prox = 0;
+	}
+
 	if (slot < 0)
 		return;
 
@@ -1712,8 +1719,9 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 		    wacom->shared->type == INTUOSHT2) &&
 		    wacom->shared->touch_input &&
 		    wacom->shared->touch_max) {
+			wacom->shared->is_touch_on = !(data[5] & 0x40);
 			input_report_switch(wacom->shared->touch_input,
-					SW_MUTE_DEVICE, data[5] & 0x40);
+					SW_MUTE_DEVICE, !wacom->shared->is_touch_on);
 			input_sync(wacom->shared->touch_input);
 		}
 
@@ -1751,8 +1759,9 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 	    features->type == INTUOSHT2) &&
 	    wacom_wac->shared->touch_input &&
 	    features->touch_max) {
+		wacom_wac->shared->is_touch_on = !(data[8] & 0x40);
 		input_report_switch(wacom_wac->shared->touch_input,
-				    SW_MUTE_DEVICE, data[8] & 0x40);
+				    SW_MUTE_DEVICE, !wacom_wac->shared->is_touch_on);
 		input_sync(wacom_wac->shared->touch_input);
 	}
 
@@ -1778,6 +1787,25 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 	return 0;
 }
 
+static void wacom_mspro_touch_switch(struct wacom_wac *wacom, bool enable_touch)
+{
+	if (!wacom->shared->touch_input)
+		return;
+
+	wacom->shared->is_touch_on = enable_touch;
+	input_report_switch(wacom->shared->touch_input,
+			    SW_MUTE_DEVICE, !enable_touch);
+	input_sync(wacom->shared->touch_input);
+}
+
+static void wacom_mspro_touch_toggle(struct wacom_wac *wacom)
+{
+	if (!wacom->shared->touch_input)
+		return;
+
+	wacom_mspro_touch_switch(wacom, !wacom->shared->is_touch_on);
+}
+
 static int wacom_mspro_device_irq(struct wacom_wac *wacom)
 {
 	struct wacom *w = container_of(wacom, struct wacom, wacom_wac);
@@ -1797,6 +1825,8 @@ static int wacom_mspro_device_irq(struct wacom_wac *wacom)
 
 	wacom_notify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
 			     battery_level, bat_charging, 1, bat_charging);
+
+	wacom_mspro_touch_switch(wacom, (data[2] & 0x80));
 
 	return 0;
 }
@@ -1831,6 +1861,9 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 			buttons = 0;
 			ring = WACOM_INTUOSP2_RING_UNTOUCHED; /* No ring */
 			keys = data[1] & 0x0E; /* 0x01 shouldn't make the pad active */
+
+			if (data[1] & 0x01)
+				wacom_mspro_touch_toggle(wacom);
 
 			input_report_key(input, KEY_CONTROLPANEL, (data[1] & 0x02) != 0);
 			input_report_key(input, KEY_ONSCREEN_KEYBOARD, (data[1] & 0x04) != 0);
@@ -2468,6 +2501,11 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_STYLUS3, input_dev->keybit);
 			wacom_wac->previous_ring = WACOM_INTUOSP2_RING_UNTOUCHED;
 		}
+		else {
+			input_dev->evbit[0] |= BIT_MASK(EV_SW);
+			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
+			wacom_wac->shared->has_mute_touch_switch = true;
+		}
 		err = wacom_create_slots(wacom_wac);
 		if (err)
 			return err;
@@ -2569,6 +2607,14 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 
+		if ((features->device_type == BTN_TOOL_FINGER) &&
+		    (input_dev->id.product >= 0x353 && input_dev->id.product <= 0x356)) {
+			input_dev->evbit[0] |= BIT_MASK(EV_SW);
+			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
+			wacom_wac->shared->has_mute_touch_switch = true;
+			wacom_wac->shared->is_touch_on = true;
+		}
+
 		if (features->device_type != BTN_TOOL_PEN)
 			break;  /* no need to process stylus stuff */
 
@@ -2610,6 +2656,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		    features->device_type == BTN_TOOL_FINGER) {
 			input_dev->evbit[0] |= BIT_MASK(EV_SW);
 			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
+			wacom_wac->shared->has_mute_touch_switch = true;
 		}
 		/* fall through */
 

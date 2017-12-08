@@ -69,6 +69,7 @@
 #define WACOM_REPORT_DTUS		17
 #define WACOM_REPORT_MSPROPAD		17
 #define WACOM_REPORT_MSPRODEVICE	19
+#define WACOM_REPORT_USB		192
 #define WACOM_REPORT_VENDOR_DEF_TOUCH	33
 #define WAC_CMD_LED_CONTROL_GENERIC	50
 
@@ -164,6 +165,10 @@ struct wacom_features {
 struct wacom_shared {
 	bool stylus_in_proximity;
 	bool touch_down;
+ 	int type;
+ 	struct input_dev *touch_input;
+	bool has_mute_touch_switch;
+	bool is_touch_on;
 };
 
 struct wacom_wac {
