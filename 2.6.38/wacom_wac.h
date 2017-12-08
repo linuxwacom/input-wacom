@@ -213,6 +213,7 @@ struct wacom_wac {
 	int *slots;
 	int previous_buttons;
 	int previous_ring;
+	int previous_keys;
 };
 
 #endif

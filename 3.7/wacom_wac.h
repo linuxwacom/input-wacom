@@ -212,6 +212,7 @@ struct wacom_wac {
 	int num_contacts_left;
 	int previous_buttons;
 	int previous_ring;
+	int previous_keys;
 };
 
 #endif

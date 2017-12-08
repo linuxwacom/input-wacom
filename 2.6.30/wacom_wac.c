@@ -16,6 +16,22 @@
 #include "wacom.h"
 #include <linux/hid.h>
 
+#ifndef SW_MUTE_DEVICE
+#define SW_MUTE_DEVICE		0x0e  /* set = device disabled */
+#endif
+
+#ifndef KEY_ONSCREEN_KEYBOARD
+#define KEY_ONSCREEN_KEYBOARD	0x278
+#endif
+
+#ifndef KEY_BUTTONCONFIG
+#define KEY_BUTTONCONFIG		0x240
+#endif
+
+#ifndef KEY_CONTROLPANEL
+#define KEY_CONTROLPANEL		0x243
+#endif
+
 /* Newer Cintiq and DTU have an offset between tablet and screen areas */
 #define WACOM_DTU_OFFSET	200
 #define WACOM_CINTIQ_OFFSET	400
@@ -1553,25 +1569,39 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 	int nbuttons = features->numbered_buttons;
 	bool prox;
-	int buttons, ring, ringvalue;
+	int buttons, ring, ringvalue, keys;
 	bool active = false;
 
 	switch (nbuttons) {
 		case 11:
 			buttons = (data[1] >> 1) | (data[3] << 6);
+			ring = le16_to_cpup((__le16 *)&data[4]);
+			keys = 0;
 			break;
 		case 13:
 			buttons = data[1] | (data[3] << 8);
+			ring = le16_to_cpup((__le16 *)&data[4]);
+			keys = 0;
 			break;
 		case 9:
 			buttons = (data[1]) | (data[3] << 8);
+			ring = le16_to_cpup((__le16 *)&data[4]);
+			keys = 0;
+			break;
+		case 0:
+			buttons = 0;
+			ring = WACOM_INTUOSP2_RING_UNTOUCHED; /* No ring */
+			keys = data[1] & 0x0E; /* 0x01 shouldn't make the pad active */
+
+			input_report_key(input, KEY_CONTROLPANEL, (data[1] & 0x02) != 0);
+			input_report_key(input, KEY_ONSCREEN_KEYBOARD, (data[1] & 0x04) != 0);
+			input_report_key(input, KEY_BUTTONCONFIG, (data[1] & 0x08) != 0);
 			break;
 		default:
 			dev_warn(input->dev.parent, "%s: unsupported device #%d\n", __func__, data[0]);
 			return 0;
 	}
 
-	ring = le16_to_cpup((__le16 *)&data[4]);
 	/* Fix touchring data: userspace expects 0 at left and increasing clockwise */
 	if (input->id.product == 0x357 || input->id.product == 0x358) {
 		/* 2nd-gen Intuos Pro */
@@ -1605,12 +1635,13 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 
 	input_report_key(input, wacom->tool[1], prox ? 1 : 0);
 
-	active = (ring ^ wacom->previous_ring) || (buttons ^ wacom->previous_buttons);
+	active = (ring ^ wacom->previous_ring) || (buttons ^ wacom->previous_buttons) || (keys ^ wacom->previous_keys);
 
 	input_report_abs(input, ABS_MISC, prox ? PAD_DEVICE_ID : 0);
 
 	wacom->previous_buttons = buttons;
 	wacom->previous_ring = ring;
+	wacom->previous_keys = keys;
 
 	if (active)
 		input_event(input, EV_MSC, MSC_SERIAL, 0xffffffff);
@@ -2051,6 +2082,15 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case WACOM_MSPRO:
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		__set_bit(BTN_STYLUS3, input_dev->keybit);
+
+		if (features->numbered_buttons == 0) { /* Cintiq Pro */
+			__set_bit(KEY_CONTROLPANEL, input_dev->keybit);
+			__set_bit(KEY_ONSCREEN_KEYBOARD, input_dev->keybit);
+			__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
+
+			wacom_wac->previous_ring = WACOM_INTUOSP2_RING_UNTOUCHED;
+		}
+
 		wacom_setup_cintiq(wacom_wac);
 		break;
 
