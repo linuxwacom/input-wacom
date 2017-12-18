@@ -2086,24 +2086,8 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case WACOM_21UX2:
-		__set_bit(BTN_A, input_dev->keybit);
-		__set_bit(BTN_B, input_dev->keybit);
-		__set_bit(BTN_C, input_dev->keybit);
-		__set_bit(BTN_X, input_dev->keybit);
-		__set_bit(BTN_Y, input_dev->keybit);
-		__set_bit(BTN_Z, input_dev->keybit);
-		__set_bit(BTN_BASE, input_dev->keybit);
-		__set_bit(BTN_BASE2, input_dev->keybit);
-		/* fall through */
-
 	case WACOM_BEE:
-		__set_bit(BTN_8, input_dev->keybit);
-		__set_bit(BTN_9, input_dev->keybit);
-		/* fall through */
-
 	case CINTIQ:
-		for (i = 0; i < 8; i++)
-			__set_bit(BTN_0 + i, input_dev->keybit);
 		__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
 
 		input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
@@ -2142,18 +2126,9 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case INTUOS5L:
 	case INTUOSPM:
 	case INTUOSPL:
-		if (features->device_type == BTN_TOOL_PEN) {
-			__set_bit(BTN_7, input_dev->keybit);
-			__set_bit(BTN_8, input_dev->keybit);
-		}
-		/* fall through */
-
 	case INTUOS5S:
 	case INTUOSPS:
 		if (features->device_type == BTN_TOOL_PEN) {
-			for (i = 0; i < 7; i++)
-				__set_bit(BTN_0 + i, input_dev->keybit);
-
 			input_set_abs_params(input_dev, ABS_DISTANCE, 0,
 					      features->distance_max,
 					      features->distance_fuzz, 0);
