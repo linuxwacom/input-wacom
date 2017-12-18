@@ -1353,6 +1353,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			break;
 
 		case WACOM_MSPROT:
+		case DTH1152T:
 			prox = data[offset] & 0x1;
 			contact_id = get_unaligned_le16(&data[offset + 1]);
 			x = get_unaligned_le16(&data[offset + 3]);
@@ -1364,13 +1365,6 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			prox = data[offset + 1] & 0x01;
 			x = get_unaligned_le16(&data[offset + 2]);
 			y = get_unaligned_le16(&data[offset + 4]);
-			break;
-
-		case DTH1152T:
-			prox = data[offset] & 0x1;
-			contact_id = get_unaligned_le16(&data[offset + 1]);
-			x = get_unaligned_le16(&data[offset + 3]);
-			y = get_unaligned_le16(&data[offset + 5]);
 			break;
 
 		default:
