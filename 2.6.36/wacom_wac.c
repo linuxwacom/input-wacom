@@ -2441,7 +2441,7 @@ static const struct wacom_features wacom_features_0x358 =
 	{ "Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191,
 	  63, INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9 };
 static const struct wacom_features wacom_features_0x35A =
-	{ "Wacom DTH-1152", WACOM_PKGLEN_DTH1152, 22320, 12555, 1024,
+	{ "Wacom DTH-1152", WACOM_PKGLEN_DTH1152, 22320, 12555, 1023,
 	  0, DTH1152, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x368 =
 	{ "Wacom DTH-1152 Touch", WACOM_PKGLEN_27QHDT,
