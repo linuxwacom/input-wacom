@@ -1985,14 +1985,16 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case DTUSX:
 	case PL:
 	case DTU:
-	case DTH1152:
+		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
+		__set_bit(BTN_STYLUS2, input_dev->keybit);
 		if (features->type == DTUS) {
 			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
 		}
+		/* fall through */
+
+	case DTH1152:
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
-		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 		__set_bit(BTN_STYLUS, input_dev->keybit);
-		__set_bit(BTN_STYLUS2, input_dev->keybit);
 		break;
 
 	case PTU:
