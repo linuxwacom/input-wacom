@@ -3248,6 +3248,12 @@ static const struct wacom_features wacom_features_0x368 =
 	{ "Wacom DTH-1152 Touch", WACOM_PKGLEN_27QHDT,
 	  .type = DTH1152T, .touch_max = 10, .oVid = USB_VENDOR_ID_WACOM,
 	  .oPid = 0x35A }; /* Touch */
+static const struct wacom_features wacom_features_0x37A =
+	{ "Wacom One by Wacom S", 15200, 9500, 2047, 63,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x37B =
+	{ "Wacom One by Wacom M", 21600, 13500, 2047, 63,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x37C =
 	{ "Wacom Cintiq Pro 24", WACOM_PKGLEN_MSPRO, 105286, 59574, 8191, 63, /* Pen-only */
 	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
@@ -3446,6 +3452,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x358, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x35A) },
 	{ USB_DEVICE_WACOM(0x368) },
+	{ USB_DEVICE_WACOM(0x37A) },
+	{ USB_DEVICE_WACOM(0x37B) },
 	{ USB_DEVICE_WACOM(0x37C) },
 	{ USB_DEVICE_WACOM(0x37D) },
 	{ USB_DEVICE_WACOM(0x37E) },
