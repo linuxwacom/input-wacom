@@ -1842,6 +1842,17 @@ static int wacom_mspro_device_irq(struct wacom_wac *wacom)
 	return 0;
 }
 
+int wacom_mask_with_numbered_buttons(int nbuttons, int buttons)
+{
+	int mask = 0;
+	int i;
+
+	for (i = 0; i < nbuttons; i++)
+		mask |= buttons & (1 << i);
+
+	return mask;
+}
+
 static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
@@ -1907,6 +1918,9 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 		if (ringvalue > 71)
 			ringvalue -= 72;
 	}
+
+	/* Mask off buttons greater than nbuttons to avoid having them set prox */
+	buttons = wacom_mask_with_numbered_buttons(nbuttons, buttons);
 
 	if (ring != WACOM_INTUOSP2_RING_UNTOUCHED)
 		prox = buttons || ring;
