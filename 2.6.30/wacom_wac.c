@@ -1665,6 +1665,11 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 			ring = le16_to_cpup((__le16 *)&data[4]);
 			keys = 0;
 			break;
+		case 4:
+			buttons = data[1];
+			keys = 0;
+			ring = 0;
+			break;
 		case 9:
 			buttons = (data[1]) | (data[3] << 8);
 			ring = le16_to_cpup((__le16 *)&data[4]);
@@ -1911,6 +1916,10 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 			sync = wacom_multitouch_generic(wacom_wac);
 		else
 			sync = wacom_mspro_irq(wacom_wac);
+		break;
+
+	case INTUOSHT3:
+		sync = wacom_mspro_irq(wacom_wac);
 		break;
 
 	case WACOM_24HDT:
@@ -2378,6 +2387,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		}
 		/* fall through */
 
+	case INTUOSHT3:
 	case BAMBOO_PT:
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
@@ -2400,7 +2410,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 			}
 		}
 		if (features->device_type == BTN_TOOL_PEN) {
-			if (features->type == INTUOSHT2) {
+			if (features->type == INTUOSHT2 || features->type == INTUOSHT3) {
 				__set_bit(ABS_MISC, input_dev->absbit);
 				wacom_setup_basic_pro_pen(wacom_wac);
 			} else {
@@ -2933,6 +2943,14 @@ static const struct wacom_features wacom_features_0x368 =
 	{ "Wacom DTH-1152 Touch", WACOM_PKGLEN_27QHDT,
 	  .type = DTH1152T, .touch_max = 10, .oVid = USB_VENDOR_ID_WACOM,
 	  .oPid = 0x35A }; /* Touch */
+static const struct wacom_features wacom_features_0x374 =
+	{ "Intuos S", WACOM_PKGLEN_INTUOSP2, 15200, 9500, 4095, 63, INTUOSHT3, 4 };
+static const struct wacom_features wacom_features_0x375 =
+	{ "Intuos M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095, 63, INTUOSHT3, 4 };
+static const struct wacom_features wacom_features_0x376 =
+	{ "Intuos BT S", WACOM_PKGLEN_INTUOSP2, 15200, 9500, 4095, 63, INTUOSHT3, 4 };
+static const struct wacom_features wacom_features_0x378 =
+	{ "Intuos BT M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095, 63, INTUOSHT3, 4 };
 static const struct wacom_features wacom_features_0x37A =
 	{ "Wacom One by Wacom S", 15200, 9500, 2047, 63,
 	  BAMBOO_PT };
@@ -3122,6 +3140,10 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x358, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x35A) },
 	{ USB_DEVICE_WACOM(0x368) },
+	{ USB_DEVICE_WACOM(0x374) },
+	{ USB_DEVICE_WACOM(0x375) },
+	{ USB_DEVICE_WACOM(0x376) },
+	{ USB_DEVICE_WACOM(0x378) },
 	{ USB_DEVICE_WACOM(0x37A) },
 	{ USB_DEVICE_WACOM(0x37B) },
 	{ USB_DEVICE_WACOM(0x37C) },
