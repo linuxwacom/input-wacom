@@ -122,10 +122,8 @@ AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"
 if test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.30)"; then
 	AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.30])
-elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.36)"; then
-	WCM_KERNEL_VER="2.6.30"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.38)"; then
-	WCM_KERNEL_VER="2.6.36"
+	WCM_KERNEL_VER="2.6.30"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
 	WCM_KERNEL_VER="2.6.38"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
@@ -152,7 +150,6 @@ AC_SUBST(MODUTS)
 
 AC_CONFIG_FILES([Makefile
                  2.6.30/Makefile
-                 2.6.36/Makefile
                  2.6.38/Makefile
                  3.7/Makefile
                  3.17/Makefile
