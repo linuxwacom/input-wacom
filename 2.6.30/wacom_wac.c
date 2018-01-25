@@ -1217,6 +1217,7 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 				int x = get_unaligned_le16(&data[offset + x_offset + 7]);
 				int y = get_unaligned_le16(&data[offset + x_offset + 9]);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
 				if (wacom->last_finger == id) {
 					if (x == input->abs[ABS_X])
 						x++;
@@ -1224,6 +1225,7 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 					if (y == input->abs[ABS_Y])
 						y++;
 				}
+#endif
 
 				wacom->id[slot+1] = touch;
 				if (!wacom->id[1] && !wacom->id[2])
