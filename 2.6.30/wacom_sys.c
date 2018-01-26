@@ -266,7 +266,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							 features->type == WACOM_24HDT ||
 							 features->type == WACOM_MSPROT ||
 							 features->type == DTH1152T ||
-							 features->type == WACOM_27QHDT) {
+							 features->type == WACOM_27QHDT ||
+							 features->type == DTH2452T) {
 						/* need to reset back */
 						features->pktlen = WACOM_PKGLEN_TPC2FG;
 						if (features->type == MTTPC ||
@@ -275,7 +276,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							features->pktlen = WACOM_PKGLEN_MTTPC;
 						else if (features->type == WACOM_24HDT)
 							features->pktlen = WACOM_PKGLEN_MTOUCH;
-						else if (features->type == WACOM_MSPROT)
+						else if (features->type == WACOM_MSPROT ||
+							 features->type == DTH2452T)
 							features->pktlen = WACOM_PKGLEN_MSPROT;
 						else if (features->type == DTH1152T ||
 							 features->type == WACOM_27QHDT)
@@ -317,6 +319,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 
 					case WACOM_MSPROT:
 					case MTTPC_B:
+					case DTH2452T:
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->x_phy =
@@ -394,6 +397,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 
 					case WACOM_MSPROT:
 					case MTTPC_B:
+					case DTH2452T:
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->y_phy =

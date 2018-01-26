@@ -227,13 +227,16 @@ static int wacom_dtus_irq(struct wacom_wac *wacom)
 {
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
+	struct wacom_features *features = &wacom->features;
 	unsigned short prox, pressure = 0;
 
-	if (data[0] != WACOM_REPORT_DTUS && data[0] != WACOM_REPORT_DTUSPAD) {
+	if (data[0] != WACOM_REPORT_DTUS && data[0] != WACOM_REPORT_DTUSPAD
+			&& data[0] != WACOM_REPORT_DTK2451PAD) {
 		dev_dbg(input->dev.parent,
 			"%s: received unknown report #%d", __func__, data[0]);
 		return 0;
-	} else if (data[0] == WACOM_REPORT_DTUSPAD) {
+	} else if (data[0] == WACOM_REPORT_DTUSPAD
+			|| data[0] == WACOM_REPORT_DTK2451PAD) {
 		input_report_key(input, BTN_0, (data[1] & 0x01));
 		input_report_key(input, BTN_1, (data[1] & 0x02));
 		input_report_key(input, BTN_2, (data[1] & 0x04));
@@ -264,9 +267,15 @@ static int wacom_dtus_irq(struct wacom_wac *wacom)
 
 		input_report_key(input, BTN_STYLUS, data[1] & 0x20);
 		input_report_key(input, BTN_STYLUS2, data[1] & 0x40);
-		input_report_abs(input, ABS_X, get_unaligned_be16(&data[3]));
-		input_report_abs(input, ABS_Y, get_unaligned_be16(&data[5]));
-		pressure = ((data[1] & 0x03) << 8) | (data[2] & 0xff);
+		if (features->type  == DTK2451) {
+			pressure = get_unaligned_le16(&data[2]);
+			input_report_abs(input, ABS_X, get_unaligned_le16(&data[4]));
+			input_report_abs(input, ABS_Y, get_unaligned_le16(&data[6]));
+		} else {
+			pressure = ((data[1] & 0x03) << 8) | (data[2] & 0xff);
+			input_report_abs(input, ABS_X, get_unaligned_be16(&data[3]));
+			input_report_abs(input, ABS_Y, get_unaligned_be16(&data[5]));
+		}
 		input_report_abs(input, ABS_PRESSURE, pressure);
 		input_report_key(input, BTN_TOUCH, pressure > 10);
 
@@ -988,6 +997,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		break;
 	case WACOM_MSPROT:
 	case DTH1152T:
+	case DTH2452T:
 		current_num_contacts = data[2];
 		contacts_per_packet = 5;
 		bytes_per_packet = WACOM_BYTES_PER_MSPROT_PACKET;
@@ -1032,6 +1042,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 
 		case WACOM_MSPROT:
 		case DTH1152T:
+		case DTH2452T:
 			prox = data[offset] & 0x1;
 			contact_id = get_unaligned_le16(&data[offset + 1]);
 			x = get_unaligned_le16(&data[offset + 3]);
@@ -1853,6 +1864,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 
 	case DTUS:
 	case DTUSX:
+	case DTK2451:
 		sync = wacom_dtus_irq(wacom_wac);
 		break;
 
@@ -1890,6 +1902,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case WACOM_24HDT:
 	case WACOM_27QHDT:
 	case DTH1152T:
+	case DTH2452T:
 	case WACOM_MSPROT:
 		sync = wacom_multitouch_generic(wacom_wac);
 		break;
@@ -2279,6 +2292,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case MTTPC_B:
 	case MTTPC_C:
 	case DTH1152T:
+	case DTH2452T:
 	case WACOM_27QHDT:
 		if (features->device_type == BTN_TOOL_TRIPLETAP) {
 			for (i = 0; i < 10; i++)
@@ -2315,11 +2329,12 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case DTUS:
 	case DTUSX:
+	case DTK2451:
 	case PL:
 	case DTU:
 		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 		__set_bit(BTN_STYLUS2, input_dev->keybit);
-		if (features->type == DTUS) {
+		if (features->type == DTUS || features->type == DTK2451) {
 			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
 		}
 		/* fall through */
@@ -2907,6 +2922,21 @@ static const struct wacom_features wacom_features_0x368 =
 static const struct wacom_features wacom_features_0x37C =
 	{ "Wacom Cintiq Pro 24", WACOM_PKGLEN_MSPRO, 105286, 59574, 8191, 63, /* Pen-only */
 	  WACOM_MSPRO, 0, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x37D =
+	{ "Wacom DTH-2452", WACOM_PKGLEN_DTH1152, 53104, 30046, 2047, 0,
+	  DTK2451, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x37E };
+static const struct wacom_features wacom_features_0x37E =
+	{ "Wacom DTH-2452 Touch", WACOM_PKGLEN_MSPROT,
+	  .type = DTH2452T, .touch_max = 10, .oVid = USB_VENDOR_ID_WACOM,
+	  .oPid = 0x37D }; /* Touch */
+static const struct wacom_features wacom_features_0x382 =
+	{ "Wacom DTK-2451", WACOM_PKGLEN_DTH1152, 53104, 30046, 2047, 0,
+	  DTK2451, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -3073,6 +3103,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x35A) },
 	{ USB_DEVICE_WACOM(0x368) },
 	{ USB_DEVICE_WACOM(0x37C) },
+	{ USB_DEVICE_WACOM(0x37D) },
+	{ USB_DEVICE_WACOM(0x37E) },
+	{ USB_DEVICE_WACOM(0x382) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
