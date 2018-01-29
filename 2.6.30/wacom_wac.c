@@ -2787,7 +2787,7 @@ static const struct wacom_features wacom_features_0x4004 =
 	{ "Wacom ISDv4 4004",      WACOM_PKGLEN_MTTPC,     11060, 6220, 255, 0,
 	  MTTPC_B };
 static const struct wacom_features wacom_features_0x5000 =
-	{ "Wacom ISDv4 5000",      WACOM_PKGLEN_MTTPC,     27848, 15752, 255, 0,
+	{ "Wacom ISDv4 5000",      WACOM_PKGLEN_MTTPC,     27848, 15752, 1023, 0,
 	  MTTPC_B };
 static const struct wacom_features wacom_features_0x5002 =
 	{ "Wacom ISDv4 5002",      WACOM_PKGLEN_MTTPC,     29576, 16724,  1023, 0,
