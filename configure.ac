@@ -198,10 +198,10 @@ struct power_supply_desc test;
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"
-if test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.30)"; then
-	AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.30])
+if test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.32)"; then
+	AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.32])
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.38)"; then
-	WCM_KERNEL_VER="2.6.30"
+	WCM_KERNEL_VER="2.6.32"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
 	WCM_KERNEL_VER="2.6.38"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
@@ -227,7 +227,7 @@ AC_SUBST(RHEL7_RELEASE)
 AC_SUBST(MODUTS)
 
 AC_CONFIG_FILES([Makefile
-                 2.6.30/Makefile
+                 2.6.32/Makefile
                  2.6.38/Makefile
                  3.7/Makefile
                  3.17/Makefile
