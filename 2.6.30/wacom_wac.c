@@ -2697,7 +2697,7 @@ static const struct wacom_features wacom_features_0x32F =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x336 =
 	{ "Wacom DTU1141",         WACOM_PKGLEN_DTUS,      23672, 13403, 1023, 0,
-	  DTUS, 6,
+	  DTUS, 4,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x343 =
