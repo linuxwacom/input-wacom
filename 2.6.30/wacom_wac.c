@@ -2696,12 +2696,7 @@ static const struct wacom_features wacom_features_0x32F =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x336 =
-	{ "Wacom DTU1141",         WACOM_PKGLEN_DTUS,      23672, 13403, 1023, 0,
-	  DTUS, 4,
-	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
-	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
-static const struct wacom_features wacom_features_0x343 =
-	{ "Wacom DTK1651",         WACOM_PKGLEN_DTUS,     34816, 19759, 1023, 0,
+	{ "Wacom DTU1141",        WACOM_PKGLEN_DTUS,      23672, 13403, 1023, 0,
 	  DTUS, 4,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
@@ -2810,23 +2805,23 @@ static const struct wacom_features wacom_features_0x5090 =
 static const struct wacom_features wacom_features_0x47 =
 	{ "Wacom Intuos2 6x8",    WACOM_PKGLEN_INTUOS,    20320, 16240, 1023, 31,
 	  INTUOS };
-static const struct wacom_features wacom_features_0xD1 =
-	{ "Wacom BambooFun 2FG 4x5", WACOM_PKGLEN_BBFUN,  14720, 9200, 1023, 31,
+static const struct wacom_features wacom_features_0xD0 =
+	{ "Wacom Bamboo 2FG",     WACOM_PKGLEN_BBFUN,     14720, 9200, 1023, 31,
 	  BAMBOO_PT };
-static const struct wacom_features wacom_features_0xD4 =
-	{ "Wacom Bamboo Pen 4x5", WACOM_PKGLEN_BBFUN,     14720,  9200, 1023, 31,
+static const struct wacom_features wacom_features_0xD1 =
+	{ "Wacom BambooFun 2FG 4x5", WACOM_PKGLEN_BBFUN,     14720, 9200, 1023, 31,
 	  BAMBOO_PT };
 static const struct wacom_features wacom_features_0xD2 =
 	{ "Wacom Bamboo Craft",   WACOM_PKGLEN_BBFUN,     14720, 9200, 1023, 31,
 	  BAMBOO_PT };
 static const struct wacom_features wacom_features_0xD3 =
-	{ "Wacom BambooFun 2FG 6x8", WACOM_PKGLEN_BBFUN,  21648, 13700, 1023, 31,
+	{ "Wacom BambooFun 2FG 6x8", WACOM_PKGLEN_BBFUN,     21648, 13700, 1023, 31,
 	  BAMBOO_PT };
-static const struct wacom_features wacom_features_0xD0 =
-	{ "Wacom Bamboo 2FG",     WACOM_PKGLEN_BBFUN,     14720, 9200, 1023, 31,
+static const struct wacom_features wacom_features_0xD4 =
+	{ "Wacom Bamboo Pen 4x5",     WACOM_PKGLEN_BBFUN,     14720, 9200, 1023, 31,
 	  BAMBOO_PT };
 static const struct wacom_features wacom_features_0xD5 =
-	{ "Wacom Bamboo Pen 6x8", WACOM_PKGLEN_BBFUN, 21648, 13700, 1023, 31,
+	{ "Wacom Bamboo Pen 6x8",     WACOM_PKGLEN_BBFUN, 21648, 13700, 1023, 31,
 	  BAMBOO_PT };
 static const struct wacom_features wacom_features_0xD6 =
 	{ "Wacom BambooPT 2FG 4x5", WACOM_PKGLEN_BBFUN,   14720, 9200, 1023, 31,
@@ -2885,6 +2880,11 @@ static const struct wacom_features wacom_features_0x33D =
 static const struct wacom_features wacom_features_0x33E =
 	{ "Wacom Intuos PT M 2", WACOM_PKGLEN_INTUOS, 21600, 13500, 2047, 63,
 	  INTUOSHT2, .touch_max = 16 };
+static const struct wacom_features wacom_features_0x343 =
+	{ "Wacom DTK1651", WACOM_PKGLEN_DTUS, 34816, 19759, 1023, 0,
+	  DTUS, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x34A =
 	{ "Wacom MobileStudio Pro 13 Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34D };
@@ -2917,11 +2917,15 @@ static const struct wacom_features wacom_features_0x350 =
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x354 };
 static const struct wacom_features wacom_features_0x351 =
 	{ "Wacom Cintiq Pro 24", WACOM_PKGLEN_MSPRO, 105286, 59574, 8191, 63, /* Pen & Touch */
-	  WACOM_MSPRO, 0, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_MSPRO, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x355 };
 static const struct wacom_features wacom_features_0x352 =
 	{ "Wacom Cintiq Pro 32", WACOM_PKGLEN_MSPRO, 140384, 79316, 8191, 63,
-	  WACOM_MSPRO, 0, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_MSPRO, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x356 };
 static const struct wacom_features wacom_features_0x353 =
 	{ "Wacom Cintiq Pro 13FHD Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT,
@@ -2943,19 +2947,24 @@ static const struct wacom_features wacom_features_0x358 =
 	  INTUOSP2, 9, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x35A =
 	{ "Wacom DTH-1152", WACOM_PKGLEN_DTH1152, 22320, 12555, 1023, 0,
-	  DTH1152, .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x368 };
+	  DTH1152,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x368 };
 static const struct wacom_features wacom_features_0x368 =
 	{ "Wacom DTH-1152 Touch", WACOM_PKGLEN_27QHDT,
 	  .type = DTH1152T, .touch_max = 10, .oVid = USB_VENDOR_ID_WACOM,
 	  .oPid = 0x35A }; /* Touch */
 static const struct wacom_features wacom_features_0x374 =
-	{ "Intuos S", WACOM_PKGLEN_INTUOSP2, 15200, 9500, 4095, 63, INTUOSHT3, 4 };
+	{ "Intuos S", WACOM_PKGLEN_INTUOSP2, 15200, 9500, 4095,
+	  63, INTUOSHT3, 4 };
 static const struct wacom_features wacom_features_0x375 =
-	{ "Intuos M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095, 63, INTUOSHT3, 4 };
+	{ "Intuos M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095,
+	  63, INTUOSHT3, 4 };
 static const struct wacom_features wacom_features_0x376 =
-	{ "Intuos BT S", WACOM_PKGLEN_INTUOSP2, 15200, 9500, 4095, 63, INTUOSHT3, 4 };
+	{ "Intuos BT S", WACOM_PKGLEN_INTUOSP2, 15200, 9500, 4095,
+	  63, INTUOSHT3, 4 };
 static const struct wacom_features wacom_features_0x378 =
-	{ "Intuos BT M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095, 63, INTUOSHT3, 4 };
+	{ "Intuos BT M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095,
+	  63, INTUOSHT3, 4 };
 static const struct wacom_features wacom_features_0x37A =
 	{ "Wacom One by Wacom S", WACOM_PKGLEN_BBPEN, 15200, 9500, 2047, 63,
 	  BAMBOO_PT };
@@ -2964,10 +2973,12 @@ static const struct wacom_features wacom_features_0x37B =
 	  BAMBOO_PT };
 static const struct wacom_features wacom_features_0x37C =
 	{ "Wacom Cintiq Pro 24", WACOM_PKGLEN_MSPRO, 105286, 59574, 8191, 63, /* Pen-only */
-	  WACOM_MSPRO, 0, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+	  WACOM_MSPRO, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x37D =
-	{ "Wacom DTH-2452", WACOM_PKGLEN_DTH1152, 53104, 30046, 2047, 0,
-	  DTK2451, 4,
+	{ "Wacom DTH-2452", WACOM_PKGLEN_DTH1152, 53104, 30046, 2047,
+	  0, DTK2451, 4,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x37E };
@@ -2976,8 +2987,8 @@ static const struct wacom_features wacom_features_0x37E =
 	  .type = DTH2452T, .touch_max = 10, .oVid = USB_VENDOR_ID_WACOM,
 	  .oPid = 0x37D }; /* Touch */
 static const struct wacom_features wacom_features_0x382 =
-	{ "Wacom DTK-2451", WACOM_PKGLEN_DTH1152, 53104, 30046, 2047, 0,
-	  DTK2451, 4,
+	{ "Wacom DTK-2451", WACOM_PKGLEN_DTH1152, 53104, 30046, 2047,
+	  0, DTK2451, 4,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 
