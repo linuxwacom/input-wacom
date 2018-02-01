@@ -1933,7 +1933,6 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 	struct wacom_features *features = &wacom_wac->features;
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 	int i;
-	bool is_touch_on = value;
 	bool do_report = false;
 
 	/*
@@ -1978,16 +1977,17 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 		break;
 
 	case WACOM_HID_WD_MUTE_DEVICE:
-		if (wacom_wac->shared->touch_input && value) {
-			wacom_wac->shared->is_touch_on = !wacom_wac->shared->is_touch_on;
-			is_touch_on = wacom_wac->shared->is_touch_on;
-		}
-
-		/* fall through*/
 	case WACOM_HID_WD_TOUCHONOFF:
 		if (wacom_wac->shared->touch_input) {
+			bool *is_touch_on = &wacom_wac->shared->is_touch_on;
+
+			if (equivalent_usage == WACOM_HID_WD_MUTE_DEVICE && value)
+				*is_touch_on = !(*is_touch_on);
+			else if (equivalent_usage == WACOM_HID_WD_TOUCHONOFF)
+				*is_touch_on = value;
+
 			input_report_switch(wacom_wac->shared->touch_input,
-					    SW_MUTE_DEVICE, !is_touch_on);
+					    SW_MUTE_DEVICE, !(*is_touch_on));
 			input_sync(wacom_wac->shared->touch_input);
 		}
 		break;
@@ -4424,6 +4424,12 @@ static const struct wacom_features wacom_features_0x360 =
 static const struct wacom_features wacom_features_0x361 =
 	{ "Wacom Intuos Pro L", 62200, 43200, 8191, 63,
 	  INTUOSP2_BT, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
+static const struct wacom_features wacom_features_0x37A =
+	{ "Wacom One by Wacom S", 15200, 9500, 2047, 63,
+	  BAMBOO_PEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x37B =
+	{ "Wacom One by Wacom M", 21600, 13500, 2047, 63,
+	  BAMBOO_PEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC, .oVid = HID_ANY_ID, .oPid = HID_ANY_ID };
@@ -4592,6 +4598,8 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x343) },
 	{ BT_DEVICE_WACOM(0x360) },
 	{ BT_DEVICE_WACOM(0x361) },
+	{ USB_DEVICE_WACOM(0x37A) },
+	{ USB_DEVICE_WACOM(0x37B) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
