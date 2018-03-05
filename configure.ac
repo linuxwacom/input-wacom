@@ -117,6 +117,84 @@ elif test "$RHEL7_RELEASE" -gt "3"; then
 fi
 AC_MSG_RESULT([$RHEL7_RELEASE])
 
+dnl
+dnl # code taken from https://github.com/zfsonlinux/spl/blob/master/config/spl-build.m4
+dnl # licensed under GPL-v2.0
+dnl
+
+dnl #
+dnl # WACOM_LINUX_CONFTEST
+dnl #
+AC_DEFUN([WACOM_LINUX_CONFTEST], [
+cat confdefs.h - <<_ACEOF >conftest.c
+$1
+_ACEOF
+])
+
+dnl #
+dnl # WACOM_LANG_PROGRAM(C)([PROLOGUE], [BODY])
+dnl #
+m4_define([WACOM_LANG_PROGRAM], [
+$1
+int
+main (void)
+{
+dnl Do *not* indent the following line: there may be CPP directives.
+dnl Don't move the `;' right after for the same reason.
+$2
+  ;
+  return 0;
+}
+])
+
+dnl #
+dnl # WACOM_LINUX_COMPILE_IFELSE / like AC_COMPILE_IFELSE
+dnl #
+AC_DEFUN([WACOM_LINUX_COMPILE_IFELSE], [
+	m4_ifvaln([$1], [WACOM_LINUX_CONFTEST([$1])])
+	rm -Rf .autoconf/build && mkdir -p .autoconf/build && touch .autoconf/build/conftest.mod.c
+	echo "obj-m := conftest.o" >.autoconf/build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	AS_IF(
+		[AC_TRY_COMMAND(cp conftest.c .autoconf/build && make [$2] -C $WCM_KERNEL_DIR EXTRA_CFLAGS="-Werror-implicit-function-declaration" M=$PWD/.autoconf/build $modpost_flag) >/dev/null && AC_TRY_COMMAND([$3])],
+		[$4],
+		[_AC_MSG_LOG_CONFTEST m4_ifvaln([$5],[$5])]
+	)
+	rm -Rf build
+])
+
+dnl #
+dnl # WACOM_LINUX_TRY_COMPILE like AC_TRY_COMPILE
+dnl #
+AC_DEFUN([WACOM_LINUX_TRY_COMPILE],
+	[WACOM_LINUX_COMPILE_IFELSE(
+	[AC_LANG_SOURCE([WACOM_LANG_PROGRAM([[$1]], [[$2]])])],
+	[modules],
+	[test -s .autoconf/build/conftest.o],
+	[$3], [$4])
+])
+
+dnl
+dnl # end of copy from ZFS/spl
+dnl
+
+dnl RedHat entreprise Linux 7.5 backports powersupply functions from 4.1
+AC_MSG_CHECKING(power supply version)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/power_supply.h>
+],[
+struct power_supply_desc test;
+],[
+	HAVE_POWERSUPPLY_41=yes
+	AC_MSG_RESULT([v4.1+])
+	AC_DEFINE([WACOM_POWERSUPPLY_41], [], [kernel uses powersupply from v4.1+])
+],[
+	HAVE_POWERSUPPLY_41=no
+	AC_MSG_RESULT([pre-v4.1])
+])
+
+
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"

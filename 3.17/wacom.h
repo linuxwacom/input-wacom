@@ -85,6 +85,7 @@
  */
 #ifndef WACOM_H
 #define WACOM_H
+#include "../config.h"
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -109,10 +110,6 @@
 
 #define USB_VENDOR_ID_WACOM	0x056a
 #define USB_VENDOR_ID_LENOVO	0x17ef
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-#define WACOM_POWERSUPPLY_41
-#endif
 
 #ifdef WACOM_POWERSUPPLY_41
 #define WACOM_POWERSUPPLY_DEVICE(ps) (ps)
