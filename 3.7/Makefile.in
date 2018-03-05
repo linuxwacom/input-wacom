@@ -16,6 +16,7 @@ endif # CONFIG_USB_WACOM
 
 else  # We were called from command line
 PWD  := $(shell pwd)
+DRACUT := $(shell command -v dracut 2>/dev/null)
 
 WCM_KERNEL_DIR := @WCM_KERNEL_DIR@
 MODUTS := @MODUTS@
@@ -33,6 +34,9 @@ install modules_install:
 	mkdir -p /etc/depmod.d
 	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
+ifdef DRACUT:
+	$(DRACUT) -f /boot/initramfs-$(MODUTS).img
+endif
 
 uninstall:
 	@# Debian uses symlinks in the path to WCM_KERNEL_DIR
