@@ -120,6 +120,12 @@
 #define WACOM_POWERSUPPLY_DESC(ps) (ps)
 #endif
 
+#ifndef to_hid_device
+#define to_hid_device(pdev) \
+	container_of(pdev, struct hid_device, dev)
+#endif /* to_hid_device */
+
+
 enum wacom_worker {
 	WACOM_WORKER_WIRELESS,
 	WACOM_WORKER_BATTERY,
