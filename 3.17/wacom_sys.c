@@ -28,6 +28,8 @@ static int wacom_hid_report_len(struct hid_report *report)
 	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
 	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
 }
+#else
+#define wacom_hid_report_len(report) hid_report_len(report)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,2,0)
@@ -329,11 +331,7 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 	case WACOM_HID_WD_OFFSETRIGHT:
 	case WACOM_HID_WD_OFFSETBOTTOM:
 		/* read manually */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 		n = wacom_hid_report_len(field->report);
-#else
-		n = hid_report_len(field->report);
-#endif
 		data = hid_alloc_report_buf(field->report, GFP_KERNEL);
 		if (!data)
 			break;
@@ -584,11 +582,7 @@ static int wacom_set_device_mode(struct hid_device *hdev,
 	if (!rep_data)
 		return -ENOMEM;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 	length = wacom_hid_report_len(r);
-#else
-	length = hid_report_len(r);
-#endif
 
 	do {
 		rep_data[0] = wacom_wac->mode_report;
@@ -1997,11 +1991,7 @@ static size_t wacom_compute_pktlen(struct hid_device *hdev)
 	report_enum = hdev->report_enum + HID_INPUT_REPORT;
 
 	list_for_each_entry(report, &report_enum->report_list, list) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 		size_t report_size = wacom_hid_report_len(report);
-#else
-		size_t report_size = hid_report_len(report);
-#endif
 		if (report_size > size)
 			size = report_size;
 	}
