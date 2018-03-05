@@ -1584,7 +1584,8 @@ static void wacom_destroy_battery(struct wacom *wacom)
 {
 	if (WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
 #ifdef WACOM_POWERSUPPLY_41
-		devres_release_group(&wacom->hdev->dev, wacom->battery.battery);
+		devres_release_group(&wacom->hdev->dev,
+				     &wacom->battery.bat_desc);
 #else
 		power_supply_unregister(&wacom->battery.battery);
 #endif
