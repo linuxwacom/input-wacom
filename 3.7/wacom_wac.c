@@ -3285,10 +3285,10 @@ static const struct wacom_features wacom_features_0x378 =
 	{ "Intuos BT M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095,
 	  63, INTUOSHT3, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
 static const struct wacom_features wacom_features_0x37A =
-	{ "Wacom One by Wacom S", 15200, 9500, 2047, 63,
+	{ "Wacom One by Wacom S", WACOM_PKGLEN_BBPEN, 15200, 9500, 2047, 63,
 	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x37B =
-	{ "Wacom One by Wacom M", 21600, 13500, 2047, 63,
+	{ "Wacom One by Wacom M", WACOM_PKGLEN_BBPEN, 21600, 13500, 2047, 63,
 	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x37C =
 	{ "Wacom Cintiq Pro 24", WACOM_PKGLEN_MSPRO, 105286, 59574, 8191, 63, /* Pen-only */
