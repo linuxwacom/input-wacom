@@ -39,7 +39,7 @@
 #define WACOM_PKGLEN_MSPROT	50
 #define WACOM_PKGLEN_INTUOSP2	64
 #define WACOM_PKGLEN_INTUOSP2T	44
-#define WACOM_PKGLEN_DTH1152	16
+#define WACOM_PKGLEN_DTH1152	12
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
@@ -76,6 +76,7 @@
 #define WACOM_REPORT_MSPROPAD		17
 #define WACOM_REPORT_TPC1FGE		18
 #define WACOM_REPORT_MSPRODEVICE	19
+#define WACOM_REPORT_DTK2451PAD		21
 #define WACOM_REPORT_24HDT		1
 #define WACOM_REPORT_WL			128
 #define WACOM_REPORT_USB		192
@@ -106,6 +107,7 @@ enum {
 	DTUS,
 	DTUSX,
 	DTH1152,
+	DTK2451,
 	INTUOS,
 	INTUOS3S,
 	INTUOS3,
@@ -144,6 +146,7 @@ enum {
 	TABLETPC,   /* add new TPC below */
 	TABLETPCE,
 	TABLETPC2FG,
+	DTH2452T,
 	MTSCREEN,
 	MTTPC,
 	MTTPC_B,
@@ -189,6 +192,8 @@ struct wacom_shared {
 	unsigned touch_max;
 	int type;
 	struct input_dev *touch_input;
+	bool has_mute_touch_switch;
+	bool is_touch_on;
 };
 
 struct wacom_remote_data {
@@ -212,6 +217,7 @@ struct wacom_wac {
 	int num_contacts_left;
 	int previous_buttons;
 	int previous_ring;
+	int previous_keys;
 };
 
 #endif

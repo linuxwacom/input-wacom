@@ -416,6 +416,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						break;
 
 					case WACOM_MSPROT:
+					case DTH2452T:
 						features->pktlen = WACOM_PKGLEN_MSPROT;
 						break;
 
@@ -455,6 +456,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 
 					case WACOM_MSPROT:
 					case MTTPC_B:
+					case DTH2452T:
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->x_phy =
@@ -530,6 +532,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 
 					case WACOM_MSPROT:
 					case MTTPC_B:
+					case DTH2452T:
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
 						features->y_phy =
@@ -2035,9 +2038,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			goto fail4;
 	}
 
-	if ((wacom_wac->features.type == INTUOSHT ||
-	     wacom_wac->features.type == INTUOSHT2) &&
-	     wacom_wac->features.touch_max) {
+	if (wacom_wac->features.touch_max && wacom_wac->shared) {
 		if (wacom_wac->features.device_type == BTN_TOOL_FINGER) {
 			wacom_wac->shared->type = wacom_wac->features.type;
 			wacom_wac->shared->touch_input = wacom_wac->input;

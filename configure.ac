@@ -1,11 +1,11 @@
 AC_PREREQ(2.60)
 AC_INIT([input-wacom],
-	[0.37.1])
+	[0.38.0])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
 
-AM_INIT_AUTOMAKE([dist-bzip2 no-dist-gzip])
+AM_INIT_AUTOMAKE([dist-bzip2 no-dist-gzip foreign])
 AM_MAINTAINER_MODE
 
 AC_PROG_CC
@@ -122,10 +122,8 @@ AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"
 if test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.30)"; then
 	AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.30])
-elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.36)"; then
-	WCM_KERNEL_VER="2.6.30"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.38)"; then
-	WCM_KERNEL_VER="2.6.36"
+	WCM_KERNEL_VER="2.6.30"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
 	WCM_KERNEL_VER="2.6.38"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
@@ -152,7 +150,6 @@ AC_SUBST(MODUTS)
 
 AC_CONFIG_FILES([Makefile
                  2.6.30/Makefile
-                 2.6.36/Makefile
                  2.6.38/Makefile
                  3.7/Makefile
                  3.17/Makefile
