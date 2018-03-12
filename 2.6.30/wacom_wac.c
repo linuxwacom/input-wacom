@@ -2634,7 +2634,8 @@ static const struct wacom_features wacom_features_0xF8 =
 	{ "Wacom Cintiq 24HD touch", WACOM_PKGLEN_INTUOS,   104480, 65600, 2047, 63, /* Pen */
 	  WACOM_24HD, 16,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
-	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6 };
 static const struct wacom_features wacom_features_0xF6 =
 	{ "Wacom Cintiq 24HD touch", .type = WACOM_24HDT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10 };
@@ -2647,7 +2648,8 @@ static const struct wacom_features wacom_features_0x32B =
 	{ "Wacom Cintiq 27QHD touch", WACOM_PKGLEN_INTUOS, 120140, 67920, 2047, 63,
 	  WACOM_27QHD, 0,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
-	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x32C };
 static const struct wacom_features wacom_features_0x32C =
 	{ "Wacom Cintiq 27QHD touch", .type = WACOM_27QHDT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x32B, .touch_max = 10 };
@@ -2669,7 +2671,8 @@ static const struct wacom_features wacom_features_0x333 =
 	{ "Wacom Cintiq 13HD touch", WACOM_PKGLEN_INTUOS, 59552, 33848, 2047, 63,
 	  WACOM_13HD, 9,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
-	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x335 };
 static const struct wacom_features wacom_features_0x335 =
 	{ "Wacom Cintiq 13HD touch", .type = WACOM_24HDT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x333, .touch_max = 10 };
@@ -2711,7 +2714,8 @@ static const struct wacom_features wacom_features_0x59 = /* Pen */
 	{ "Wacom DTH2242",        WACOM_PKGLEN_INTUOS,    95840, 54260, 2047, 63,
 	  DTK, 6,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
-	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5D };
 static const struct wacom_features wacom_features_0x5D = /* Touch */
 	{ "Wacom DTH2242",       .type = WACOM_24HDT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x59, .touch_max = 10 };
@@ -2729,7 +2733,8 @@ static const struct wacom_features wacom_features_0x5B =
 	{ "Wacom Cintiq 22HDT", WACOM_PKGLEN_INTUOS,      95840, 54260, 2047, 63,
 	  WACOM_22HD, 18,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
-	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5e };
 static const struct wacom_features wacom_features_0x5E =
 	{ "Wacom Cintiq 22HDT", .type = WACOM_24HDT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5b, .touch_max = 10 };
