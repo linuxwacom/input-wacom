@@ -1368,6 +1368,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 
 static int wacom_bpt_touch(struct wacom_wac *wacom)
 {
+	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
 	int i, touch_count = 0;
@@ -1397,8 +1398,10 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 		if (touch) {
 			int x = get_unaligned_be16(&data[offset + 3]) & 0x7ff;
 			int y = get_unaligned_be16(&data[offset + 5]) & 0x7ff;
-			x <<= 5;
-			y <<= 5;
+			if (features->quirks & WACOM_QUIRK_BBTOUCH_LOWRES) {
+				x <<= 5;
+				y <<= 5;
+			}
 			input_report_abs(input, ABS_X, x);
 			input_report_abs(input, ABS_Y, y);
 		}
