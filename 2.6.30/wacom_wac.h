@@ -145,6 +145,8 @@ struct wacom_features {
 	int pressure_max;
 	int distance_max;
 	int type;
+	int x_resolution;
+	int y_resolution;
 	int numbered_buttons;
 	int offset_left;
 	int offset_right;
