@@ -725,6 +725,10 @@ static int wacom_intuos_general(struct wacom_wac *wacom)
 	unsigned char type = (data[1] >> 1) & 0x0F;
 	unsigned int x, y, distance, t;
 
+	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_CINTIQ &&
+		data[0] != WACOM_REPORT_INTUOS_PEN)
+		return 0;
+
 	if (wacom->shared->touch_down)
 		return 1;
 
