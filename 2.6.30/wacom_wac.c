@@ -482,15 +482,6 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 	} else if (features->type == WACOM_27QHD) {
 		nkeys = 3;
 		keys = data[2] & 0x07;
-
-		input_report_abs(input, ABS_X, be16_to_cpup((__be16 *)&data[4]));
-		input_report_abs(input, ABS_Y, be16_to_cpup((__be16 *)&data[6]));
-		input_report_abs(input, ABS_Z, be16_to_cpup((__be16 *)&data[8]));
-		if ((data[2] & 0x07) | data[4] | data[5] | data[6] | data[7] | data[8] | data[9]) {
-			input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
-		} else {
-			input_report_abs(input, ABS_MISC, 0);
-		}
 	} else if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
 		/*
 		 * ExpressKeys on Intuos5/Intuos Pro have a capacitive sensor in
