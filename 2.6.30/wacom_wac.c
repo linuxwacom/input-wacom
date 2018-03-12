@@ -1532,7 +1532,6 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 			wacom->tool[0] = BTN_TOOL_PEN;
 			wacom->id[0] = STYLUS_DEVICE_ID;
 		}
-		wacom->shared->stylus_in_proximity = true;
 	}
 
 	wacom->shared->stylus_in_proximity = prox;
