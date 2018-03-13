@@ -1955,6 +1955,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case TABLETPC:
 	case TABLETPCE:
 	case TABLETPC2FG:
+	case MTSCREEN:
 	case MTTPC:
 	case MTTPC_B:
 	case MTTPC_C:
@@ -2320,6 +2321,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case WACOM_MSPROT:
+	case MTSCREEN:
 	case MTTPC:
 	case MTTPC_B:
 	case MTTPC_C:
@@ -2764,6 +2766,9 @@ static const struct wacom_features wacom_features_0xE2 =
 static const struct wacom_features wacom_features_0xE3 =
 	{ "Wacom ISDv4 E3",       WACOM_PKGLEN_TPC2FG,    26202, 16325, 255, 0,
 	  TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
+static const struct wacom_features wacom_features_0xE5 =
+	{ "Wacom ISDv4 E5",       WACOM_PKGLEN_MTOUCH,    26202, 16325, 255, 0,
+	  MTSCREEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xE6 =
 	{ "Wacom ISDv4 E6",       WACOM_PKGLEN_TPC2FG,    27760, 15694, 255, 0,
 	  TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
@@ -3127,6 +3132,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xDF) },
 	{ USB_DEVICE_WACOM(0xE2) },
 	{ USB_DEVICE_WACOM(0xE3) },
+	{ USB_DEVICE_WACOM(0xE5) },
 	{ USB_DEVICE_WACOM(0xE6) },
 	{ USB_DEVICE_WACOM(0xEC) },
 	{ USB_DEVICE_WACOM(0xED) },
