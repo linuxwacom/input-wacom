@@ -2765,6 +2765,12 @@ static const struct wacom_features wacom_features_0xE3 =
 static const struct wacom_features wacom_features_0xE6 =
 	{ "Wacom ISDv4 E6",       WACOM_PKGLEN_TPC2FG,    27760, 15694, 255, 0,
 	  TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
+static const struct wacom_features wacom_features_0xEC =
+	{ "Wacom ISDv4 EC",       WACOM_PKGLEN_GRAPHIRE,  25710, 14500, 255, 0,
+	  TABLETPC,    WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0xEF =
+	{ "Wacom ISDv4 EF",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325, 255, 0,
+	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x100 =
 	{ "Wacom ISDv4 100",      WACOM_PKGLEN_MTTPC,     26202, 16325, 255, 0,
 	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2773,6 +2779,9 @@ static const struct wacom_features wacom_features_0x101 =
 	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x10D =
 	{ "Wacom ISDv4 10D",      WACOM_PKGLEN_MTTPC,     26202, 16325, 255, 0,
+	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x10E =
+	{ "Wacom ISDv4 10E",      WACOM_PKGLEN_MTTPC,     27760, 15694, 255, 0,
 	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x10F =
 	{ "Wacom ISDv4 10F",      WACOM_PKGLEN_MTTPC,     27760, 15694, 255, 0,
@@ -3114,6 +3123,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xE2) },
 	{ USB_DEVICE_WACOM(0xE3) },
 	{ USB_DEVICE_WACOM(0xE6) },
+	{ USB_DEVICE_WACOM(0xEC) },
+	{ USB_DEVICE_WACOM(0xEF) },
 	{ USB_DEVICE_WACOM(0xF0) },
 	{ USB_DEVICE_WACOM(0xF4) },
 	{ USB_DEVICE_DETAILED(0xF6, USB_CLASS_HID, 0, 0) },
@@ -3123,6 +3134,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x100) },
 	{ USB_DEVICE_WACOM(0x101) },
 	{ USB_DEVICE_WACOM(0x10D) },
+	{ USB_DEVICE_WACOM(0x10E) },
 	{ USB_DEVICE_WACOM(0x10F) },
 	{ USB_DEVICE_WACOM(0x116) },
 	{ USB_DEVICE_WACOM(0x12C) },
