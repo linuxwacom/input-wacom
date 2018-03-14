@@ -111,6 +111,10 @@
 #define USB_VENDOR_ID_LENOVO	0x17ef
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+#define WACOM_POWERSUPPLY_41
+#endif
+
+#ifdef WACOM_POWERSUPPLY_41
 #define WACOM_POWERSUPPLY_DEVICE(ps) (ps)
 #define WACOM_POWERSUPPLY_REF(ps) (ps)
 #define WACOM_POWERSUPPLY_DESC(ps) (ps##_desc)
@@ -139,7 +143,7 @@ struct wacom_group_leds {
 
 struct wacom_battery {
 	struct wacom *wacom;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+#ifdef WACOM_POWERSUPPLY_41
 	struct power_supply_desc bat_desc;
 	struct power_supply *battery;
 #else
@@ -185,11 +189,7 @@ struct wacom {
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
 	struct wacom_battery battery;
-#else
-	struct wacom_battery battery;
-#endif
 	bool resources;
 };
 

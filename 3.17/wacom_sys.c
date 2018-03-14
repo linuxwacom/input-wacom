@@ -1456,7 +1456,7 @@ static int wacom_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+#ifdef WACOM_POWERSUPPLY_41
 	struct wacom_battery *battery = power_supply_get_drvdata(psy);
 #else
 	struct wacom_battery *battery = container_of(psy, struct wacom_battery, battery);
@@ -1497,7 +1497,7 @@ static int wacom_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 static int __wacom_initialize_battery(struct wacom *wacom,
 				      struct wacom_battery *battery)
 {
@@ -1583,7 +1583,7 @@ static int wacom_initialize_battery(struct wacom *wacom)
 static void wacom_destroy_battery(struct wacom *wacom)
 {
 	if (WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+#ifdef WACOM_POWERSUPPLY_41
 		devres_release_group(&wacom->hdev->dev, wacom->battery.battery);
 #else
 		power_supply_unregister(&wacom->battery.battery);
@@ -1749,7 +1749,7 @@ static void wacom_remotes_destroy(void *data)
 	struct wacom *wacom = data;
 	struct wacom_remote *remote = wacom->remote;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 	int i;
 	unsigned long flags;
 #endif
@@ -1757,7 +1757,7 @@ static void wacom_remotes_destroy(void *data)
 	if (!remote)
 		return;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		if (remote->remotes[i].registered) {
 			spin_lock_irqsave(&remote->remote_lock, flags);
@@ -2224,7 +2224,7 @@ fail_hw_start:
 fail_remote:
 fail_leds:
 fail_register_inputs:
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 	wacom_destroy_battery(wacom);
 #endif
 fail_battery:
@@ -2323,7 +2323,7 @@ fail:
 	return;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 static void wacom_destroy_remote_battery(struct wacom_battery *battery)
 {
 	if (battery->battery.dev) {
@@ -2347,7 +2347,7 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 			remote->remotes[i].registered = false;
 			spin_unlock_irqrestore(&remote->remote_lock, flags);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+#ifdef WACOM_POWERSUPPLY_41
 			if (remote->remotes[i].battery.battery)
 				devres_release_group(&wacom->hdev->dev,
 						     &remote->remotes[i].battery.bat_desc);
@@ -2632,7 +2632,7 @@ static void wacom_remove(struct hid_device *hdev)
 	cancel_work_sync(&wacom->mode_change_work);
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 	wacom_destroy_battery(wacom);
 #endif
 	wacom_remove_shared_data(wacom);
