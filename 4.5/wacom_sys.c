@@ -42,6 +42,8 @@ static bool wacom_is_using_usb_driver(struct hid_device *hdev)
 	return hdev->bus == BUS_USB &&
 	       usb_for_each_dev(hdev, __wacom_is_usb_parent);
 }
+#else
+#define wacom_is_using_usb_driver(hdev) hid_is_using_ll_driver(hdev, &usb_hid_driver)
 #endif
 
 static int wacom_get_report(struct hid_device *hdev, u8 type, u8 *buf,
@@ -2181,11 +2183,7 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 	if ((features->type == HID_GENERIC) && !strcmp("Wacom HID", features->name)) {
 		char *product_name = wacom->hdev->name;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
-		if (hid_is_using_ll_driver(wacom->hdev, &usb_hid_driver)) {
-#else
 		if (wacom_is_using_usb_driver(wacom->hdev)) {
-#endif
 			struct usb_interface *intf = to_usb_interface(wacom->hdev->dev.parent);
 			struct usb_device *dev = interface_to_usbdev(intf);
 			product_name = dev->product;

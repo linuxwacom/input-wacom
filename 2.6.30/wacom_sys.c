@@ -263,6 +263,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							 features->type == MTTPC ||
 							 features->type == MTTPC_B ||
 							 features->type == MTTPC_C ||
+							 features->type == MTSCREEN ||
 							 features->type == WACOM_24HDT ||
 							 features->type == WACOM_MSPROT ||
 							 features->type == DTH1152T ||
@@ -274,7 +275,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						    features->type == MTTPC_B ||
 						    features->type == MTTPC_C)
 							features->pktlen = WACOM_PKGLEN_MTTPC;
-						else if (features->type == WACOM_24HDT)
+						else if (features->type == WACOM_24HDT ||
+							 features->type == MTSCREEN)
 							features->pktlen = WACOM_PKGLEN_MTOUCH;
 						else if (features->type == WACOM_MSPROT ||
 							 features->type == DTH2452T)
@@ -349,7 +351,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				} else if (pen) {
 					/* penabled only accepts exact bytes of data */
 					if (features->type == TABLETPC2FG ||
-							features->type == MTTPC)
+					    features->type == MTTPC ||
+					    features->type == MTSCREEN)
 						features->pktlen = WACOM_PKGLEN_GRAPHIRE;
 					if (features->type == BAMBOO_PT)
 						features->pktlen = WACOM_PKGLEN_BBFUN;
@@ -363,6 +366,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				if (finger) {
 					switch (features->type) {
 					case TABLETPC2FG:
+					case MTSCREEN:
 					case MTTPC:
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
