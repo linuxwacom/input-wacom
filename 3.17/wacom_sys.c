@@ -28,6 +28,8 @@ static int wacom_hid_report_len(struct hid_report *report)
 	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
 	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
 }
+#else
+#define wacom_hid_report_len(report) hid_report_len(report)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,2,0)
@@ -329,11 +331,7 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 	case WACOM_HID_WD_OFFSETRIGHT:
 	case WACOM_HID_WD_OFFSETBOTTOM:
 		/* read manually */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 		n = wacom_hid_report_len(field->report);
-#else
-		n = hid_report_len(field->report);
-#endif
 		data = hid_alloc_report_buf(field->report, GFP_KERNEL);
 		if (!data)
 			break;
@@ -584,11 +582,7 @@ static int wacom_set_device_mode(struct hid_device *hdev,
 	if (!rep_data)
 		return -ENOMEM;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 	length = wacom_hid_report_len(r);
-#else
-	length = hid_report_len(r);
-#endif
 
 	do {
 		rep_data[0] = wacom_wac->mode_report;
@@ -1050,7 +1044,7 @@ out:
 static ssize_t wacom_led_select_store(struct device *dev, int set_id,
 				      const char *buf, size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	unsigned int id;
 	int err;
@@ -1078,7 +1072,7 @@ static ssize_t wacom_led##SET_ID##_select_store(struct device *dev,	\
 static ssize_t wacom_led##SET_ID##_select_show(struct device *dev,	\
 	struct device_attribute *attr, char *buf)			\
 {									\
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);\
+	struct hid_device *hdev = to_hid_device(dev);\
 	struct wacom *wacom = hid_get_drvdata(hdev);			\
 	return scnprintf(buf, PAGE_SIZE, "%d\n",			\
 			 wacom->led.groups[SET_ID].select);		\
@@ -1114,7 +1108,7 @@ static ssize_t wacom_luminance_store(struct wacom *wacom, u8 *dest,
 static ssize_t wacom_##name##_luminance_store(struct device *dev,	\
 	struct device_attribute *attr, const char *buf, size_t count)	\
 {									\
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);\
+	struct hid_device *hdev = to_hid_device(dev);\
 	struct wacom *wacom = hid_get_drvdata(hdev);			\
 									\
 	return wacom_luminance_store(wacom, &wacom->led.field,		\
@@ -1137,7 +1131,7 @@ DEVICE_LUMINANCE_ATTR(buttons, img_lum);
 static ssize_t wacom_button_image_store(struct device *dev, int button_id,
 					const char *buf, size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	int err;
 	unsigned len;
@@ -1462,7 +1456,7 @@ static int wacom_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+#ifdef WACOM_POWERSUPPLY_41
 	struct wacom_battery *battery = power_supply_get_drvdata(psy);
 #else
 	struct wacom_battery *battery = container_of(psy, struct wacom_battery, battery);
@@ -1503,7 +1497,7 @@ static int wacom_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 static int __wacom_initialize_battery(struct wacom *wacom,
 				      struct wacom_battery *battery)
 {
@@ -1589,8 +1583,9 @@ static int wacom_initialize_battery(struct wacom *wacom)
 static void wacom_destroy_battery(struct wacom *wacom)
 {
 	if (WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-		devres_release_group(&wacom->hdev->dev, wacom->battery.battery);
+#ifdef WACOM_POWERSUPPLY_41
+		devres_release_group(&wacom->hdev->dev,
+				     &wacom->battery.bat_desc);
 #else
 		power_supply_unregister(&wacom->battery.battery);
 #endif
@@ -1602,7 +1597,7 @@ static ssize_t wacom_show_speed(struct device *dev,
 				struct device_attribute
 				*attr, char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%i\n", wacom->wacom_wac.bt_high_speed);
@@ -1612,7 +1607,7 @@ static ssize_t wacom_store_speed(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	u8 new_speed;
 
@@ -1635,8 +1630,8 @@ static ssize_t wacom_show_remote_mode(struct kobject *kobj,
 				      struct kobj_attribute *kattr,
 				      char *buf, int index)
 {
-	struct device *dev = container_of(kobj->parent, struct device, kobj);
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct device *dev = kobj_to_dev(kobj->parent);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	u8 mode;
 
@@ -1719,8 +1714,8 @@ static ssize_t wacom_store_unpair_remote(struct kobject *kobj,
 					 const char *buf, size_t count)
 {
 	unsigned char selector = 0;
-	struct device *dev = container_of(kobj->parent, struct device, kobj);
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct device *dev = kobj_to_dev(kobj->parent);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	int err;
 
@@ -1755,7 +1750,7 @@ static void wacom_remotes_destroy(void *data)
 	struct wacom *wacom = data;
 	struct wacom_remote *remote = wacom->remote;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 	int i;
 	unsigned long flags;
 #endif
@@ -1763,7 +1758,7 @@ static void wacom_remotes_destroy(void *data)
 	if (!remote)
 		return;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		if (remote->remotes[i].registered) {
 			spin_lock_irqsave(&remote->remote_lock, flags);
@@ -1997,11 +1992,7 @@ static size_t wacom_compute_pktlen(struct hid_device *hdev)
 	report_enum = hdev->report_enum + HID_INPUT_REPORT;
 
 	list_for_each_entry(report, &report_enum->report_list, list) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 		size_t report_size = wacom_hid_report_len(report);
-#else
-		size_t report_size = hid_report_len(report);
-#endif
 		if (report_size > size)
 			size = report_size;
 	}
@@ -2234,7 +2225,7 @@ fail_hw_start:
 fail_remote:
 fail_leds:
 fail_register_inputs:
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 	wacom_destroy_battery(wacom);
 #endif
 fail_battery:
@@ -2333,7 +2324,7 @@ fail:
 	return;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 static void wacom_destroy_remote_battery(struct wacom_battery *battery)
 {
 	if (battery->battery.dev) {
@@ -2350,29 +2341,29 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 	int i;
 	unsigned long flags;
 
-	spin_lock_irqsave(&remote->remote_lock, flags);
-	remote->remotes[index].registered = false;
-	spin_unlock_irqrestore(&remote->remote_lock, flags);
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-	if (WACOM_POWERSUPPLY_DEVICE(remote->remotes[index].battery.battery))
-		devres_release_group(&wacom->hdev->dev,
-				     &remote->remotes[index].battery.bat_desc);
-#else
-	if (remote->remotes[index].battery.battery.dev)
-		wacom_destroy_remote_battery(&remote->remotes[index].battery);
-#endif
-
-	if (remote->remotes[index].group.name)
-		devres_release_group(&wacom->hdev->dev,
-				     &remote->remotes[index]);
-
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		if (remote->remotes[i].serial == serial) {
+
+			spin_lock_irqsave(&remote->remote_lock, flags);
+			remote->remotes[i].registered = false;
+			spin_unlock_irqrestore(&remote->remote_lock, flags);
+
+#ifdef WACOM_POWERSUPPLY_41
+			if (remote->remotes[i].battery.battery)
+				devres_release_group(&wacom->hdev->dev,
+						     &remote->remotes[i].battery.bat_desc);
+			remote->remotes[i].battery.battery = NULL;
+#else
+			if (remote->remotes[index].battery.battery.dev)
+				wacom_destroy_remote_battery(&remote->remotes[index].battery);
+#endif
+
+			if (remote->remotes[i].group.name)
+				devres_release_group(&wacom->hdev->dev,
+						     &remote->remotes[i]);
+
 			remote->remotes[i].serial = 0;
 			remote->remotes[i].group.name = NULL;
-			remote->remotes[i].registered = false;
-			WACOM_POWERSUPPLY_DEVICE(remote->remotes[i].battery.battery) = NULL;
 			wacom->led.groups[i].select = WACOM_STATUS_UNKNOWN;
 		}
 	}
@@ -2642,7 +2633,7 @@ static void wacom_remove(struct hid_device *hdev)
 	cancel_work_sync(&wacom->mode_change_work);
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#ifndef WACOM_POWERSUPPLY_41
 	wacom_destroy_battery(wacom);
 #endif
 	wacom_remove_shared_data(wacom);

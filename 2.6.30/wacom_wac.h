@@ -25,9 +25,9 @@
 #define WACOM_PKGLEN_TPC1FG_B	10
 #define WACOM_PKGLEN_TPC2FG	14
 #define WACOM_PKGLEN_BBTOUCH	20
-#define WACOM_PKGLEN_MTOUCH	62
 #define WACOM_PKGLEN_BBTOUCH3	64
 #define WACOM_PKGLEN_BBPEN	10
+#define WACOM_PKGLEN_MTOUCH	62
 #define WACOM_PKGLEN_MTTPC	40
 #define WACOM_PKGLEN_DTUS	68
 #define WACOM_PKGLEN_PENABLED	 8
@@ -127,9 +127,12 @@ enum {
 	WACOM_MSPROT,
 	DTH1152T,
 	INTUOSP2,
-	TABLETPC,
+	INTUOSHT3,
+	TABLETPC,   /* add new TPC below */
+	TABLETPCE,
 	TABLETPC2FG,
 	DTH2452T,
+	MTSCREEN,
 	MTTPC,
 	MTTPC_B,
 	MTTPC_C,
@@ -144,6 +147,8 @@ struct wacom_features {
 	int pressure_max;
 	int distance_max;
 	int type;
+	int x_resolution;
+	int y_resolution;
 	int numbered_buttons;
 	int offset_left;
 	int offset_right;

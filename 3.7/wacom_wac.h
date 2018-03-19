@@ -141,6 +141,7 @@ enum {
 	WACOM_MSPROT,
 	DTH1152T,
 	INTUOSP2,
+	INTUOSHT3,
 	WIRELESS,
 	REMOTE,
 	TABLETPC,   /* add new TPC below */
