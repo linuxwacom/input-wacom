@@ -264,10 +264,10 @@ RELEASE
 
 	cat <<RELEASE
 $DL_URL
-MD5:  `$MD5SUM $tarball`
-SHA1: `$SHA1SUM $tarball`
-SHA256: `$SHA256SUM $tarball`
-PGP: $PGP_URL
+ MD5:  `$MD5SUM $tarbz2`
+ SHA1: `$SHA1SUM $tarbz2`
+ SHA256: `$SHA256SUM $tarbz2`
+ PGP: $PGP_URL
 
 RELEASE
 }
@@ -376,12 +376,12 @@ get_section() {
 	module_url=`echo $module_url | cut -d'/' -f3,4`
     else
 	# The look for mesa, xcb, etc...
-	module_url=`echo "$full_module_url" | $GREP -o -e "/linuxwacom/.*"`
+	module_url=`echo "$full_module_url" | $GREP -o -e "linuxwacom/.*"`
 	if [ $? -eq 0 ]; then
 	     module_url=`echo $module_url | cut -d'/' -f2,3`
 	else
 	    echo "Error: unable to locate a valid project url from \"$full_module_url\"."
-	    echo "Cannot establish url as one of linuxwacom, xorg, mesa, xcb, xf86-video-nouveau, xkeyboard-config or wayland"
+	    echo "Cannot establish url as linuxwacom"
 	    cd $top_src
 	    return 1
 	fi
@@ -723,15 +723,16 @@ Usage: $basename [options] path...
 Where "path" is a relative path to a git module, including '.'.
 
 Options:
-  --dist              make 'dist' instead of 'distcheck'; use with caution
-  --distcheck         Default, ignored for compatibility
-  --dry-run           Does everything except tagging and uploading tarballs
-  --force             Force overwriting an existing release
-  --help              Display this help and exit successfully
-  --modfile <file>    Release the git modules specified in <file>
-  --moduleset <file>  The jhbuild moduleset full pathname to be updated
-  --no-quit           Do not quit after error; just print error message
-  --user <name>@      Username of your fdo account if not configured in ssh
+  --dist                 make 'dist' instead of 'distcheck'; use with caution
+  --distcheck            Default, ignored for compatibility
+  --dry-run              Does everything except tagging and uploading tarballs
+  --force                Force overwriting an existing release
+  --help                 Display this help and exit successfully
+  --modfile <file>       Release the git modules specified in <file>
+  --moduleset <file>     The jhbuild moduleset full pathname to be updated
+  --no-quit              Do not quit after error; just print error message
+  --github <name[:pat]>  Release project to Github with username / token
+  --sourceforge <name>@  Release project to Sourceforge with username
 
 Environment variables defined by the "make" program and used by release.sh:
   MAKE        The name of the make command [make]
@@ -816,7 +817,7 @@ do
     --no-quit)
 	NO_QUIT=yes
 	;;
-    # Github username. Optional. Append colon and Personali
+    # Github username. Optional. Append colon and Personal
     # Access Token to username if 2FA is enabled on the user
     # account doing the release
     --github)
