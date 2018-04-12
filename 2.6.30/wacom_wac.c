@@ -927,12 +927,10 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 }
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
-static int input_abs_get_val(struct input_dev *input, unsigned int axis)
+static int wacom_input_abs_get_val(struct input_dev *input, unsigned int axis)
 {
 	return input->abs[axis];
 }
-#endif
 
 static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
 					    int contact_id, bool prox,
@@ -954,9 +952,9 @@ static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
 	wacom->slots[slot] = prox ? contact_id : -1;
 
 	if (wacom->last_finger != slot) {
-		if (x == input_abs_get_val(input, ABS_X))
+		if (x == wacom_input_abs_get_val(input, ABS_X))
 			x++;
-		if (y == input_abs_get_val(input, ABS_Y))
+		if (y == wacom_input_abs_get_val(input, ABS_Y))
 			y++;
 	}
 
@@ -1089,10 +1087,10 @@ static void wacom_tpc_finger_in(struct wacom_wac *wacom, unsigned char *data, in
 	int y = le16_to_cpup((__le16 *)&data[4 + finger * 2]) & 0x7fff;
 
 	if (wacom->last_finger != finger) {
-		if (x == input_abs_get_val(input, ABS_X))
+		if (x == wacom_input_abs_get_val(input, ABS_X))
 			x++;
 
-		if (y == input_abs_get_val(input, ABS_Y))
+		if (y == wacom_input_abs_get_val(input, ABS_Y))
 			y++;
 	}
 
@@ -1241,10 +1239,10 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 				int y = get_unaligned_le16(&data[offset + x_offset + 9]);
 
 				if (wacom->last_finger == id) {
-					if (x == input_abs_get_val(input, ABS_X))
+					if (x == wacom_input_abs_get_val(input, ABS_X))
 						x++;
 
-					if (y == input_abs_get_val(input, ABS_Y))
+					if (y == wacom_input_abs_get_val(input, ABS_Y))
 						y++;
 				}
 
