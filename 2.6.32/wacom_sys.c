@@ -65,28 +65,6 @@ struct hid_descriptor {
 #define WAC_CMD_LED_CONTROL	0x20
 #define WAC_CMD_RETRIES		10
 
-static int wacom_get_report(struct usb_interface *intf, u8 type, u8 id,
-			    void *buf, size_t size, unsigned int retries)
-{
-	struct usb_device *dev = interface_to_usbdev(intf);
-	int retval;
-
-	do {
-		retval = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-				USB_REQ_GET_REPORT,
-				USB_DIR_IN | USB_TYPE_CLASS |
-				USB_RECIP_INTERFACE,
-				(type << 8) + id,
-				intf->altsetting[0].desc.bInterfaceNumber,
-				buf, size, 100);
-	} while ((retval == -ETIMEDOUT || retval == -EAGAIN) && --retries);
-
-	if (retval < 0)
-		dev_err(&intf->dev, "%s - ran out of retries (last error = %d)\n",
-			__func__, retval);
-	return retval;
-}
-
 static int wacom_set_report(struct usb_interface *intf, u8 type, u8 id,
 			    void *buf, size_t size, unsigned int retries)
 {
