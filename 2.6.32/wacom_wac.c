@@ -2075,6 +2075,11 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	}
 }
 
+static inline void wacom_input_abs_set_res(struct input_dev *dev, unsigned int axis, int val)
+{
+	dev->absres[axis] = val;
+}
+
 static void wacom_abs_set_axis(struct input_dev *input_dev,
 			       struct wacom_wac *wacom_wac)
 {
@@ -2087,6 +2092,9 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 			     features->y_max - features->offset_bottom,
 			     features->y_fuzz, 0);
 
+	wacom_input_abs_set_res(input_dev, ABS_X, features->x_resolution);
+	wacom_input_abs_set_res(input_dev, ABS_Y, features->y_resolution);
+
 	if (features->device_type == BTN_TOOL_PEN) {
 		input_set_abs_params(input_dev, ABS_PRESSURE, 0,
 			features->pressure_max, features->pressure_fuzz, 0);
@@ -2096,6 +2104,10 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 				features->x_max, features->x_fuzz, 0);
 			input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0,
 				features->y_max, features->y_fuzz, 0);
+			wacom_input_abs_set_res(input_dev, ABS_MT_POSITION_X,
+					  features->x_resolution);
+			wacom_input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
+					  features->y_resolution);
 		}
 	}
 }
@@ -2261,8 +2273,6 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 			__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
-			input_set_abs_params(input_dev, ABS_RX, 0, features->x_phy, 0, 0);
-			input_set_abs_params(input_dev, ABS_RY, 0, features->y_phy, 0, 0);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 
 			input_dev->evbit[0] |= BIT_MASK(EV_SW);
@@ -2337,8 +2347,6 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case TABLETPCE:
 		if (features->device_type == BTN_TOOL_DOUBLETAP ||
 		    features->device_type == BTN_TOOL_TRIPLETAP) {
-			input_set_abs_params(input_dev, ABS_RX, 0, features->x_phy, 0, 0);
-			input_set_abs_params(input_dev, ABS_RY, 0, features->y_phy, 0, 0);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 
 			if ((input_dev->id.product >= 0x353 && input_dev->id.product <= 0x356)) {
