@@ -1478,13 +1478,13 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 		if (msg_id >= 2 && msg_id <= 17)
 		{
 			bool touch = data[offset+1] & 0x80 && !wacom->shared->stylus_in_proximity;
-			if (touch)
-				touch_count++;
 
-			/* Only 1st touch support on kernels without MT */
-			if (msg_id == 2)
+			/* Only 1st touch supported on kernels without MT */
+			if (msg_id == 2) {
 				wacom_bpt3_touch_msg(wacom, data + offset);
-			saw_touch++;
+				saw_touch++;
+				touch_count = touch;
+			}
 		} else if (msg_id == 128)
 			wacom_bpt3_button_msg(wacom, data + offset);
 
@@ -1492,10 +1492,7 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 
 	if (saw_touch) {
 		input_report_key(input, BTN_TOUCH, touch_count);
-		input_report_key(input, BTN_TOOL_FINGER, touch_count == 1);
-		input_report_key(input, BTN_TOOL_DOUBLETAP, touch_count == 2);
-		input_report_key(input, BTN_TOOL_TRIPLETAP, touch_count == 3);
-		input_report_key(input, BTN_TOOL_QUADTAP, touch_count >= 4);
+		input_report_key(input, BTN_TOOL_FINGER, touch_count);
 	}
 	wacom->shared->touch_down = touch_count > 0;
 
