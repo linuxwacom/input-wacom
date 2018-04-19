@@ -924,7 +924,11 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 
 static int wacom_input_abs_get_val(struct input_dev *input, unsigned int axis)
 {
+#ifndef WACOM_ABSACCESSOR_36
 	return input->abs[axis];
+#else
+	return input_abs_get_val(input, axis);
+#endif
 }
 
 static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
@@ -2080,7 +2084,11 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 
 static inline void wacom_input_abs_set_res(struct input_dev *dev, unsigned int axis, int val)
 {
+#ifndef WACOM_ABSACCESSOR_36
 	dev->absres[axis] = val;
+#else
+	input_abs_set_res(dev, axis, val);
+#endif
 }
 
 static void wacom_abs_set_axis(struct input_dev *input_dev,
