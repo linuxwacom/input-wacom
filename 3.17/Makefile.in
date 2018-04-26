@@ -54,8 +54,9 @@ uninstall:
 	@# which causes trouble for tools like 'rm' which don't
 	@# see the path how you might think. As a workaround,
 	@# first cd into the directory and then remove.
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom.ko*
+	cd $(WCM_KERNEL_DIR)/../extra; rm -f wacom.ko*
 	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_w8001.ko*
+	cd $(WCM_KERNEL_DIR)/../extra; rm -f hid-wacom.ko*
 	rm -f /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
