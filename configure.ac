@@ -1,6 +1,6 @@
 AC_PREREQ(2.60)
 AC_INIT([input-wacom],
-	[0.38.0])
+	[0.39.0])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
@@ -194,14 +194,29 @@ struct power_supply_desc test;
 	AC_MSG_RESULT([pre-v4.1])
 ])
 
+dnl Red Hat Enterprise Linux 6.x backports abs accessor functions from 2.6.36
+AC_MSG_CHECKING(abs accessor version)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/input.h>
+],[
+struct input_dev test;
+input_abs_get_res(&test, 0);
+],[
+	HAVE_ABSACCESSOR_36=yes
+	AC_MSG_RESULT([v2.6.36+])
+	AC_DEFINE([WACOM_ABSACCESSOR_36], [], [kernel uses abs accessor macros from v2.6.36+])
+],[
+	HAVE_ABSACCESSOR_36=no
+	AC_MSG_RESULT([pre-v2.6.36])
+])
 
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"
-if test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.30)"; then
-	AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.30])
+if test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.32)"; then
+	AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.32])
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.38)"; then
-	WCM_KERNEL_VER="2.6.30"
+	WCM_KERNEL_VER="2.6.32"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
 	WCM_KERNEL_VER="2.6.38"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
@@ -213,8 +228,8 @@ else
 fi
 
 dnl overwrite for RHEL distribution
-if test "$RHEL7_RELEASE" = "4"; then
-        WCM_KERNEL_VER="3.7 3.17"
+if test "$RHEL7_RELEASE" -ge "4"; then
+        WCM_KERNEL_VER="3.17"
 fi
 
 dnl Separate test output from file-generation output
@@ -227,7 +242,7 @@ AC_SUBST(RHEL7_RELEASE)
 AC_SUBST(MODUTS)
 
 AC_CONFIG_FILES([Makefile
-                 2.6.30/Makefile
+                 2.6.32/Makefile
                  2.6.38/Makefile
                  3.7/Makefile
                  3.17/Makefile

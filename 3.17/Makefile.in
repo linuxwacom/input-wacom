@@ -24,6 +24,7 @@ endif # CONFIG_HID_WACOM
 else  # We were called from command line
 PWD  := $(shell pwd)
 UPDATE_INITRAMFS := $(shell command -v update-initramfs 2>/dev/null)
+DRACUT := $(shell command -v dracut 2>/dev/null)
 
 WCM_KERNEL_DIR := @WCM_KERNEL_DIR@
 MODUTS := @MODUTS@
@@ -44,14 +45,18 @@ install modules_install:
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
 endif
+ifdef DRACUT:
+	$(DRACUT) -f /boot/initramfs-$(MODUTS).img
+endif
 
 uninstall:
 	@# Debian uses symlinks in the path to WCM_KERNEL_DIR
 	@# which causes trouble for tools like 'rm' which don't
 	@# see the path how you might think. As a workaround,
 	@# first cd into the directory and then remove.
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom.ko*
+	cd $(WCM_KERNEL_DIR)/../extra; rm -f wacom.ko*
 	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_w8001.ko*
+	cd $(WCM_KERNEL_DIR)/../extra; rm -f hid-wacom.ko*
 	rm -f /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS

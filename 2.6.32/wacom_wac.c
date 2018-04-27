@@ -368,7 +368,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 			}
 		}
 		if (wacom->tool[0] != BTN_TOOL_MOUSE) {
-			input_report_abs(input, ABS_PRESSURE, data[6] | ((data[7] & 0x01) << 8));
+			input_report_abs(input, ABS_PRESSURE, data[6] | ((data[7] & 0x03) << 8));
 			input_report_key(input, BTN_TOUCH, data[1] & 0x01);
 			input_report_key(input, BTN_STYLUS, data[1] & 0x02);
 			input_report_key(input, BTN_STYLUS2, data[1] & 0x04);
@@ -482,15 +482,6 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 	} else if (features->type == WACOM_27QHD) {
 		nkeys = 3;
 		keys = data[2] & 0x07;
-
-		input_report_abs(input, ABS_X, be16_to_cpup((__be16 *)&data[4]));
-		input_report_abs(input, ABS_Y, be16_to_cpup((__be16 *)&data[6]));
-		input_report_abs(input, ABS_Z, be16_to_cpup((__be16 *)&data[8]));
-		if ((data[2] & 0x07) | data[4] | data[5] | data[6] | data[7] | data[8] | data[9]) {
-			input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
-		} else {
-			input_report_abs(input, ABS_MISC, 0);
-		}
 	} else if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
 		/*
 		 * ExpressKeys on Intuos5/Intuos Pro have a capacitive sensor in
@@ -734,6 +725,10 @@ static int wacom_intuos_general(struct wacom_wac *wacom)
 	unsigned char type = (data[1] >> 1) & 0x0F;
 	unsigned int x, y, distance, t;
 
+	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_CINTIQ &&
+		data[0] != WACOM_REPORT_INTUOS_PEN)
+		return 0;
+
 	if (wacom->shared->touch_down)
 		return 1;
 
@@ -927,12 +922,14 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 }
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
-static int input_abs_get_val(struct input_dev *input, unsigned int axis)
+static int wacom_input_abs_get_val(struct input_dev *input, unsigned int axis)
 {
+#ifndef WACOM_ABSACCESSOR_36
 	return input->abs[axis];
-}
+#else
+	return input_abs_get_val(input, axis);
 #endif
+}
 
 static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
 					    int contact_id, bool prox,
@@ -954,9 +951,9 @@ static void wacom_multitouch_generic_finger(struct wacom_wac *wacom,
 	wacom->slots[slot] = prox ? contact_id : -1;
 
 	if (wacom->last_finger != slot) {
-		if (x == input_abs_get_val(input, ABS_X))
+		if (x == wacom_input_abs_get_val(input, ABS_X))
 			x++;
-		if (y == input_abs_get_val(input, ABS_Y))
+		if (y == wacom_input_abs_get_val(input, ABS_Y))
 			y++;
 	}
 
@@ -1089,10 +1086,10 @@ static void wacom_tpc_finger_in(struct wacom_wac *wacom, unsigned char *data, in
 	int y = le16_to_cpup((__le16 *)&data[4 + finger * 2]) & 0x7fff;
 
 	if (wacom->last_finger != finger) {
-		if (x == input_abs_get_val(input, ABS_X))
+		if (x == wacom_input_abs_get_val(input, ABS_X))
 			x++;
 
-		if (y == input_abs_get_val(input, ABS_Y))
+		if (y == wacom_input_abs_get_val(input, ABS_Y))
 			y++;
 	}
 
@@ -1241,10 +1238,10 @@ static void wacom_tpc_mt(struct wacom_wac *wacom)
 				int y = get_unaligned_le16(&data[offset + x_offset + 9]);
 
 				if (wacom->last_finger == id) {
-					if (x == input_abs_get_val(input, ABS_X))
+					if (x == wacom_input_abs_get_val(input, ABS_X))
 						x++;
 
-					if (y == input_abs_get_val(input, ABS_Y))
+					if (y == wacom_input_abs_get_val(input, ABS_Y))
 						y++;
 				}
 
@@ -1375,6 +1372,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 
 static int wacom_bpt_touch(struct wacom_wac *wacom)
 {
+	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
 	int i, touch_count = 0;
@@ -1404,8 +1402,10 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 		if (touch) {
 			int x = get_unaligned_be16(&data[offset + 3]) & 0x7ff;
 			int y = get_unaligned_be16(&data[offset + 5]) & 0x7ff;
-			x <<= 5;
-			y <<= 5;
+			if (features->quirks & WACOM_QUIRK_BBTOUCH_LOWRES) {
+				x <<= 5;
+				y <<= 5;
+			}
 			input_report_abs(input, ABS_X, x);
 			input_report_abs(input, ABS_Y, y);
 		}
@@ -1478,13 +1478,13 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 		if (msg_id >= 2 && msg_id <= 17)
 		{
 			bool touch = data[offset+1] & 0x80 && !wacom->shared->stylus_in_proximity;
-			if (touch)
-				touch_count++;
 
-			/* Only 1st touch support on kernels without MT */
-			if (msg_id == 2)
+			/* Only 1st touch supported on kernels without MT */
+			if (msg_id == 2) {
 				wacom_bpt3_touch_msg(wacom, data + offset);
-			saw_touch++;
+				saw_touch++;
+				touch_count = touch;
+			}
 		} else if (msg_id == 128)
 			wacom_bpt3_button_msg(wacom, data + offset);
 
@@ -1492,10 +1492,7 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 
 	if (saw_touch) {
 		input_report_key(input, BTN_TOUCH, touch_count);
-		input_report_key(input, BTN_TOOL_FINGER, touch_count == 1);
-		input_report_key(input, BTN_TOOL_DOUBLETAP, touch_count == 2);
-		input_report_key(input, BTN_TOOL_TRIPLETAP, touch_count == 3);
-		input_report_key(input, BTN_TOOL_QUADTAP, touch_count >= 4);
+		input_report_key(input, BTN_TOOL_FINGER, touch_count);
 	}
 	wacom->shared->touch_down = touch_count > 0;
 
@@ -1534,7 +1531,6 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 			wacom->tool[0] = BTN_TOOL_PEN;
 			wacom->id[0] = STYLUS_DEVICE_ID;
 		}
-		wacom->shared->stylus_in_proximity = true;
 	}
 
 	wacom->shared->stylus_in_proximity = prox;
@@ -1926,10 +1922,6 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 			sync = wacom_mspro_irq(wacom_wac);
 		break;
 
-	case INTUOSHT3:
-		sync = wacom_mspro_irq(wacom_wac);
-		break;
-
 	case WACOM_24HDT:
 	case WACOM_27QHDT:
 	case DTH1152T:
@@ -1969,6 +1961,10 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 			sync = wacom_status_irq(wacom_wac, len);
 		else
 			sync = wacom_bpt_irq(wacom_wac, len);
+		break;
+
+	case INTUOSHT3:
+		sync = wacom_mspro_irq(wacom_wac);
 		break;
 
 	default:
@@ -2083,6 +2079,15 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	}
 }
 
+static inline void wacom_input_abs_set_res(struct input_dev *dev, unsigned int axis, int val)
+{
+#ifndef WACOM_ABSACCESSOR_36
+	dev->absres[axis] = val;
+#else
+	input_abs_set_res(dev, axis, val);
+#endif
+}
+
 static void wacom_abs_set_axis(struct input_dev *input_dev,
 			       struct wacom_wac *wacom_wac)
 {
@@ -2095,6 +2100,9 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 			     features->y_max - features->offset_bottom,
 			     features->y_fuzz, 0);
 
+	wacom_input_abs_set_res(input_dev, ABS_X, features->x_resolution);
+	wacom_input_abs_set_res(input_dev, ABS_Y, features->y_resolution);
+
 	if (features->device_type == BTN_TOOL_PEN) {
 		input_set_abs_params(input_dev, ABS_PRESSURE, 0,
 			features->pressure_max, features->pressure_fuzz, 0);
@@ -2104,6 +2112,10 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 				features->x_max, features->x_fuzz, 0);
 			input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0,
 				features->y_max, features->y_fuzz, 0);
+			wacom_input_abs_set_res(input_dev, ABS_MT_POSITION_X,
+					  features->x_resolution);
+			wacom_input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
+					  features->y_resolution);
 		}
 	}
 }
@@ -2269,8 +2281,6 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 			__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
-			input_set_abs_params(input_dev, ABS_RX, 0, features->x_phy, 0, 0);
-			input_set_abs_params(input_dev, ABS_RY, 0, features->y_phy, 0, 0);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 
 			input_dev->evbit[0] |= BIT_MASK(EV_SW);
@@ -2345,8 +2355,6 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case TABLETPCE:
 		if (features->device_type == BTN_TOOL_DOUBLETAP ||
 		    features->device_type == BTN_TOOL_TRIPLETAP) {
-			input_set_abs_params(input_dev, ABS_RX, 0, features->x_phy, 0, 0);
-			input_set_abs_params(input_dev, ABS_RY, 0, features->y_phy, 0, 0);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 
 			if ((input_dev->id.product >= 0x353 && input_dev->id.product <= 0x356)) {
