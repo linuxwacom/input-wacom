@@ -2056,8 +2056,14 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 			features->device_type = BTN_TOOL_DOUBLETAP;
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 
-			features->x_max = 4096;
-			features->y_max = 4096;
+			if (features->type == INTUOSHT2) {
+				features->x_max = features->x_max / 10;
+				features->y_max = features->y_max / 10;
+			}
+			else {
+				features->x_max = 4096;
+				features->y_max = 4096;
+			}
 		} else {
 			features->device_type = BTN_TOOL_PEN;
 		}
