@@ -734,6 +734,7 @@ struct wacom_hdev_data {
 static LIST_HEAD(wacom_udev_list);
 static DEFINE_MUTEX(wacom_udev_list_lock);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,19,0)
 static bool compare_device_paths(struct hid_device *hdev_a,
 		struct hid_device *hdev_b, char separator)
 {
@@ -745,6 +746,9 @@ static bool compare_device_paths(struct hid_device *hdev_a,
 
 	return !strncmp(hdev_a->phys, hdev_b->phys, n1);
 }
+#else
+#define compare_device_paths(a, b, sep) hid_compare_device_paths(a, b, sep)
+#endif
 
 static bool wacom_are_sibling(struct hid_device *hdev,
 		struct hid_device *sibling)
