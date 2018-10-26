@@ -92,6 +92,7 @@ enum {
 	PL,
 	DTU,
 	DTUS,
+	DTUS2,
 	DTUSX,
 	DTH1152,
 	DTK2451,

@@ -339,6 +339,20 @@ static int wacom_dth1152_irq(struct wacom_wac *wacom)
 	unsigned short prox, pressure = 0;
 
 	if (data[0] != WACOM_REPORT_DTUS) {
+		if (data[0] == WACOM_REPORT_DTUSPAD) {
+			input_report_key(input, BTN_0, (data[1] & 0x01));
+			input_report_key(input, BTN_1, (data[1] & 0x02));
+			input_report_key(input, BTN_2, (data[1] & 0x04));
+			input_report_key(input, BTN_3, (data[1] & 0x08));
+			input_report_abs(input, ABS_MISC,
+				 data[1] & 0x0f ? PAD_DEVICE_ID : 0);
+			/*
+			 * Serial number is required when expresskeys are
+			 * reported through pen interface.
+			 */
+			input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
+			return 1;
+		}
 		dev_dbg(input->dev.parent,
 			"%s: received unknown report #%d", __func__, data[0]);
 		return 0;
@@ -1631,24 +1645,31 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
-	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
+	int x = 0, y = 0, p = 0, d = 0;
+	bool pen = false, btn1 = false, btn2 = false;
+	bool range, prox, rdy;
 
 	if (data[0] != WACOM_REPORT_PENABLED)
 	    return 0;
 
-	prox = (data[1] & 0x20) == 0x20;
+	range = (data[1] & 0x80) == 0x80;
+	prox = (data[1] & 0x40) == 0x40;
+	rdy = (data[1] & 0x20) == 0x20;
 
-	/*
-	 * All reports shared between PEN and RUBBER tool must be
-	 * forced to a known starting value (zero) when transitioning to
-	 * out-of-prox.
-	 *
-	 * If not reset then, to userspace, it will look like lost events
-	 * if new tool comes in-prox with same values as previous tool sent.
-	 *
-	 * Hardware does report zero in most out-of-prox cases but not all.
-	 */
-	if (!wacom->shared->stylus_in_proximity) {
+	wacom->shared->stylus_in_proximity = range;
+	if (delay_pen_events(wacom))
+		return 0;
+
+	if (rdy) {
+		p = le16_to_cpup((__le16 *)&data[6]);
+		pen = data[1] & 0x01;
+		btn1 = data[1] & 0x02;
+		btn2 = data[1] & 0x04;
+	}
+	if (prox) {
+		x = le16_to_cpup((__le16 *)&data[2]);
+		y = le16_to_cpup((__le16 *)&data[4]);
+
 		if (data[1] & 0x08) {
 			wacom->tool[0] = BTN_TOOL_RUBBER;
 			wacom->id[0] = ERASER_DEVICE_ID;
@@ -1656,16 +1677,9 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 			wacom->tool[0] = BTN_TOOL_PEN;
 			wacom->id[0] = STYLUS_DEVICE_ID;
 		}
+		wacom->reporting_data = true;
 	}
-
-	wacom->shared->stylus_in_proximity = prox;
-	if (delay_pen_events(wacom))
-		return 0;
-
-	if (prox) {
-		x = le16_to_cpup((__le16 *)&data[2]);
-		y = le16_to_cpup((__le16 *)&data[4]);
-		p = le16_to_cpup((__le16 *)&data[6]);
+	if (range) {
 		/*
 		 * Convert distance from out prox to distance from tablet.
 		 * distance will be greater than distance_max once
@@ -1674,25 +1688,29 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 		 */
 		if (data[8] <= features->distance_max)
 			d = features->distance_max - data[8];
-
-		pen = data[1] & 0x01;
-		btn1 = data[1] & 0x02;
-		btn2 = data[1] & 0x04;
 	} else {
 		wacom->id[0] = 0;
 	}
 
-	input_report_key(input, BTN_TOUCH, pen);
-	input_report_key(input, BTN_STYLUS, btn1);
-	input_report_key(input, BTN_STYLUS2, btn2);
+	if (wacom->reporting_data) {
+		input_report_key(input, BTN_TOUCH, pen);
+		input_report_key(input, BTN_STYLUS, btn1);
+		input_report_key(input, BTN_STYLUS2, btn2);
 
-	input_report_abs(input, ABS_X, x);
-	input_report_abs(input, ABS_Y, y);
-	input_report_abs(input, ABS_PRESSURE, p);
-	input_report_abs(input, ABS_DISTANCE, d);
+		if (prox || !range) {
+			input_report_abs(input, ABS_X, x);
+			input_report_abs(input, ABS_Y, y);
+		}
+		input_report_abs(input, ABS_PRESSURE, p);
+		input_report_abs(input, ABS_DISTANCE, d);
 
-	input_report_key(input, wacom->tool[0], prox); /* PEN or RUBBER */
-	input_report_abs(input, ABS_MISC, wacom->id[0]); /* TOOL ID */
+		input_report_key(input, wacom->tool[0], range); /* PEN or RUBBER */
+		input_report_abs(input, ABS_MISC, wacom->id[0]); /* TOOL ID */
+	}
+
+	if (!range) {
+		wacom->reporting_data = false;
+	}
 
 	return 1;
 }
@@ -2094,6 +2112,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		sync = wacom_dtus_irq(wacom_wac);
 		break;
 
+	case DTUS2:
 	case DTH1152:
 		sync = wacom_dth1152_irq(wacom_wac);
 		break;
@@ -2268,8 +2287,14 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 			features->device_type = BTN_TOOL_FINGER;
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 
-			features->x_max = 4096;
-			features->y_max = 4096;
+			if (features->type == INTUOSHT2) {
+				features->x_max = features->x_max / 10;
+				features->y_max = features->y_max / 10;
+			}
+			else {
+				features->x_max = 4096;
+				features->y_max = 4096;
+			}
 		} else {
 			features->device_type = BTN_TOOL_PEN;
 		}
@@ -2658,14 +2683,16 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case DTUS:
-	case DTUSX:
+	case DTUS2:
 	case DTK2451:
+		input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
+
+	case DTUSX:
 	case PL:
 	case DTU:
-		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
-		__set_bit(BTN_STYLUS2, input_dev->keybit);
-		if (features->type == DTUS || features->type == DTK2451) {
-			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
+		if (features->type != DTUS2) {
+			__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
+			__set_bit(BTN_STYLUS2, input_dev->keybit);
 		}
 		/* fall through */
 
@@ -3334,6 +3361,9 @@ static const struct wacom_features wacom_features_0x357 =
 static const struct wacom_features wacom_features_0x358 =
 	{ "Wacom Intuos Pro L", WACOM_PKGLEN_INTUOSP2, 62200, 43200, 8191, 63,
 	  INTUOSP2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
+static const struct wacom_features wacom_features_0x359 =
+	{ "Wacom DTU-1141B", WACOM_PKGLEN_DTH1152, 22320, 12555, 1023, 0,
+	  DTUS2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
 static const struct wacom_features wacom_features_0x35A =
 	{ "Wacom DTH-1152", WACOM_PKGLEN_DTH1152, 22320, 12555, 1023, 0,
 	  DTH1152, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
@@ -3556,6 +3586,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x356) },
 	{ USB_DEVICE_DETAILED(0x357, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x358, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x359) },
 	{ USB_DEVICE_WACOM(0x35A) },
 	{ USB_DEVICE_WACOM(0x368) },
 	{ USB_DEVICE_WACOM(0x374) },
