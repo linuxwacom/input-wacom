@@ -97,86 +97,6 @@ fi
 }
 
 #------------------------------------------------------------------------------
-#			Function: release_to_sourceforge
-#------------------------------------------------------------------------------
-#
-release_to_sourceforge () {
-
-    # Some hostnames are also used as /srv subdirs
-    host_linuxwacom="shell.sourceforge.net"
-
-    section_path=archive/individual/$section
-    srv_path="/srv/$host_current/$section_path"
-
-    if [ x"$section" = xxf86-input-wacom ] ||
-       [ x"$section" = xinput-wacom ] ||
-       [ x"$section" = xlibwacom ]; then
-        # input-wacom files are in a subdirectory for whatever reason
-        if [ x"$section" = xinput-wacom ]; then
-            section="xf86-input-wacom/input-wacom"
-        fi
-
-        hostname=$host_linuxwacom
-        host_current="sourceforge.net"
-        section_path="projects/linuxwacom/files/$section"
-        srv_path="/home/frs/project/linuxwacom/$section"
-
-        echo "creating shell on sourceforge for $SF_USERNAME"
-        ssh ${SF_USERNAME%@},linuxwacom@$hostname create
-        #echo "Simply log out once you get to the prompt"
-        #ssh -t ${SF_USERNAME%@},linuxwacom@$hostname create
-        #echo "Sleeping for 30 seconds, because this sometimes helps against sourceforge's random authentication denials"
-        #sleep 30
-    fi
-
-    # Use personal web space on the host for unit testing (leave commented out)
-    # srv_path="~/public_html$srv_path"
-
-    # Check that the server path actually does exist
-    ssh $SF_USERNAME$hostname ls $srv_path >/dev/null 2>&1 ||
-    if [ $? -ne 0 ]; then
-	echo "Error: the path \"$srv_path\" on the web server does not exist."
-	cd $top_src
-	return 1
-    fi
-
-    # Check for already existing tarballs
-    for tarball in $targz $tarbz2 $tarxz; do
-	ssh $SF_USERNAME$hostname ls $srv_path/$tarball  >/dev/null 2>&1
-	if [ $? -eq 0 ]; then
-	    if [ "x$FORCE" = "xyes" ]; then
-		echo "Warning: overwriting released tarballs due to --force option."
-	    else
-		echo "Error: tarball $tar_name already exists. Use --force to overwrite."
-		cd $top_src
-		return 1
-	    fi
-	fi
-    done
-
-    # Upload to host using the 'scp' remote file copy program
-    if [ x"$DRY_RUN" = x ]; then
-	echo "Info: uploading tarballs to web server:"
-	scp $targz $tarbz2 $tarxz $siggz $sigbz2 $sigxz $SF_USERNAME$hostname:$srv_path
-	if [ $? -ne 0 ]; then
-	    echo "Error: the tarballs uploading failed."
-	    cd $top_src
-	    return 1
-	fi
-    else
-	echo "Info: skipping tarballs uploading in dry-run mode."
-	echo "      \"$srv_path\"."
-    fi
-
-    host_current="sourceforge.net"
-    section_path="projects/linuxwacom/files/$section"
-    # DL_URL & PGP_URL will be overwritten by the Github download url if github was
-    # enabled on the command line
-    DL_URL="http://$host_current/$section_path/$tarbz2"
-    PGP_URL="http://$host_current/$section_path/$tarbz2.sig"
-}
-
-#------------------------------------------------------------------------------
 #			Function: check_json_message
 #------------------------------------------------------------------------------
 #
@@ -649,13 +569,7 @@ process_module() {
 	echo "Info: skipped pushing tag \"$tag_name\" to the remote repository in dry-run mode."
     fi
 
-    if [ -n "$SF_USERNAME" ]; then
-        release_to_sourceforge
-    fi
-
-    if [ -n "$GH_USERNAME" ]; then
-        release_to_github
-    fi
+    release_to_github
 
     # --------- Generate the announce e-mail ------------------
     # Failing to generate the announce is not considered a fatal error
@@ -732,7 +646,6 @@ Options:
   --moduleset <file>     The jhbuild moduleset full pathname to be updated
   --no-quit              Do not quit after error; just print error message
   --github <name[:pat]>  Release project to Github with username / token
-  --sourceforge <name>@  Release project to Sourceforge with username
 
 Environment variables defined by the "make" program and used by release.sh:
   MAKE        The name of the make command [make]
@@ -824,12 +737,6 @@ do
 	GH_USERNAME=$2
 	shift
 	;;
-    # Sourceforge username. Optional.
-    --sourceforge)
-	check_option_args $1 $2
-	shift
-	SF_USERNAME=$1
-	;;
     --*)
 	echo ""
 	echo "Error: unknown option: $1"
@@ -859,9 +766,9 @@ do
     shift
 done
 
-if [[ x$GH_USERNAME = "x" ]] && [[ x$SF_USERNAME = "x" ]] ; then
-    echo "At least one of --github or --sourceforge option required";
-    exit 1;
+if [[ x$GH_USERNAME = "x" ]] ; then
+    GH_USERNAME=`whoami`
+    echo "--github <username> missing, using local username as github username"
 fi
 
 # If no modules specified (blank cmd line) display help
