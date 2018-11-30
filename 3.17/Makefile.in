@@ -29,6 +29,9 @@ DRACUT := $(shell command -v dracut 2>/dev/null)
 WCM_KERNEL_DIR := @WCM_KERNEL_DIR@
 MODUTS := @MODUTS@
 WCM_KERNEL_VER := @WCM_KERNEL_VER@
+MODSIGN_HASHALGO := @MODSIGN_HASHALGO@
+MODSIGN_PRIVFILE := @MODSIGN_PRIVFILE@
+MODSIGN_CERTFILE := @MODSIGN_CERTFILE@
 
 all:
 	@echo '    Building input-wacom drivers for $(WCM_KERNEL_VER) kernel.'
@@ -37,7 +40,13 @@ all:
 clean:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) clean
 
-install modules_install:
+signature: all
+	if test -n "$(MODSIGN_HASHALGO)" -a -n "$(MODSIGN_PRIVFILE)" -a -n "$(MODSIGN_CERTFILE)"; then \
+	    $(WCM_KERNEL_DIR)/scripts/sign-file "$(MODSIGN_HASHALGO)" "$(MODSIGN_PRIVFILE)" "$(MODSIGN_CERTFILE)" wacom.ko; \
+	    $(WCM_KERNEL_DIR)/scripts/sign-file "$(MODSIGN_HASHALGO)" "$(MODSIGN_PRIVFILE)" "$(MODSIGN_CERTFILE)" wacom_w8001.ko; \
+	fi
+
+install modules_install: signature
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) modules_install
 	mkdir -p /etc/depmod.d
 	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
@@ -78,5 +87,6 @@ distdir:
 
 EMPTY_AUTOMAKE_TARGETS = install-data install-exec uninstall install-info
 EMPTY_AUTOMAKE_TARGETS += installdirs check dvi pdf ps info html tags ctags mostlyclean maintainer-clean
+EMPTY_AUTOMAKE_TARGETS += signature
 .PHONY: $(EMPTY_AUTOMAKE_TARGETS)
 	$(EMPTY_AUTOMAKE_TARGETS):

@@ -6,6 +6,7 @@ AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
 
 AM_INIT_AUTOMAKE([dist-bzip2 no-dist-gzip foreign])
+AM_EXTRA_RECURSIVE_TARGETS([signature])
 AM_MAINTAINER_MODE
 
 AC_PROG_CC
@@ -232,6 +233,98 @@ if test "$RHEL7_RELEASE" -ge "4"; then
         WCM_KERNEL_VER="3.17"
 fi
 
+dnl =======================================================
+dnl Module signing
+
+AC_MSG_CHECKING(kernel sig_enforce parameter)
+SIG_KERNEL=$(cat /sys/module/module/parameters/sig_enforce 2>/dev/null || echo "(unknown)")
+AC_MSG_RESULT([$SIG_KERNEL])
+
+AC_MSG_CHECKING(mokutil sb-state)
+SIG_MOK=$(mokutil --sb-state 2>/dev/null || echo "(unknown)")
+AC_MSG_RESULT([$SIG_MOK])
+
+SIG_REQUIRED=$(( $(echo "$SIG_KERNEL" | grep -q "Y" && echo "1" || echo "0") + \
+                 $(echo "$SIG_MOK" | grep -q "enabled" && echo "1" || echo "0") \
+              ))
+
+MODSIGN_ENABLE=default
+MODSIGN_HASHALGO=
+MODSIGN_PRIVFILE=
+MODSIGN_CERTFILE=
+
+AC_ARG_ENABLE(module-signing,
+	AS_HELP_STRING([--disable-module-signing], [Disable automatic module signing]),
+	[MODSIGN_ENABLE="$enableval"])
+AC_ARG_WITH(hash-algorithm,
+	AS_HELP_STRING([--with-hash-algorithm=<alg>], [Specify module signing hash algorithm]),
+	[MODSIGN_HASHALGO="$withval"])
+AC_ARG_WITH(signing-key,
+	AS_HELP_STRING([--with-signing-key=<trusted.priv>], [Specify module signing key location]),
+	[MODSIGN_PRIVFILE="$withval"])
+AC_ARG_WITH(signing-cert,
+	AS_HELP_STRING([--with-signing-cert=<trusted.der>], [Specify module signing cert location]),
+	[MODSIGN_CERTFILE="$withval"])
+
+if test "$MODSIGN_ENABLE" = "yes" -o "$MODSIGN_ENABLE" = "default"; then
+	if test "$MODSIGN_HASHALGO" = "yes" -o -z "$MODSIGN_HASHALGO"; then
+		MODSIGN_HASHALGO="sha512"
+	fi
+
+	# There is no standard location for storing kernel signing keys
+	# and certificates. The kernel itself has CONFIG_MODULE_SIG_KEY
+	# (which contains a key and cert) which likely points to a file
+	# that doesn't exist unless you built the kernel yourself. Most
+	# distributions use the "shim" bootloader which allows "machine
+	# owner keys" (MOK) to be enrolled by the end-user, but only
+	# Ubuntu provides a tool to automatically generate these keys
+	# (`update-secureboot-policy --new-key`); other distros rely on
+	# the user generating the key/cert themselves and keeping it in a
+	# suitably-safe location.
+	#
+	# The kernel should automatically try to sign modules as part of
+	# the `make modules_install` step, so that covers the first case.
+	# In the second case the best we can do is try Ubuntu's location.
+
+	if test "$MODSIGN_PRIVFILE" = "yes" -o -z "$MODSIGN_PRIVFILE"; then
+		MODSIGN_PRIVFILE=$(ls /var/lib/shim-signed/mok/MOK.priv 2>/dev/null || echo "$MODSIGN_PRIVFILE")
+	fi
+	if test "$MODSIGN_CERTFILE" = "yes" -o -z "$MODSIGN_CERTFILE"; then
+		MODSIGN_CERTFILE=$(ls /var/lib/shim-signed/mok/MOK.der 2>/dev/null || echo "$MODSIGN_CERTFILE")
+	fi
+
+	AC_MSG_CHECKING(for module signing hash algorithm)
+	AC_MSG_RESULT([$MODSIGN_HASHALGO])
+	AC_MSG_CHECKING(for module signing key)
+	AC_MSG_RESULT([$MODSIGN_PRIVFILE])
+	AC_MSG_CHECKING(for module signing certificate)
+	AC_MSG_RESULT([$MODSIGN_CERTFILE])
+
+	if test ! -f "$MODSIGN_PRIVFILE" -o ! -f "$MODSIGN_CERTFILE"; then
+		AC_MSG_WARN([Module signing key and/or certificate missing.])
+
+		if test "$MODSIGN_ENABLE" = "yes"; then
+			AC_MSG_ERROR([Unable to honor explicit request for module signing.])
+		fi
+
+		if test "$SIG_REQUIRED" -gt 0; then
+			AC_MSG_ERROR([Kernel is configured to only load dnl
+signed modules but we are unable to produce a signed module. Either (1) dnl
+re-run configure with the options '--with-signing-key=<key>' and dnl
+'--with-signing-cert=<cert>' set, (2) indicate you will sign the modules dnl
+yourself by re-running configure with the '--disable-module-signing' dnl
+option set, or (3) disable the kernel's signed module requirement (e.g. dnl
+disable secure boot).])
+		fi
+	fi
+else
+	# Make sure we don't pass these along via AC_SUBST
+	MODSIGN_HASHALGO=
+	MODSIGN_PRIVFILE=
+	MODSIGN_CERTFILE=
+fi
+
+
 dnl Separate test output from file-generation output
 echo 
 
@@ -240,6 +333,9 @@ AC_SUBST(WCM_KERNEL_DIR)
 AC_SUBST(WCM_KERNEL_VER)
 AC_SUBST(RHEL7_RELEASE)
 AC_SUBST(MODUTS)
+AC_SUBST(MODSIGN_HASHALGO)
+AC_SUBST(MODSIGN_PRIVFILE)
+AC_SUBST(MODSIGN_CERTFILE)
 
 AC_CONFIG_FILES([Makefile
                  2.6.32/Makefile
