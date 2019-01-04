@@ -2954,10 +2954,10 @@ static const struct wacom_features wacom_features_0x343 =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x34A =
 	{ "Wacom MobileStudio Pro 13 Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT, /* Touch */
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34D };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34D, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x34B =
 	{ "Wacom MobileStudio Pro 16 Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT, /* Touch */
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34E };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34E, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x34D =
 	{ "Wacom MobileStudio Pro 13", WACOM_PKGLEN_MSPRO, 59552, 33848, 8191, 63,
 	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 11,
@@ -2997,10 +2997,10 @@ static const struct wacom_features wacom_features_0x352 =
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x356 };
 static const struct wacom_features wacom_features_0x353 =
 	{ "Wacom Cintiq Pro 13FHD Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT,
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34f }; /* Touch */
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34f, .touch_max = 10 }; /* Touch */
 static const struct wacom_features wacom_features_0x354 =
 	{ "Wacom Cintiq Pro 16UHD Touch", WACOM_PKGLEN_MSPROT, .type = WACOM_MSPROT,
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x350 }; /* Touch */
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x350, .touch_max = 10 }; /* Touch */
 static const struct wacom_features wacom_features_0x355 =
 	{ "Wacom Cintiq Pro 24 Touch", WACOM_PKGLEN_27QHDT, .type = WACOM_27QHDT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x351, .touch_max = 10 }; /* Touch */
