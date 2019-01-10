@@ -2121,6 +2121,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 
 	case WACOM_MSPRO:
 	case INTUOSP2:
+	case CINTIQ_16:
 		if (len == WACOM_PKGLEN_INTUOSP2T &&
 		    wacom_wac->data[0] == WACOM_REPORT_VENDOR_DEF_TOUCH)
 			sync = wacom_multitouch_generic(wacom_wac);
@@ -2450,11 +2451,13 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case WACOM_MSPRO:
+	case CINTIQ_16:
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		__set_bit(BTN_STYLUS3, input_dev->keybit);
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 
-		if (features->numbered_buttons == 0) { /* Cintiq Pro */
+		if (features->type == WACOM_MSPRO &&
+		    features->numbered_buttons == 0) { /* Cintiq Pro */
 			__set_bit(KEY_CONTROLPANEL, input_dev->keybit);
 			__set_bit(KEY_ONSCREEN_KEYBOARD, input_dev->keybit);
 			__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
@@ -3340,6 +3343,12 @@ static const struct wacom_features wacom_features_0x382 =
 	  0, DTK2451, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
+static const struct wacom_features wacom_features_0x390 =
+	{ "Wacom Cintiq 16", WACOM_PKGLEN_MSPRO, 69632, 39518, 8191, 63,
+	  CINTIQ_16, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -3529,6 +3538,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x37D) },
 	{ USB_DEVICE_WACOM(0x37E) },
 	{ USB_DEVICE_WACOM(0x382) },
+	{ USB_DEVICE_DETAILED(0x390, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
