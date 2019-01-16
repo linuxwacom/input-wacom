@@ -4,11 +4,18 @@ ifneq ($(KERNELRELEASE),)
 # Do NOT indent stuff in this part! It has to be like this to make the
 # $(error ... ) stuff work
 
+RHEL6_RELEASE := @RHEL6_RELEASE@
+WCM_OT_NAME := ""
+
 ifneq ($(CONFIG_USB_WACOM),y)
 WCM_VERSION := $(shell cd $(KBUILD_EXTMOD)/.. && ./git-version-gen)
 ccflags-y := -DWACOM_VERSION_SUFFIX=\"-$(WCM_VERSION)\" -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers $(EXTRA_CFLAGS)
-wacom-objs := wacom_wac.o wacom_sys.o
-obj-m += wacom.o
+	ifeq ($(RHEL6_RELEASE),10)
+	WCM_OT_NAME := -ot
+	ccflags-y += -DRHEL6_RELEASE
+	endif # RHEL6_RELEASE
+wacom$(WCM_OT_NAME)-objs := wacom_wac.o wacom_sys.o
+obj-m += wacom$(WCM_OT_NAME).o
 obj-m += wacom_w8001.o
 else
 $(error You requested to build wacom with configure, but wacom is configured as built-in in your kernel config)
@@ -48,8 +55,7 @@ uninstall:
 	@# which causes trouble for tools like 'rm' which don't
 	@# see the path how you might think. As a workaround,
 	@# first cd into the directory and then remove.
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom.ko*
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_w8001.ko*
+	cd $(WCM_KERNEL_DIR)/../extra; rm wacom*.ko*
 	rm -f /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 

@@ -107,6 +107,17 @@ package and try again.])
 fi
 WCM_ENV_KERNEL="yes"
 
+dnl Check for RedHat entreprise Linux >= 6.9
+AC_MSG_CHECKING(RHEL6 minor release)
+RHEL6_RELEASE=[$(sed -n 's/^\(Red Hat Enterprise Linux\|CentOS\) .*release 6.\([0-9]*\).*$/\2/gp' "/etc/redhat-release" 2> /dev/null | head -n1)]
+dnl RHEL6_RELEASE=""
+if test "$RHEL6_RELEASE" = ""; then
+	RHEL6_RELEASE="0"
+elif test "$RHEL6_RELEASE" -ge "9"; then
+	RHEL6_RELEASE="10"
+fi
+AC_MSG_RESULT([$RHEL6_RELEASE])
+
 dnl Check for RedHat entreprise Linux >= 7.4
 AC_MSG_CHECKING(RHEL7 minor release)
 RHEL7_RELEASE=[$(sed -n 's/^\(Red Hat Enterprise\|CentOS\) Linux .*release 7.\([0-9]*\).*$/\2/gp' "/etc/redhat-release" 2> /dev/null | head -n1)]
@@ -331,6 +342,7 @@ echo
 WCM_SRC_SUBDIRS=". $WCM_KERNEL_VER"
 AC_SUBST(WCM_KERNEL_DIR)
 AC_SUBST(WCM_KERNEL_VER)
+AC_SUBST(RHEL6_RELEASE)
 AC_SUBST(RHEL7_RELEASE)
 AC_SUBST(MODUTS)
 AC_SUBST(MODSIGN_HASHALGO)

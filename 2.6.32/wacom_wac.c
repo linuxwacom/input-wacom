@@ -2487,6 +2487,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		wacom_setup_numbered_buttons(input_dev, numbered_buttons);
 }
 
+#ifndef RHEL6_RELEASE
 static const struct wacom_features wacom_features_0x00 =
 	{ "Wacom Penpartner",     WACOM_PKGLEN_PENPRTN,    5040, 3780, 255, 0,
 	  PENPARTNER, WACOM_PENPRTN_RES, WACOM_PENPRTN_RES };
@@ -2969,6 +2970,7 @@ static const struct wacom_features wacom_features_0x34E =
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x34B };
+#endif /* RHEL6_RELEASE */
 static const struct wacom_features wacom_features_0x34F =
 	{ "Wacom Cintiq Pro 13 FHD", WACOM_PKGLEN_MSPRO, 59552, 33848, 8191, 63,
 	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
@@ -3034,12 +3036,14 @@ static const struct wacom_features wacom_features_0x376 =
 static const struct wacom_features wacom_features_0x378 =
 	{ "Intuos BT M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095,
 	  63, INTUOSHT3, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
+#ifndef RHEL6_RELEASE
 static const struct wacom_features wacom_features_0x37A =
 	{ "Wacom One by Wacom S", WACOM_PKGLEN_BBPEN, 15200, 9500, 2047, 63,
 	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x37B =
 	{ "Wacom One by Wacom M", WACOM_PKGLEN_BBPEN, 21600, 13500, 2047, 63,
 	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+#endif /* RHEL6_RELEASE */
 static const struct wacom_features wacom_features_0x37C =
 	{ "Wacom Cintiq Pro 24", WACOM_PKGLEN_MSPRO, 105286, 59574, 8191, 63, /* Pen-only */
 	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
@@ -3081,6 +3085,7 @@ static const struct wacom_features wacom_features_0x390 =
 	.driver_info = (kernel_ulong_t)&wacom_features_##prod
 
 const struct usb_device_id wacom_ids[] = {
+#ifndef RHEL6_RELEASE
 	{ USB_DEVICE_WACOM(0x00) },
 	{ USB_DEVICE_WACOM(0x03) },
 	{ USB_DEVICE_WACOM(0x10) },
@@ -3224,6 +3229,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x34B) },
 	{ USB_DEVICE_WACOM(0x34D) },
 	{ USB_DEVICE_WACOM(0x34E) },
+#endif /* RHEL6_RELEASE */
 	{ USB_DEVICE_WACOM(0x34F) },
 	{ USB_DEVICE_WACOM(0x350) },
 	{ USB_DEVICE_WACOM(0x351) },
@@ -3241,13 +3247,16 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x375) },
 	{ USB_DEVICE_WACOM(0x376) },
 	{ USB_DEVICE_WACOM(0x378) },
+#ifndef RHEL6_RELEASE
 	{ USB_DEVICE_WACOM(0x37A) },
 	{ USB_DEVICE_WACOM(0x37B) },
+#endif /* RHEL6_RELEASE */
 	{ USB_DEVICE_WACOM(0x37C) },
 	{ USB_DEVICE_WACOM(0x37D) },
 	{ USB_DEVICE_WACOM(0x37E) },
 	{ USB_DEVICE_WACOM(0x382) },
 	{ USB_DEVICE_DETAILED(0x390, USB_CLASS_HID, 0, 0) },
+#ifndef RHEL6_RELEASE
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
@@ -3258,6 +3267,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x5048) },
 	{ USB_DEVICE_WACOM(0x5090) },
 	{ USB_DEVICE_LENOVO(0x6004) },
+#endif /* RHEL6_RELEASE */
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, wacom_ids);

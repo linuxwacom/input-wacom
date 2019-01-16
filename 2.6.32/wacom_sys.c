@@ -39,6 +39,11 @@
 #define HID_COLLECTION_END		0xc0
 #define HID_LONGITEM			0xfc
 
+#ifdef RHEL6_RELEASE
+#define wacom_driver_name "wacom-ot"
+#else
+#define wacom_driver_name "wacom"
+#endif
 
 enum {
 	WCM_UNDEFINED = 0,
@@ -1088,7 +1093,7 @@ static int wacom_reset_resume(struct usb_interface *intf)
 }
 
 static struct usb_driver wacom_driver = {
-	.name =		"wacom",
+	.name =		wacom_driver_name,
 	.id_table =	wacom_ids,
 	.probe =	wacom_probe,
 	.disconnect =	wacom_disconnect,
