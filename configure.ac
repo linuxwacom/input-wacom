@@ -6,7 +6,7 @@ AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
 
 AM_INIT_AUTOMAKE([dist-bzip2 no-dist-gzip foreign])
-AM_EXTRA_RECURSIVE_TARGETS([signature])
+m4_ifdef([AM_EXTRA_RECURSIVE], AM_EXTRA_RECURSIVE_TARGETS([signature]))
 AM_MAINTAINER_MODE
 
 AC_PROG_CC
