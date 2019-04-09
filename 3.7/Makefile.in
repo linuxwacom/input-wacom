@@ -25,6 +25,15 @@ MODSIGN_HASHALGO := @MODSIGN_HASHALGO@
 MODSIGN_PRIVFILE := @MODSIGN_PRIVFILE@
 MODSIGN_CERTFILE := @MODSIGN_CERTFILE@
 
+MODSIGN_COMMAND :=
+ifneq ($(strip $(MODSIGN_HASHALGO)),)
+ifneq ($(strip $(MODSIGN_PRIVFILE)),)
+ifneq ($(strip $(MODSIGN_CERTFILE)),)
+MODSIGN_COMMAND := "$(WCM_KERNEL_DIR)/scripts/sign-file" "$(MODSIGN_HASHALGO)" "$(MODSIGN_PRIVFILE)" "$(MODSIGN_CERTFILE)"
+endif
+endif
+endif
+
 all:
 	@echo '    Building input-wacom drivers for $(WCM_VERSION_VER) kernel.'
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD)
@@ -33,13 +42,11 @@ clean:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) clean
 
 signature: all
-	if test -n "$(MODSIGN_HASHALGO)" -a -n "$(MODSIGN_PRIVFILE)" -a -n "$(MODSIGN_CERTFILE)"; then \
-	    $(WCM_KERNEL_DIR)/scripts/sign-file "$(MODSIGN_HASHALGO)" "$(MODSIGN_PRIVFILE)" "$(MODSIGN_CERTFILE)" wacom.ko; \
-	    $(WCM_KERNEL_DIR)/scripts/sign-file "$(MODSIGN_HASHALGO)" "$(MODSIGN_PRIVFILE)" "$(MODSIGN_CERTFILE)" wacom_w8001.ko; \
-	fi
+	$(MODSIGN_COMMAND) wacom.ko
+	$(MODSIGN_COMMAND) wacom_w8001.ko
 
-install modules_install: signature
-	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) modules_install
+install modules_install:
+	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) modules_install mod_sign_cmd='$(MODSIGN_COMMAND)'
 	mkdir -p /etc/depmod.d
 	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
