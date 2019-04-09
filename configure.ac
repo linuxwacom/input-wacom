@@ -277,17 +277,40 @@ AC_ARG_ENABLE(module-signing,
 	[MODSIGN_ENABLE="$enableval"])
 
 if test "$MODSIGN_ENABLE" = "yes" -o "$MODSIGN_ENABLE" = "default"; then
-	AC_MSG_CHECKING(kernel sig_enforce parameter)
-	SIG_KERNEL=$(cat /sys/module/module/parameters/sig_enforce 2>/dev/null || echo "(unknown)")
-	AC_MSG_RESULT([$SIG_KERNEL])
+	AC_MSG_CHECKING(CONFIG_MODULE_SIG)
+	MODSIGN_VERIFY=$(WACOM_LINUX_READ_CONFIG([CONFIG_MODULE_SIG]))
+	AC_MSG_RESULT([$MODSIGN_VERIFY])
 
-	AC_MSG_CHECKING(mokutil sb-state)
-	SIG_MOK=$(mokutil --sb-state 2>/dev/null || echo "(unknown)")
-	AC_MSG_RESULT([$SIG_MOK])
+	AC_MSG_CHECKING(CONFIG_MODULE_SIG_FORCE)
+	MODSIGN_ENFORCE=$(WACOM_LINUX_READ_CONFIG([CONFIG_MODULE_SIG_FORCE]))
+	AC_MSG_RESULT([$MODSIGN_ENFORCE])
 
-	SIG_REQUIRED=$(( $(echo "$SIG_KERNEL" | grep -q "Y" && echo "1" || echo "0") + \
-		         $(echo "$SIG_MOK" | grep -q "enabled" && echo "1" || echo "0") \
-		      ))
+	AC_MSG_CHECKING(CONFIG_LOCK_DOWN_KERNEL)
+	MODSIGN_LOCKDOWN=$(WACOM_LINUX_READ_CONFIG([CONFIG_LOCK_DOWN_KERNEL]))
+	AC_MSG_RESULT([$MODSIGN_LOCKDOWN])
+
+	AC_MSG_CHECKING(CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT)
+	MODSIGN_LOCKDOWN_EFI=$(WACOM_LINUX_READ_CONFIG([CONFIG_LOCK_DOWN_KERNEL_IN_EFI_SECURE_BOOT]))
+	AC_MSG_RESULT([$MODSIGN_LOCKDOWN_EFI])
+
+	AC_MSG_CHECKING(secure boot state)
+	SECUREBOOT_STATE="0"
+	test "$SECUREBOOT_STATE" = "1" || SECUREBOOT_STATE=$(efivar -d -n 8be4df61-93ca-11d2-aa0d-00e098032b8c-SecureBoot 2>/dev/null)
+	test "$SECUREBOOT_STATE" = "1" || SECUREBOOT_STATE=$(hexdump -e '1/4 "%d"' /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c 2>/dev/null | tail -c1)
+	test "$SECUREBOOT_STATE" = "1" || SECUREBOOT_STATE=$(bootctl status 2>/dev/null | sed -n 's/\s*Secure Boot: enabled/1/p; s/\s*Secure Boot: disabled/0/p')
+	test "$SECUREBOOT_STATE" = "1" || SECUREBOOT_STATE=$(mokutil --sb-state 2>/dev/null | sed -n 's/SecureBoot enabled/1/p; s/SecureBoot disabled/0/p')
+	test "$SECUREBOOT_STATE" = "1" && SECUREBOOT_STATE="on" || SECUREBOOT_STATE="off"
+	AC_MSG_RESULT([$SECUREBOOT_STATE])
+
+	AC_MSG_CHECKING(if modules must be signed)
+	MODSIGN_REQUIRED="no"
+	if test "$MODSIGN_VERIFY" = "y" -o "$MODSIGN_LOCKDOWN" = "y" -o "$MODSIGN_LOCKDOWN_EFI"; then
+		MODSIGN_REQUIRED="recommended"
+	fi
+	if test "$MODSIGN_ENFORCE" = "y" -o \( "$MODSIGN_LOCKDOWN_EFI" = "y" -a "$SECUREBOOT_STATE" = "on" \); then
+		MODSIGN_REQUIRED="yes"
+	fi
+	AC_MSG_RESULT([$MODSIGN_REQUIRED])
 
 
 
@@ -335,14 +358,12 @@ if test "$MODSIGN_ENABLE" = "yes" -o "$MODSIGN_ENABLE" = "default"; then
 	AC_MSG_CHECKING(for module signing certificate)
 	AC_MSG_RESULT([$MODSIGN_CERTFILE])
 
-	if test ! -f "$MODSIGN_PRIVFILE" -o ! -f "$MODSIGN_CERTFILE"; then
-		AC_MSG_WARN([Module signing key and/or certificate missing.])
-
+	if test -z "$MODSIGN_PRIVFILE" -o -z "$MODSIGN_CERTFILE"; then
 		if test "$MODSIGN_ENABLE" = "yes"; then
 			AC_MSG_ERROR([Unable to honor explicit request for module signing.])
 		fi
 
-		if test "$SIG_REQUIRED" -gt 0; then
+		if test "$MODSIGN_REQUIRED" = "yes"; then
 			AC_MSG_ERROR([Kernel is configured to only load dnl
 signed modules but we are unable to produce a signed module. Either (1) dnl
 re-run configure with the options '--with-signing-key=<key>' and dnl
@@ -350,7 +371,15 @@ re-run configure with the options '--with-signing-key=<key>' and dnl
 yourself by re-running configure with the '--disable-module-signing' dnl
 option set, or (3) disable the kernel's signed module requirement (e.g. dnl
 disable secure boot).])
+		elif test "$MODSIGN_REQUIRED" = "recommended"; then
+			AC_MSG_WARN([Kernel module signing is recommended dnl
+but we are unable to find signing keys. Consider re-running configure dnl
+with the options '--with-signing-key=<key>' and dnl
+'--with-signing-cert=<cert>' set.])
 		fi
+	elif test ! -f "$MODSIGN_PRIVFILE" -o ! -f "$MODSIGN_CERTFILE"; then
+		AC_MSG_WARN([Unable to read signing key or certificate. dnl
+Please be sure the files exist before running "make install".])
 	fi
 fi
 
