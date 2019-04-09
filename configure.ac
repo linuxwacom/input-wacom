@@ -246,6 +246,7 @@ fi
 
 dnl =======================================================
 dnl Module signing
+AC_DEFUN([WACOM_LINUX_READ_CONFIG], [grep -sh '^$1='  $WCM_KERNEL_DIR/.config /boot/config-$MODUTS | head -n1 | cut -d= -f2- | sed -e 's/^"\(.*\)"$/\1/'])
 
 MODSIGN_ENABLE=default
 MODSIGN_HASHALGO=
@@ -275,6 +276,11 @@ if test "$MODSIGN_ENABLE" = "yes" -o "$MODSIGN_ENABLE" = "default"; then
 		AS_HELP_STRING([--with-hash-algorithm=<alg>], [Specify module signing hash algorithm]),
 		[MODSIGN_HASHALGO="$withval"])
 
+	if test "$MODSIGN_HASHALGO" = "yes" -o -z "$MODSIGN_HASHALGO"; then
+		AC_MSG_CHECKING(CONFIG_MODULE_SIG_HASH)
+		MODSIGN_HASHALGO=$(WACOM_LINUX_READ_CONFIG([CONFIG_MODULE_SIG_HASH]))
+		AC_MSG_RESULT([$MODSIGN_HASHALGO])
+	fi
 	if test "$MODSIGN_HASHALGO" = "yes" -o -z "$MODSIGN_HASHALGO"; then
 		MODSIGN_HASHALGO="sha512"
 	fi
