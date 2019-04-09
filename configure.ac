@@ -247,18 +247,6 @@ fi
 dnl =======================================================
 dnl Module signing
 
-AC_MSG_CHECKING(kernel sig_enforce parameter)
-SIG_KERNEL=$(cat /sys/module/module/parameters/sig_enforce 2>/dev/null || echo "(unknown)")
-AC_MSG_RESULT([$SIG_KERNEL])
-
-AC_MSG_CHECKING(mokutil sb-state)
-SIG_MOK=$(mokutil --sb-state 2>/dev/null || echo "(unknown)")
-AC_MSG_RESULT([$SIG_MOK])
-
-SIG_REQUIRED=$(( $(echo "$SIG_KERNEL" | grep -q "Y" && echo "1" || echo "0") + \
-                 $(echo "$SIG_MOK" | grep -q "enabled" && echo "1" || echo "0") \
-              ))
-
 MODSIGN_ENABLE=default
 MODSIGN_HASHALGO=
 MODSIGN_PRIVFILE=
@@ -267,20 +255,34 @@ MODSIGN_CERTFILE=
 AC_ARG_ENABLE(module-signing,
 	AS_HELP_STRING([--disable-module-signing], [Disable automatic module signing]),
 	[MODSIGN_ENABLE="$enableval"])
-AC_ARG_WITH(hash-algorithm,
-	AS_HELP_STRING([--with-hash-algorithm=<alg>], [Specify module signing hash algorithm]),
-	[MODSIGN_HASHALGO="$withval"])
-AC_ARG_WITH(signing-key,
-	AS_HELP_STRING([--with-signing-key=<trusted.priv>], [Specify module signing key location]),
-	[MODSIGN_PRIVFILE="$withval"])
-AC_ARG_WITH(signing-cert,
-	AS_HELP_STRING([--with-signing-cert=<trusted.der>], [Specify module signing cert location]),
-	[MODSIGN_CERTFILE="$withval"])
 
 if test "$MODSIGN_ENABLE" = "yes" -o "$MODSIGN_ENABLE" = "default"; then
+	AC_MSG_CHECKING(kernel sig_enforce parameter)
+	SIG_KERNEL=$(cat /sys/module/module/parameters/sig_enforce 2>/dev/null || echo "(unknown)")
+	AC_MSG_RESULT([$SIG_KERNEL])
+
+	AC_MSG_CHECKING(mokutil sb-state)
+	SIG_MOK=$(mokutil --sb-state 2>/dev/null || echo "(unknown)")
+	AC_MSG_RESULT([$SIG_MOK])
+
+	SIG_REQUIRED=$(( $(echo "$SIG_KERNEL" | grep -q "Y" && echo "1" || echo "0") + \
+		         $(echo "$SIG_MOK" | grep -q "enabled" && echo "1" || echo "0") \
+		      ))
+
+
+
+	AC_ARG_WITH(hash-algorithm,
+		AS_HELP_STRING([--with-hash-algorithm=<alg>], [Specify module signing hash algorithm]),
+		[MODSIGN_HASHALGO="$withval"])
+
 	if test "$MODSIGN_HASHALGO" = "yes" -o -z "$MODSIGN_HASHALGO"; then
 		MODSIGN_HASHALGO="sha512"
 	fi
+
+	AC_MSG_CHECKING(for module signing hash algorithm)
+	AC_MSG_RESULT([$MODSIGN_HASHALGO])
+
+
 
 	# There is no standard location for storing kernel signing keys
 	# and certificates. The kernel itself has CONFIG_MODULE_SIG_KEY
@@ -296,6 +298,12 @@ if test "$MODSIGN_ENABLE" = "yes" -o "$MODSIGN_ENABLE" = "default"; then
 	# The kernel should automatically try to sign modules as part of
 	# the `make modules_install` step, so that covers the first case.
 	# In the second case the best we can do is try Ubuntu's location.
+	AC_ARG_WITH(signing-key,
+		AS_HELP_STRING([--with-signing-key=<trusted.priv>], [Specify module signing key location]),
+		[MODSIGN_PRIVFILE="$withval"])
+	AC_ARG_WITH(signing-cert,
+		AS_HELP_STRING([--with-signing-cert=<trusted.der>], [Specify module signing cert location]),
+		[MODSIGN_CERTFILE="$withval"])
 
 	if test "$MODSIGN_PRIVFILE" = "yes" -o -z "$MODSIGN_PRIVFILE"; then
 		MODSIGN_PRIVFILE=$(ls /var/lib/shim-signed/mok/MOK.priv 2>/dev/null || echo "$MODSIGN_PRIVFILE")
@@ -304,8 +312,6 @@ if test "$MODSIGN_ENABLE" = "yes" -o "$MODSIGN_ENABLE" = "default"; then
 		MODSIGN_CERTFILE=$(ls /var/lib/shim-signed/mok/MOK.der 2>/dev/null || echo "$MODSIGN_CERTFILE")
 	fi
 
-	AC_MSG_CHECKING(for module signing hash algorithm)
-	AC_MSG_RESULT([$MODSIGN_HASHALGO])
 	AC_MSG_CHECKING(for module signing key)
 	AC_MSG_RESULT([$MODSIGN_PRIVFILE])
 	AC_MSG_CHECKING(for module signing certificate)
@@ -328,11 +334,6 @@ option set, or (3) disable the kernel's signed module requirement (e.g. dnl
 disable secure boot).])
 		fi
 	fi
-else
-	# Make sure we don't pass these along via AC_SUBST
-	MODSIGN_HASHALGO=
-	MODSIGN_PRIVFILE=
-	MODSIGN_CERTFILE=
 fi
 
 
