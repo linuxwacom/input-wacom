@@ -124,7 +124,7 @@ release_to_github() {
     # example skomra:de0e4dc3efbf2d008053027708227b365b7f80bf
 
     GH_REPO="linuxwacom"
-    PROJECT="input-wacom"
+    PROJECT="$1"
     release_description="Temporary Empty Release Description"
     release_descr=$(jq -n --arg release_description "$release_description" '$release_description')
 
@@ -570,7 +570,7 @@ process_module() {
     fi
 
     if [ x$DRY_RUN = x ]; then
-        release_to_github
+        release_to_github $pkg_name
     else
 	echo "Info: skipped pushing release to github in dry-run mode."
     fi
