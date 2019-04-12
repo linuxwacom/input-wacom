@@ -569,7 +569,11 @@ process_module() {
 	echo "Info: skipped pushing tag \"$tag_name\" to the remote repository in dry-run mode."
     fi
 
-    release_to_github
+    if [ x$DRY_RUN = x ]; then
+        release_to_github
+    else
+	echo "Info: skipped pushing release to github in dry-run mode."
+    fi
 
     # --------- Generate the announce e-mail ------------------
     # Failing to generate the announce is not considered a fatal error
