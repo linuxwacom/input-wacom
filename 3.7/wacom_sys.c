@@ -359,7 +359,8 @@ static int wacom_parse_hid(struct usb_interface *intf,
 			case HID_USAGE_WT_X:
 				if (finger)
 					features->device_type = BTN_TOOL_FINGER;
-				if (features->type == INTUOSP2) {
+				if (features->type == INTUOSP2 ||
+				    features->type == INTUOSP2S) {
 					features->touch_max = 10;
 					features->pktlen = WACOM_PKGLEN_INTUOSP2T;
 					features->unit = report[i+4];
@@ -370,7 +371,8 @@ static int wacom_parse_hid(struct usb_interface *intf,
 				break;
 
 			case HID_USAGE_WT_Y:
-				if (features->type == INTUOSP2) {
+				if (features->type == INTUOSP2 ||
+				    features->type == INTUOSP2S) {
 					features->y_phy = get_unaligned_le16(&report[i + 4]);
 					features->y_max = get_unaligned_le16(&report[i + 7]);
 				}
