@@ -1399,7 +1399,7 @@ static void wacom_intuos_pro2_bt_pad(struct wacom_wac *wacom)
 	struct input_dev *pad_input = wacom->pad_input;
 	unsigned char *data = wacom->data;
 
-	int buttons = (data[282] << 1) | ((data[281] >> 6) & 0x01);
+	int buttons = data[282] | ((data[281] & 0x40) << 2);
 	int ring = data[285] & 0x7F;
 	bool ringstatus = data[285] & 0x80;
 	bool prox = buttons || ringstatus;
