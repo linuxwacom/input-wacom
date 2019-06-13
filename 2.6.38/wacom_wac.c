@@ -1250,6 +1250,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		bytes_header = 3;
 		break;
 	case INTUOSP2:
+	case INTUOSP2S:
 		current_num_contacts = data[1];
 		contacts_per_packet = 5;
 		bytes_per_packet = WACOM_BYTES_PER_INTUOSP2_PACKET;
@@ -1306,6 +1307,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 			break;
 
 		case INTUOSP2:
+		case INTUOSP2S:
 			contact_id = data[offset];
 			prox = data[offset + 1] & 0x01;
 			x = get_unaligned_le16(&data[offset + 2]);
@@ -1904,6 +1906,11 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 			ring = le16_to_cpup((__le16 *)&data[4]);
 			keys = 0;
 			break;
+		case 7:
+			buttons = (data[1]) | (data[3] << 6);
+			ring = le16_to_cpup((__le16 *)&data[4]);
+			keys = 0;
+			break;
 		case 0:
 			buttons = 0;
 			ring = WACOM_INTUOSP2_RING_UNTOUCHED; /* No ring */
@@ -2141,6 +2148,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 
 	case WACOM_MSPRO:
 	case INTUOSP2:
+	case INTUOSP2S:
 	case CINTIQ_16:
 		if (len == WACOM_PKGLEN_INTUOSP2T &&
 		    wacom_wac->data[0] == WACOM_REPORT_VENDOR_DEF_TOUCH)
@@ -2563,6 +2571,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case INTUOSP2:
+	case INTUOSP2S:
 		if (features->device_type == BTN_TOOL_PEN) {
 			__set_bit(BTN_STYLUS3, input_dev->keybit);
 			wacom_wac->previous_ring = WACOM_INTUOSP2_RING_UNTOUCHED;
@@ -3421,6 +3430,9 @@ static const struct wacom_features wacom_features_0x390 =
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM };
+static const struct wacom_features wacom_features_0x392 =
+	{ "Wacom Intuos Pro S", WACOM_PKGLEN_INTUOSP2, 31920, 19950, 8191, 63,
+	  INTUOSP2S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 7, .touch_max = 10 };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -3611,6 +3623,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x37E) },
 	{ USB_DEVICE_WACOM(0x382) },
 	{ USB_DEVICE_DETAILED(0x390, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_DETAILED(0x392, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },

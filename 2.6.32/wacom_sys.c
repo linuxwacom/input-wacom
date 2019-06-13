@@ -223,7 +223,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			switch (data) {
 			case HID_USAGE_WT_X:
 				features->device_type = BTN_TOOL_TRIPLETAP;
-				if (features->type == INTUOSP2) {
+				if (features->type == INTUOSP2 ||
+				    features->type == INTUOSP2S) {
 					features->pktlen = WACOM_PKGLEN_INTUOSP2T;
 					features->unit = report[i+4];
 					features->unitExpo = report[i+6];
@@ -233,7 +234,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				break;
 
 			case HID_USAGE_WT_Y:
-				if (features->type == INTUOSP2) {
+				if (features->type == INTUOSP2 ||
+				    features->type == INTUOSP2S) {
 					features->y_phy = get_unaligned_le16(&report[i + 4]);
 					features->y_max = get_unaligned_le16(&report[i + 7]);
 				}
