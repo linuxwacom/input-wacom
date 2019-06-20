@@ -3363,6 +3363,12 @@ static const struct wacom_features wacom_features_0x390 =
 static const struct wacom_features wacom_features_0x392 =
 	{ "Wacom Intuos Pro S", WACOM_PKGLEN_INTUOSP2, 31920, 19950, 8191, 63,
 	   INTUOSP2S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 7, .touch_max = 10 };
+static const struct wacom_features wacom_features_0x396 =
+	{ "Wacom DTK-1660E", WACOM_PKGLEN_MSPRO, 69632, 39518, 8191, 63,
+	  CINTIQ_16, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -3554,6 +3560,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x382) },
 	{ USB_DEVICE_DETAILED(0x390, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x392, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_DETAILED(0x396, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
