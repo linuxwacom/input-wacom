@@ -173,8 +173,6 @@ generate_announce()
 
     cat <<RELEASE
 Subject: [ANNOUNCE] $pkg_name $pkg_version
-To: $list_to
-Reply-To: $list_cc
 
 `git log --no-merges "$tag_range" | git shortlog`
 
@@ -577,9 +575,6 @@ process_module() {
 
     # --------- Generate the announce e-mail ------------------
     # Failing to generate the announce is not considered a fatal error
-
-    list_to="linuxwacom-announce@lists.sourceforge.net"
-    list_cc="linuxwacom-discuss@lists.sourceforge.net"
 
     # Git-describe returns only "the most recent tag", it may not be the expected one
     # However, we only use it for the commit history which will be the same anyway.
