@@ -39,4 +39,4 @@ script:
   - git remote add upstream https://github.com/linuxwacom/input-wacom.git
   - git fetch upstream master
   - git format-patch FETCH_HEAD
-  - ${KERNELDIR}/${KERNEL}/scripts/checkpatch.pl *.patch
+  - if ls *.patch 2>/dev/null; then ${KERNELDIR}/${KERNEL}/scripts/checkpatch.pl *.patch; fi
