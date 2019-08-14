@@ -32,12 +32,18 @@ install:
   - mkdir ${KERNELDIR}
   - curl ${URL} | tar xJC ${KERNELDIR}
   - if [[ ! -f ${KERNELDIR}/${KERNEL}/include/linux/compiler-gcc5.h ]]; then echo '#include <linux/compiler-gcc4.h>' > ${KERNELDIR}/${KERNEL}/include/linux/compiler-gcc5.h; fi
-  - sed -i '/duplicate signatures/,/^$/ s/if (/if (0 and /' ${KERNELDIR}/${KERNEL}/scripts/checkpatch.pl
   - make -C ${KERNELDIR}/${KERNEL} defconfig prepare modules_prepare
 
 script:
   - ./autogen.sh --with-kernel=${KERNELDIR}/${KERNEL} && make EXTRA_CFLAGS="-Werror -Wno-type-limits -Wno-unused-function -isystem ${KERNELDIR}/${KERNEL}/arch/x86/include -isystem ${KERNELDIR}/${KERNEL}/arch/x86/include/uapi -isystem ${KERNELDIR}/${KERNEL}/include/linux"
-  - git remote add upstream https://github.com/linuxwacom/input-wacom.git
-  - git fetch upstream master
-  - git format-patch FETCH_HEAD
-  - if ls *.patch 2>/dev/null; then ${KERNELDIR}/${KERNEL}/scripts/checkpatch.pl *.patch; fi
+
+jobs:
+  include:
+    stage: checkpatch
+    before_script:
+      - sed -i '/duplicate signatures/,/^$/ s/if (/if (0 and /' ${KERNELDIR}/${KERNEL}/scripts/checkpatch.pl
+      - git remote add upstream https://github.com/linuxwacom/input-wacom.git
+      - git fetch upstream master
+      - git format-patch FETCH_HEAD
+    script:
+      - if ls *.patch 2>/dev/null; then ${KERNELDIR}/${KERNEL}/scripts/checkpatch.pl *.patch; fi
