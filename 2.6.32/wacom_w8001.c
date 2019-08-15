@@ -87,7 +87,7 @@ struct w8001 {
 	unsigned char response_type;
 	unsigned char response[W8001_MAX_LENGTH];
 	unsigned char data[W8001_MAX_LENGTH];
-	char phys[32];
+	char phys[42];
 	int type;
 	unsigned int pktlen;
 	int max_touch_x;
