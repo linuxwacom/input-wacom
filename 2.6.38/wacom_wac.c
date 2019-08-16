@@ -496,6 +496,8 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 	int ring1 = 0, ring2 = 0;
 	int strip1 = 0, strip2 = 0;
 	bool prox = false;
+	bool wrench = false, keyboard = false, mute_touch = false, menu = false,
+	     info = false;
 
 	/* pad packets. Works as a second tool and is always in prox */
 	if (!(data[0] == WACOM_REPORT_INTUOSPAD || data[0] == WACOM_REPORT_INTUOS5PAD ||
@@ -525,9 +527,32 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 		keys = ((data[3] & 0x1C) ? 1<<2 : 0) |
 		       ((data[4] & 0xE0) ? 1<<1 : 0) |
 		       ((data[4] & 0x07) ? 1<<0 : 0);
+		keyboard = !!(data[4] & 0xE0);
+		info = !!(data[3] & 0x1C);
+
+		if (features->oPid) {
+			mute_touch = !!(data[4] & 0x07);
+			if (mute_touch)
+				wacom->shared->is_touch_on =
+					!wacom->shared->is_touch_on;
+		} else {
+			wrench = !!(data[4] & 0x07);
+		}
 	} else if (features->type == WACOM_27QHD) {
 		nkeys = 3;
 		keys = data[2] & 0x07;
+
+		wrench = !!(data[2] & 0x01);
+		keyboard = !!(data[2] & 0x02);
+
+		if (features->oPid) {
+			mute_touch = !!(data[2] & 0x04);
+			if (mute_touch)
+				wacom->shared->is_touch_on =
+					!wacom->shared->is_touch_on;
+		} else {
+			menu = !!(data[2] & 0x04);
+		}
 	} else if (features->type == CINTIQ_HYBRID) {
 		/*
 		 * Do not send hardware buttons under Android. They
@@ -570,6 +595,9 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 			if (features->type == WACOM_22HD) {
 				nkeys = 3;
 				keys = data[9] & 0x07;
+
+				info = !!(data[9] & 0x01);
+				wrench = !!(data[9] & 0x02);
 			}
 		} else {
 			buttons = ((data[6] & 0x10) << 5)  |
@@ -588,6 +616,18 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 
 	for (i = 0; i < nkeys; i++)
 		input_report_key(input, KEY_PROG1 + i, keys & (1 << i));
+
+	input_report_key(input, KEY_BUTTONCONFIG, wrench);
+	input_report_key(input, KEY_ONSCREEN_KEYBOARD, keyboard);
+	input_report_key(input, KEY_CONTROLPANEL, menu);
+	input_report_key(input, KEY_INFO, info);
+
+	if (wacom->shared && wacom->shared->touch_input) {
+		input_report_switch(wacom->shared->touch_input,
+				    SW_MUTE_DEVICE,
+				    !wacom->shared->is_touch_on);
+		input_sync(wacom->shared->touch_input);
+	}
 
 	input_report_abs(input, ABS_RX, strip1);
 	input_report_abs(input, ABS_RY, strip2);
@@ -1236,6 +1276,12 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		bytes_header = 1;
 		break;
 	case WACOM_27QHDT:
+		if (wacom->shared->has_mute_touch_switch &&
+		    !wacom->shared->is_touch_on) {
+			if (!wacom->shared->touch_down)
+				return 0;
+		}
+
 		current_num_contacts = data[63];
 		contacts_per_packet = 10;
 		bytes_per_packet = WACOM_BYTES_PER_QHDTHID_PACKET;
@@ -2512,6 +2558,12 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(KEY_PROG2, input_dev->keybit);
 		__set_bit(KEY_PROG3, input_dev->keybit);
 
+		__set_bit(KEY_ONSCREEN_KEYBOARD, input_dev->keybit);
+		__set_bit(KEY_INFO, input_dev->keybit);
+
+		if (!features->oPid)
+			__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
+
 		input_set_abs_params(input_dev, ABS_THROTTLE, 0, 71, 0, 0);
 		/* fall through */
 
@@ -2531,6 +2583,13 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(KEY_PROG1, input_dev->keybit);
 		__set_bit(KEY_PROG2, input_dev->keybit);
 		__set_bit(KEY_PROG3, input_dev->keybit);
+
+		__set_bit(KEY_ONSCREEN_KEYBOARD, input_dev->keybit);
+		__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
+
+		if (!features->oPid)
+			__set_bit(KEY_CONTROLPANEL, input_dev->keybit);
+
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 
@@ -2541,6 +2600,9 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(KEY_PROG1, input_dev->keybit);
 		__set_bit(KEY_PROG2, input_dev->keybit);
 		__set_bit(KEY_PROG3, input_dev->keybit);
+
+		__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
+		__set_bit(KEY_INFO, input_dev->keybit);
 		/* fall through */
 
 	case WACOM_21UX2:
@@ -2657,6 +2719,14 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case WACOM_27QHDT:
+		if (wacom_wac->shared->touch_input->id.product == 0x32C ||
+		    wacom_wac->shared->touch_input->id.product == 0xF6) {
+			input_dev->evbit[0] |= BIT_MASK(EV_SW);
+			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
+			wacom_wac->shared->has_mute_touch_switch = true;
+		}
+		/* fall through */
+
 	case MTSCREEN:
 	case MTTPC:
 	case MTTPC_B:

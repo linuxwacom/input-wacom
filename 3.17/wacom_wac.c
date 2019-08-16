@@ -503,6 +503,8 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 	int ring1 = 0, ring2 = 0;
 	int strip1 = 0, strip2 = 0;
 	bool prox = false;
+	bool wrench = false, keyboard = false, mute_touch = false, menu = false,
+	     info = false;
 
 	/* pad packets. Works as a second tool and is always in prox */
 	if (!(data[0] == WACOM_REPORT_INTUOSPAD || data[0] == WACOM_REPORT_INTUOS5PAD ||
@@ -532,10 +534,32 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 		keys = ((data[3] & 0x1C) ? 1<<2 : 0) |
 		       ((data[4] & 0xE0) ? 1<<1 : 0) |
 		       ((data[4] & 0x07) ? 1<<0 : 0);
+		keyboard = !!(data[4] & 0xE0);
+		info = !!(data[3] & 0x1C);
+
+		if (features->oPid) {
+			mute_touch = !!(data[4] & 0x07);
+			if (mute_touch)
+				wacom->shared->is_touch_on =
+					!wacom->shared->is_touch_on;
+		} else {
+			wrench = !!(data[4] & 0x07);
+		}
 	} else if (features->type == WACOM_27QHD) {
 		nkeys = 3;
 		keys = data[2] & 0x07;
 
+		wrench = !!(data[2] & 0x01);
+		keyboard = !!(data[2] & 0x02);
+
+		if (features->oPid) {
+			mute_touch = !!(data[2] & 0x04);
+			if (mute_touch)
+				wacom->shared->is_touch_on =
+					!wacom->shared->is_touch_on;
+		} else {
+			menu = !!(data[2] & 0x04);
+		}
 		input_report_abs(input, ABS_X, be16_to_cpup((__be16 *)&data[4]));
 		input_report_abs(input, ABS_Y, be16_to_cpup((__be16 *)&data[6]));
 		input_report_abs(input, ABS_Z, be16_to_cpup((__be16 *)&data[8]));
@@ -581,6 +605,9 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 			if (features->type == WACOM_22HD) {
 				nkeys = 3;
 				keys = data[9] & 0x07;
+
+				info = !!(data[9] & 0x01);
+				wrench = !!(data[9] & 0x02);
 			}
 		} else {
 			buttons = ((data[6] & 0x10) << 5)  |
@@ -599,6 +626,18 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 
 	for (i = 0; i < nkeys; i++)
 		input_report_key(input, KEY_PROG1 + i, keys & (1 << i));
+
+	input_report_key(input, KEY_BUTTONCONFIG, wrench);
+	input_report_key(input, KEY_ONSCREEN_KEYBOARD, keyboard);
+	input_report_key(input, KEY_CONTROLPANEL, menu);
+	input_report_key(input, KEY_INFO, info);
+
+	if (wacom->shared && wacom->shared->touch_input) {
+		input_report_switch(wacom->shared->touch_input,
+				    SW_MUTE_DEVICE,
+				    !wacom->shared->is_touch_on);
+		input_sync(wacom->shared->touch_input);
+	}
 
 	input_report_abs(input, ABS_RX, strip1);
 	input_report_abs(input, ABS_RY, strip2);
@@ -1501,6 +1540,12 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 	int num_contacts_left = 4; /* maximum contacts per packet */
 	int byte_per_packet = WACOM_BYTES_PER_24HDT_PACKET;
 	int y_offset = 2;
+
+	if (wacom->shared->has_mute_touch_switch &&
+	    !wacom->shared->is_touch_on) {
+		if (!wacom->shared->touch_down)
+			return 0;
+	}
 
 	if (wacom->features.type == WACOM_27QHDT) {
 		current_num_contacts = data[63];
@@ -3836,6 +3881,14 @@ int wacom_setup_touch_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case WACOM_27QHDT:
+		if (wacom_wac->shared->touch->product == 0x32C ||
+		    wacom_wac->shared->touch->product == 0xF6) {
+			input_dev->evbit[0] |= BIT_MASK(EV_SW);
+			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
+			wacom_wac->shared->has_mute_touch_switch = true;
+		}
+		/* fall through */
+
 	case MTSCREEN:
 	case MTTPC:
 	case MTTPC_B:
@@ -3974,6 +4027,12 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		__set_bit(KEY_PROG2, input_dev->keybit);
 		__set_bit(KEY_PROG3, input_dev->keybit);
 
+		__set_bit(KEY_ONSCREEN_KEYBOARD, input_dev->keybit);
+		__set_bit(KEY_INFO, input_dev->keybit);
+
+		if (!features->oPid)
+			__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
+
 		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
 		input_set_abs_params(input_dev, ABS_THROTTLE, 0, 71, 0, 0);
 		break;
@@ -3982,6 +4041,12 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		__set_bit(KEY_PROG1, input_dev->keybit);
 		__set_bit(KEY_PROG2, input_dev->keybit);
 		__set_bit(KEY_PROG3, input_dev->keybit);
+
+		__set_bit(KEY_ONSCREEN_KEYBOARD, input_dev->keybit);
+		__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
+
+		if (!features->oPid)
+			__set_bit(KEY_CONTROLPANEL, input_dev->keybit);
 		input_set_abs_params(input_dev, ABS_X, -2048, 2048, 0, 0);
 		input_abs_set_res(input_dev, ABS_X, 1024); /* points/g */
 		input_set_abs_params(input_dev, ABS_Y, -2048, 2048, 0, 0);
@@ -3995,6 +4060,9 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		__set_bit(KEY_PROG1, input_dev->keybit);
 		__set_bit(KEY_PROG2, input_dev->keybit);
 		__set_bit(KEY_PROG3, input_dev->keybit);
+
+		__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
+		__set_bit(KEY_INFO, input_dev->keybit);
 		/* fall through */
 
 	case WACOM_21UX2:
