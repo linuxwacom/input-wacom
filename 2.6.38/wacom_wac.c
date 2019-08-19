@@ -2696,6 +2696,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case DTUS2:
 	case DTK2451:
 		input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
+		/* fall through */
 
 	case DTUSX:
 	case PL:

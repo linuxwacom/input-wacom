@@ -2295,6 +2295,9 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 
+		wacom_setup_cintiq(wacom_wac);
+		break;
+
 	case INTUOS3:
 	case INTUOS3L:
 		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
@@ -2326,6 +2329,8 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_STYLUS3, input_dev->keybit);
 			wacom_wac->previous_ring = WACOM_INTUOSP2_RING_UNTOUCHED;
 		}
+		/* fall through */
+
 	case INTUOS5:
 	case INTUOS5L:
 	case INTUOSPM:
@@ -2410,6 +2415,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case DTUS2:
 	case DTK2451:
 		input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
+		/* fall through */
 
 	case DTUSX:
 	case PL:
