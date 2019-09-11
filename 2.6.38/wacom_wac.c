@@ -1979,8 +1979,8 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 		ringvalue += 3*72/16;
 		if (ringvalue > 71)
 			ringvalue -= 72;
-	}
-	else if (input->id.product == 0x34d || input->id.product == 0x34e) {
+	} else if (input->id.product == 0x34d || input->id.product == 0x34e ||
+		 input->id.product == 0x398 || input->id.product == 0x399) {
 		/* MobileStudio Pro */
 		ringvalue = 35 - (ring & 0x7F);
 		ringvalue += 36/2;
@@ -3511,6 +3511,26 @@ static const struct wacom_features wacom_features_0x396 =
 	  CINTIQ_16, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x398 =
+	{ "Wacom MobileStudio Pro 13", WACOM_PKGLEN_MSPRO, 59552, 33848, 8191, 63,
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 11,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x39A };
+static const struct wacom_features wacom_features_0x399 =
+	{ "Wacom MobileStudio Pro 16", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
+	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 13,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x39B };
+static const struct wacom_features wacom_features_0x39A =
+	{ "Wacom MobileStudio Pro 13 Touch", WACOM_PKGLEN_MSPROT, /* Touch */
+	  .type = WACOM_MSPROT, .touch_max = 10,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x398 };
+static const struct wacom_features wacom_features_0x39B =
+	{ "Wacom MobileStudio Pro 16 Touch", WACOM_PKGLEN_MSPROT, /* Touch */
+	  .type = WACOM_MSPROT, .touch_max = 10,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x399 };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -3704,6 +3724,10 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x391, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x392, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x396, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x398) },
+	{ USB_DEVICE_WACOM(0x399) },
+	{ USB_DEVICE_WACOM(0x39A) },
+	{ USB_DEVICE_WACOM(0x39B) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
