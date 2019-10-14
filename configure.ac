@@ -12,6 +12,17 @@ AM_MAINTAINER_MODE
 AC_PROG_CC
 
 dnl =======================================================
+dnl Check if we have a sane build path
+SANITY=`readlink -e "$srcdir"`
+AC_MSG_CHECKING(if build path '$SANITY' has spaces)
+if `echo "$SANITY" | grep -q ' '`; then
+	AC_MSG_RESULT([yes])
+	AC_MSG_ERROR([Cannot build from a path with a space in it!])
+fi
+AC_MSG_RESULT([no])
+
+
+dnl =======================================================
 dnl Check if we should be compiling for linux
 AC_MSG_CHECKING(for kernel type)
 WCM_KERNEL=`uname -s`
