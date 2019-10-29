@@ -1895,8 +1895,16 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 		input_report_abs(input, ABS_WHEEL,    proximity ? fingerwheel   : 0);
 		input_report_abs(input, ABS_DISTANCE, proximity ? height        : 0);
 
-		input_event(input, EV_MSC, MSC_SERIAL, wacom->serial[0]);
-		input_report_abs(input, ABS_MISC, proximity ? wacom_intuos_id_mangle(wacom->id[0]) : 0);
+		if (wacom->features.type != WACOM_ONE) {
+			input_event(input, EV_MSC, MSC_SERIAL,
+				    wacom->serial[0]);
+			input_report_abs(input, ABS_MISC, proximity ?
+					 wacom_intuos_id_mangle(wacom->id[0])
+					 : 0);
+		} else {
+			input_report_abs(input, ABS_MISC, proximity ?
+					 STYLUS_DEVICE_ID : 0);
+		}
 		input_report_key(input, wacom->tool[0], proximity ? 1 : 0);
 
 		if (!proximity)
@@ -1984,6 +1992,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		sync = wacom_intuos_irq(wacom_wac);
 		break;
 
+	case WACOM_ONE:
 	case WACOM_MSPRO:
 	case INTUOSP2:
 	case INTUOSP2S:
@@ -2098,6 +2107,22 @@ static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
 
 	input_set_abs_params(input_dev, ABS_RZ, -900, 899, 0, 0);
 	input_set_abs_params(input_dev, ABS_THROTTLE, -1023, 1023, 0, 0);
+}
+static void wacom_setup_wacom_one_pen(struct wacom_wac *wacom_wac)
+
+{
+	struct input_dev *input_dev = wacom_wac->input;
+	struct wacom_features *features = &wacom_wac->features;
+
+	__set_bit(BTN_TOOL_PEN, input_dev->keybit);
+	__set_bit(BTN_STYLUS, input_dev->keybit);
+	input_set_abs_params(input_dev, ABS_TILT_X, 0, 127,
+			     features->tilt_fuzz, 0);
+	input_set_abs_params(input_dev, ABS_TILT_Y, 0, 127,
+			     features->tilt_fuzz, 0);
+	input_set_abs_params(input_dev, ABS_DISTANCE,
+			     0, wacom_wac->features.distance_max,
+			     wacom_wac->features.distance_fuzz, 0);
 }
 
 void wacom_setup_device_quirks(struct wacom *wacom)
@@ -2282,6 +2307,10 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(BTN_TOOL_MOUSE, input_dev->keybit);
 		__set_bit(BTN_STYLUS, input_dev->keybit);
 		__set_bit(BTN_STYLUS2, input_dev->keybit);
+		break;
+
+	case WACOM_ONE:
+		wacom_setup_wacom_one_pen(wacom_wac);
 		break;
 
 	case WACOM_MSPRO:
@@ -3183,6 +3212,9 @@ static const struct wacom_features wacom_features_0x39B =
 	{ "Wacom MobileStudio Pro 16 Touch", WACOM_PKGLEN_MSPROT, /* Touch */
 	  .type = WACOM_MSPROT, .touch_max = 10,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x399 };
+static const struct wacom_features wacom_features_0x3A6 =
+	{ "Wacom One Pen Display 13", WACOM_PKGLEN_MSPRO, 29434, 16556, 4095, 63,
+	  WACOM_ONE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x3AA =
 	{ "Wacom MobileStudio Pro 16", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
 	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 13,
@@ -3386,6 +3418,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x399) },
 	{ USB_DEVICE_WACOM(0x39A) },
 	{ USB_DEVICE_WACOM(0x39B) },
+	{ USB_DEVICE_WACOM(0x3A6) },
 	{ USB_DEVICE_WACOM(0x3AA) },
 	{ USB_DEVICE_WACOM(0x3AC) },
 #ifndef RHEL6_RELEASE

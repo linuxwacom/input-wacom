@@ -1951,6 +1951,12 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		goto fail1;
 	}
 
+	if (features->type == WACOM_ONE &&
+	    intf->cur_altsetting->desc.bInterfaceNumber != 0) {
+		error = -EINVAL;
+		goto fail1;
+	}
+
 	wacom_wac->data = usb_alloc_coherent(dev, WACOM_PKGLEN_MAX,
 					     GFP_KERNEL, &wacom->data_dma);
 	if (!wacom_wac->data) {
