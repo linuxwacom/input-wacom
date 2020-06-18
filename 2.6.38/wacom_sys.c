@@ -1951,7 +1951,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		goto fail1;
 	}
 
-	if (features->type == WACOM_ONE &&
+	if ((features->type == WACOM_ONE || features->type == CINTIQ_16) &&
 	    intf->cur_altsetting->desc.bInterfaceNumber != 0) {
 		error = -EINVAL;
 		goto fail1;
