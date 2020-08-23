@@ -405,7 +405,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 
 			case 2: /* Mouse with wheel */
 				input_report_key(input, BTN_MIDDLE, data[1] & 0x04);
-				/* fall through */
+				fallthrough;
 
 			case 3: /* Mouse without wheel */
 				wacom->tool[0] = BTN_TOOL_MOUSE;
@@ -2503,7 +2503,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case WACOM_MO:
 		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
-		/* fall through */
+		fallthrough;
 
 	case WACOM_G4:
 		input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
@@ -2512,7 +2512,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 		__set_bit(BTN_BACK, input_dev->keybit);
 		__set_bit(BTN_FORWARD, input_dev->keybit);
-		/* fall through */
+		fallthrough;
 
 	case GRAPHIRE:
 		input_set_capability(input_dev, EV_REL, REL_WHEEL);
@@ -2565,13 +2565,13 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
 
 		input_set_abs_params(input_dev, ABS_THROTTLE, 0, 71, 0, 0);
-		/* fall through */
+		fallthrough;
 
 	case WACOM_13HD:
 	case CINTIQ_HYBRID:
 	case CINTIQ_COMPANION_2:
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
-		/* fall through */
+		fallthrough;
 
 	case DTK:
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
@@ -2603,7 +2603,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 		__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
 		__set_bit(KEY_INFO, input_dev->keybit);
-		/* fall through */
+		fallthrough;
 
 	case WACOM_21UX2:
 	case WACOM_BEE:
@@ -2619,12 +2619,12 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case INTUOS3:
 	case INTUOS3L:
 		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
-		/* fall through */
+		fallthrough;
 
 	case INTUOS3S:
 		input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
-		/* fall through */
+		fallthrough;
 
 	case INTUOS:
 		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
@@ -2644,7 +2644,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
 			wacom_wac->shared->has_mute_touch_switch = true;
 		}
-		/* fall through */
+		fallthrough;
 
 	case INTUOS5:
 	case INTUOS5L:
@@ -2689,7 +2689,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, features->x_max, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_WIDTH_MINOR, 0, features->y_max, 0, 0);
 		}
-		/* fall through */
+		fallthrough;
 
 	case DTH1152T:
 	case DTH2452T:
@@ -2701,7 +2701,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 						     0, features->y_max, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
 		}
-		/* fall through */
+		fallthrough;
 
 	case WACOM_27QHDT:
 		if (wacom_wac->shared->touch_input->id.product == 0x32C ||
@@ -2710,7 +2710,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
 			wacom_wac->shared->has_mute_touch_switch = true;
 		}
-		/* fall through */
+		fallthrough;
 
 	case MTSCREEN:
 	case MTTPC:
@@ -2719,7 +2719,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case TABLETPC2FG:
 		if ((features->device_type == BTN_TOOL_FINGER) && features->touch_max > 1)
 			input_mt_init_slots(input_dev, features->touch_max, INPUT_MT_DIRECT);
-		/* fall through */
+		fallthrough;
 
 	case TABLETPC:
 	case TABLETPCE:
@@ -2738,13 +2738,13 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		if (features->device_type != BTN_TOOL_PEN)
 			break;  /* no need to process stylus stuff */
 
-		/* fall through */
+		fallthrough;
 
 	case DTUS:
 	case DTUS2:
 	case DTK2451:
 		input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
-		/* fall through */
+		fallthrough;
 
 	case DTUSX:
 	case PL:
@@ -2753,7 +2753,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 			__set_bit(BTN_STYLUS2, input_dev->keybit);
 		}
-		/* fall through */
+		fallthrough;
 
 	case DTH1152:
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
@@ -2764,7 +2764,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case PTU:
 		__set_bit(BTN_STYLUS2, input_dev->keybit);
-		/* fall through */
+		fallthrough;
 
 	case PENPARTNER:
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
@@ -2782,7 +2782,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
 			wacom_wac->shared->has_mute_touch_switch = true;
 		}
-		/* fall through */
+		fallthrough;
 
 	case INTUOSHT3:
 	case BAMBOO_PT:

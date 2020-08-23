@@ -198,10 +198,10 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			len = 4;
 			data |= (report[i+4] << 24);
 			data |= (report[i+3] << 16);
-			/* fall through */
+			fallthrough;
 		case 2:
 			data |= (report[i+2] << 8);
-			/* fall through */
+			fallthrough;
 		case 1:
 			data |= (report[i+1]);
 			break;
