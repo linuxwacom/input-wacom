@@ -108,6 +108,17 @@
 #define USB_VENDOR_ID_WACOM	0x056a
 #define USB_VENDOR_ID_LENOVO	0x17ef
 
+#ifndef fallthrough
+#  if defined __has_attribute
+#    if __has_attribute(__fallthrough__)
+#      define fallthrough                    __attribute__((__fallthrough__))
+#    endif
+#  endif
+#endif
+#ifndef fallthrough
+#  define fallthrough                    do {} while (0)  /* fallthrough */
+#endif
+
 enum wacom_worker {
 	WACOM_WORKER_WIRELESS,
 	WACOM_WORKER_BATTERY,
