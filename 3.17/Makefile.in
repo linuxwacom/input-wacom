@@ -21,6 +21,8 @@ else
 $(error You requested to build wacom with configure, but wacom is configured as built-in in your kernel config)
 endif # CONFIG_HID_WACOM
 
+LINUXINCLUDE := $(subst -I, -isystem, $(LINUXINCLUDE))
+
 else  # We were called from command line
 PWD  := $(shell pwd)
 UPDATE_INITRAMFS := $(shell command -v update-initramfs 2>/dev/null)

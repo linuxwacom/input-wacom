@@ -14,6 +14,8 @@ else
 $(error You requested to build wacom with configure, but wacom is configured as built-in in your kernel config)
 endif # CONFIG_USB_WACOM
 
+LINUXINCLUDE := $(subst -I, -isystem, $(LINUXINCLUDE))
+
 else  # We were called from command line
 PWD  := $(shell pwd)
 DRACUT := $(shell command -v dracut 2>/dev/null)
