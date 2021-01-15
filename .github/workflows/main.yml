@@ -1,0 +1,76 @@
+on: [ push, pull_request ]
+
+env:
+  COMPILE_CFLAGS: -fno-pie -Werror
+  PREPARE_CFLAGS: -fno-pie
+
+jobs:
+  compile:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        kernel: ["4.6", "4.5", "4.1", "3.19", "3.18", "3.17", "3.7", "3.3", "2.6.38", "2.6.36", "2.6.35", "2.6.32"]
+        include:
+          - kernel: "2.6.32"
+            compile_cflags: -Wno-error=pointer-sign
+          - kernel: "2.6.35"
+            compile_cflags: -Wno-error=pointer-sign
+          - kernel: "2.6.36"
+            compile_cflags: -Wno-error=pointer-sign
+          - kernel: "2.6.38"
+            compile_cflags: -Wno-error=pointer-sign
+          - kernel: "3.3"
+            compile_cflags: -Wno-error=pointer-sign
+          - kernel: "3.7"
+            compile_cflags: -Wno-error=pointer-sign
+          - kernel: "3.17"
+            compile_cflags: -Wno-error=format-truncation
+          - kernel: "3.18"
+            compile_cflags: -Wno-error=format-truncation
+          - kernel: "3.19"
+            compile_cflags: -Wno-error=format-truncation
+          - kernel: "4.1"
+            compile_cflags: -Wno-error=format-truncation
+          - kernel: "4.5"
+            compile_cflags: -Wno-error=format-truncation
+          - kernel: "4.6"
+            compile_cflags: -Wno-error=format-truncation
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v2
+
+      - name: Download and extract v${{ matrix.kernel }} kernel
+        run: |
+          KERNELVER=${{ matrix.kernel }}
+          KERNELDIR=${HOME}/kernel
+          KERNELROOT=${KERNELDIR}/linux-${KERNELVER}
+
+          # Generate the "v2.6" or "v{major}.x" URL path component from the kernel
+          # version and then download and unpack the sources
+          SERIES=v$(awk -vFS=. -vOFS=. '{if ($1!=2) {$2="x"} NF=2; print}' <<< ${KERNELVER})
+          URL=https://cdn.kernel.org/pub/linux/kernel/${SERIES}/linux-${KERNELVER}.tar.xz
+          mkdir -p ${KERNELDIR}
+          rm -rf ${KERNELROOT}
+          curl ${URL} | tar xJC ${KERNELDIR}
+
+      - name: Prepare v${{ matrix.kernel }} kernel sources
+        run: |
+          KERNELVER=${{ matrix.kernel }}
+          KERNELDIR=${HOME}/kernel
+          KERNELROOT=${KERNELDIR}/linux-${KERNELVER}
+
+          # Make sure the kernel can find a header for this compiler if necessary
+          GCC_MAJOR_VER=$(gcc -dumpversion | cut -d'.' -f1)
+          if [[ ! -f "${KERNELROOT}/include/linux/compiler-gcc${GCC_MAJOR_VER}.h" ]]; then
+              COMPILER_H=$(ls -v ${KERNELROOT}/include/linux/compiler-gcc*.h | tail -n1)
+              ln -s "${COMPILER_H}" "${KERNELROOT}/include/linux/compiler-gcc${GCC_MAJOR_VER}.h"
+          fi
+          make -C ${KERNELROOT} defconfig prepare modules_prepare EXTRA_CFLAGS="${PREPARE_CFLAGS} ${{ matrix.prepare_cflags }}"
+
+      - name: Build input-wacom for v${{ matrix.kernel }} kernel
+        run: |
+          KERNELDIR=${HOME}/kernel
+          KERNELROOT=${KERNELDIR}/linux-${{ matrix.kernel }}
+          ./autogen.sh --with-kernel=${KERNELROOT}
+          make V=1 EXTRA_CFLAGS="${COMPILE_CFLAGS} ${{ matrix.compile_cflags }}"
+
