@@ -1,0 +1,10 @@
+on: [ pull_request ]
+
+jobs:
+  checkpatch:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v1
+      - name: Run checkpatch review
+        uses: webispy/checkpatch-action@master
