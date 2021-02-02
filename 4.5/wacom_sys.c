@@ -1881,7 +1881,11 @@ static ssize_t wacom_show_speed(struct device *dev,
 	struct hid_device *hdev = to_hid_device(dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
 	return snprintf(buf, PAGE_SIZE, "%i\n", wacom->wacom_wac.bt_high_speed);
+#else
+	return sysfs_emit(buf, "%i\n", wacom->wacom_wac.bt_high_speed);
+#endif
 }
 
 static ssize_t wacom_store_speed(struct device *dev,
