@@ -72,8 +72,7 @@ if test "$WCM_KERNEL_DIR" = "yes" -o -z "$WCM_KERNEL_DIR"; then
 	  [/lib/modules/$X/source],
 	  [/lib/modules/$X/build],
 	  [/usr/src/linux],
-	  [/usr/src/linux-$X],
-	  [/usr/src/linux-2.6]
+	  [/usr/src/linux-$X]
 	]])
 	WCM_KERNEL_DIR=
 	dnl Kernel source not specified, guess where it is
@@ -117,17 +116,6 @@ directory. Please install the kernel source or the kernel development dnl
 package and try again.])
 fi
 WCM_ENV_KERNEL="yes"
-
-dnl Check for RedHat entreprise Linux >= 6.9
-AC_MSG_CHECKING(RHEL6 minor release)
-RHEL6_RELEASE=[$(sed -n 's/^\(Red Hat Enterprise Linux\|Scientific Linux\|CentOS\) .*release 6.\([0-9]*\).*$/\2/gp' "/etc/redhat-release" 2> /dev/null | head -n1)]
-dnl RHEL6_RELEASE=""
-if test "$RHEL6_RELEASE" = ""; then
-	RHEL6_RELEASE="0"
-elif test "$RHEL6_RELEASE" -ge "9"; then
-	RHEL6_RELEASE="10"
-fi
-AC_MSG_RESULT([$RHEL6_RELEASE])
 
 dnl Check for RedHat entreprise Linux >= 7.4
 AC_MSG_CHECKING(RHEL7 minor release)
@@ -217,31 +205,13 @@ struct power_supply_desc test;
 	AC_MSG_RESULT([pre-v4.1])
 ])
 
-dnl Red Hat Enterprise Linux 6.x backports abs accessor functions from 2.6.36
-AC_MSG_CHECKING(abs accessor version)
-WACOM_LINUX_TRY_COMPILE([
-#include <linux/input.h>
-],[
-struct input_dev test;
-input_abs_get_res(&test, 0);
-],[
-	HAVE_ABSACCESSOR_36=yes
-	AC_MSG_RESULT([v2.6.36+])
-	AC_DEFINE([WACOM_ABSACCESSOR_36], [], [kernel uses abs accessor macros from v2.6.36+])
-],[
-	HAVE_ABSACCESSOR_36=no
-	AC_MSG_RESULT([pre-v2.6.36])
-])
-
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"
-if test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.32)"; then
-	AC_MSG_ERROR([use the kernel driver included in the 'linuxwacom' package for kernels older than 2.6.32])
-elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(2.6.38)"; then
-	WCM_KERNEL_VER="2.6.32"
-elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
-	WCM_KERNEL_VER="2.6.38"
+if test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
+	AC_MSG_ERROR(m4_normalize([Kernels older than 3.7 are no longer supported by input-wacom.
+		 For newer Wacom models, please upgrade your system to a newer kernel.
+		 For old Wacom models, 'input-wacom-0.47.0' may still support the device]))
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
 	WCM_KERNEL_VER="3.7"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(4.5)"; then
@@ -409,8 +379,6 @@ AC_SUBST(MODSIGN_PRIVFILE)
 AC_SUBST(MODSIGN_CERTFILE)
 
 AC_CONFIG_FILES([Makefile
-                 2.6.32/Makefile
-                 2.6.38/Makefile
                  3.7/Makefile
                  3.17/Makefile
                  4.5/Makefile])
