@@ -59,6 +59,7 @@ install modules_install:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) modules_install mod_sign_cmd='$(MODSIGN_COMMAND)'
 	mkdir -p /etc/depmod.d
 	echo "override $(MODULE_NAME) * extra" > /etc/depmod.d/input-wacom.conf
+	echo "override wacom_w8001 * extra" >> /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
