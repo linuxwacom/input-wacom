@@ -66,6 +66,9 @@ uninstall:
 	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_w8001.ko*
 	rm -f /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
+ifdef DRACUT
+	$(DRACUT) -f --kver=$(MODUTS)
+endif
 
 endif  # End kbuild check
 

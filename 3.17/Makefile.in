@@ -80,6 +80,9 @@ uninstall:
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
 endif
+ifdef DRACUT
+	$(DRACUT) -f --kver=$(MODUTS)
+endif
 
 endif  # End kbuild check
 
