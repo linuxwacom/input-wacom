@@ -57,7 +57,7 @@ install modules_install:
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
 endif
-ifdef DRACUT:
+ifdef DRACUT
 	$(DRACUT) -f --kver=$(MODUTS)
 endif
 

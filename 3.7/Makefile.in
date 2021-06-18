@@ -53,7 +53,7 @@ install modules_install:
 	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
 	echo "override wacom_w8001 * extra" >> /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
-ifdef DRACUT:
+ifdef DRACUT
 	$(DRACUT) -f --kver=$(MODUTS)
 endif
 
