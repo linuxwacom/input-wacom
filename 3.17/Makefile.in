@@ -65,6 +65,7 @@ ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
 endif
 ifdef DRACUT
+	echo 'add_drivers+=" wacom wacom_w8001 "' > /etc/dracut.conf.d/input-wacom.conf
 	$(DRACUT) -f --kver=$(MODUTS)
 endif
 
@@ -81,6 +82,7 @@ ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
 endif
 ifdef DRACUT
+	rm -f /etc/dracut.conf.d/input-wacom.conf
 	$(DRACUT) -f --kver=$(MODUTS)
 endif
 
