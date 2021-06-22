@@ -58,7 +58,7 @@ ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
 endif
 ifdef DRACUT:
-	$(DRACUT) -f /boot/initramfs-$(MODUTS).img
+	$(DRACUT) -f --kver=$(MODUTS)
 endif
 
 uninstall:
