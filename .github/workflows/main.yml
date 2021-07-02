@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        kernel: ["4.6", "4.5", "4.1", "3.19", "3.18", "3.17", "3.7"]
+        kernel: ["5.10", "4.6", "4.5", "4.1", "3.19", "3.18", "3.17", "3.7"]
         include:
           - kernel: "3.7"
             compile_cflags: -Wno-error=pointer-sign
@@ -24,6 +24,8 @@ jobs:
           - kernel: "4.5"
             compile_cflags: -Wno-error=format-truncation
           - kernel: "4.6"
+            compile_cflags: -Wno-error=format-truncation
+          - kernel: "5.10"
             compile_cflags: -Wno-error=format-truncation
     steps:
       - name: Checkout the repo
@@ -55,7 +57,9 @@ jobs:
               COMPILER_H=$(ls -v ${KERNELROOT}/include/linux/compiler-gcc*.h | tail -n1)
               ln -s "${COMPILER_H}" "${KERNELROOT}/include/linux/compiler-gcc${GCC_MAJOR_VER}.h"
           fi
-          make -C ${KERNELROOT} defconfig prepare modules_prepare EXTRA_CFLAGS="${PREPARE_CFLAGS} ${{ matrix.prepare_cflags }}"
+          make -C ${KERNELROOT} defconfig
+          ${KERNELROOT}/scripts/config --file ${KERNELROOT}/.config --disable UNWINDER_ORC --enable UNWINDER_FRAME_POINTER
+          make -C ${KERNELROOT} prepare modules_prepare EXTRA_CFLAGS="${PREPARE_CFLAGS} ${{ matrix.prepare_cflags }}"
 
       - name: Build input-wacom for v${{ matrix.kernel }} kernel
         run: |
