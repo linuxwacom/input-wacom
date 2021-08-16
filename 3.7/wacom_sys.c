@@ -1607,6 +1607,14 @@ static int wacom_register_input(struct wacom *wacom)
 	input_set_drvdata(input_dev, wacom);
 
 	wacom_wac->input = input_dev;
+
+	if (wacom_wac->features.touch_max && wacom_wac->shared) {
+		if (wacom_wac->features.device_type == BTN_TOOL_FINGER) {
+			wacom_wac->shared->type = wacom_wac->features.type;
+			wacom_wac->shared->touch_input = wacom_wac->input;
+		}
+	}
+
 	error = wacom_setup_input_capabilities(input_dev, wacom_wac);
 	if (error)
 		goto fail1;
@@ -2036,13 +2044,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		error = wacom_initialize_remotes(wacom);
 		if (error)
 			goto fail4;
-	}
-
-	if (wacom_wac->features.touch_max && wacom_wac->shared) {
-		if (wacom_wac->features.device_type == BTN_TOOL_FINGER) {
-			wacom_wac->shared->type = wacom_wac->features.type;
-			wacom_wac->shared->touch_input = wacom_wac->input;
-		}
 	}
 
 	return 0;
