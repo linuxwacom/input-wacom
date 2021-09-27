@@ -52,19 +52,21 @@ clean:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) clean
 
 signature: all
-	$(MODSIGN_COMMAND) wacom.ko
+	$(MODSIGN_COMMAND) $(MODULE_NAME).ko
 	$(MODSIGN_COMMAND) wacom_w8001.ko
 
 install modules_install:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) modules_install mod_sign_cmd='$(MODSIGN_COMMAND)'
 	mkdir -p /etc/depmod.d
-	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
+	echo "override $(MODULE_NAME) * extra" > /etc/depmod.d/input-wacom.conf
+	echo "override wacom_w8001 * extra" >> /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
 endif
-ifdef DRACUT:
-	$(DRACUT) -f /boot/initramfs-$(MODUTS).img
+ifdef DRACUT
+	echo 'add_drivers+=" wacom wacom_w8001 "' > /etc/dracut.conf.d/input-wacom.conf
+	$(DRACUT) -f --kver=$(MODUTS)
 endif
 
 uninstall:
@@ -72,13 +74,16 @@ uninstall:
 	@# which causes trouble for tools like 'rm' which don't
 	@# see the path how you might think. As a workaround,
 	@# first cd into the directory and then remove.
-	cd $(WCM_KERNEL_DIR)/../extra; rm -f wacom.ko*
+	cd $(WCM_KERNEL_DIR)/../extra; rm $(MODULE_NAME).ko*
 	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_w8001.ko*
-	cd $(WCM_KERNEL_DIR)/../extra; rm -f hid-wacom.ko*
 	rm -f /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
+endif
+ifdef DRACUT
+	rm -f /etc/dracut.conf.d/input-wacom.conf
+	$(DRACUT) -f --kver=$(MODUTS)
 endif
 
 endif  # End kbuild check
