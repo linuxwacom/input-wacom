@@ -3515,6 +3515,12 @@ static const struct wacom_features wacom_features_0x3B0 =
 	  CINTIQ_16, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x3c5 =
+	{ "Intuos BT S", WACOM_PKGLEN_INTUOSP2, 15200, 9500, 4095,
+	  63, INTUOSHT3, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
+static const struct wacom_features wacom_features_0x3c7 =
+	{ "Intuos BT M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095,
+	  63, INTUOSHT3, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -3717,6 +3723,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x3AC) },
 	{ USB_DEVICE_DETAILED(0x3AE, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x3B0, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x3c5) },
+	{ USB_DEVICE_WACOM(0x3c7) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
