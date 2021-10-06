@@ -1,3 +1,5 @@
+RHEL7_RELEASE := @RHEL7_RELEASE@
+
 ############################ kernel specific compile ###############################
 ifneq ($(KERNELRELEASE),)
 # We were called by kbuild
@@ -52,6 +54,9 @@ install modules_install:
 	mkdir -p /etc/depmod.d
 	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
 	echo "override wacom_w8001 * extra" >> /etc/depmod.d/input-wacom.conf
+ifeq ($(RHEL7_RELEASE),4)
+	echo "override hid-wacom * extra" >> /etc/depmod.d/input-wacom.conf
+endif # RHEL7_RELEASE
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef DRACUT
 	echo 'add_drivers+=" wacom wacom_w8001 "' > /etc/dracut.conf.d/input-wacom.conf
