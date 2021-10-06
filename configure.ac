@@ -211,7 +211,7 @@ EXPLODED_VER="WCM_EXPLODE($MODUTS)"
 if test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
 	AC_MSG_ERROR(m4_normalize([Kernels older than 3.7 are no longer supported by input-wacom.
 		 For newer Wacom models, please upgrade your system to a newer kernel.
-		 For old Wacom models, 'input-wacom-0.48.0' may still support the device]))
+		 For old Wacom models, 'input-wacom-0.47.0' may still support the device]))
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
 	WCM_KERNEL_VER="3.7"
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(4.5)"; then
