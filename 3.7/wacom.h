@@ -124,6 +124,7 @@ enum wacom_worker {
 };
 
 struct wacom_battery {
+	struct wacom *wacom;
 	struct power_supply battery;
 	char bat_name[WACOM_NAME_MAX];
 	int bat_status;
