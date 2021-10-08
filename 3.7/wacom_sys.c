@@ -1260,35 +1260,26 @@ static int __wacom_initialize_battery(struct wacom *wacom,
 				      struct wacom_battery *battery)
 {
 	static atomic_t battery_no = ATOMIC_INIT(0);
-	static DEFINE_SPINLOCK(ps_lock);
-	unsigned long flags;
-	int error = 0;
+	struct device *dev = &wacom->intf->dev;
+	int error;
 	unsigned long n;
 
-	spin_lock_irqsave(&ps_lock, flags); /* Prevent potential race for the "wacom_battery" name */
-
 	n = atomic_inc_return(&battery_no) - 1;
-
-	if (power_supply_get_by_name("wacom_battery"))
-		sprintf(battery->bat_name, "wacom_battery_%ld", n);
-	else
-		sprintf(battery->bat_name, "wacom_battery");
 
 	battery->battery.properties = wacom_battery_props;
 	battery->battery.num_properties = ARRAY_SIZE(wacom_battery_props);
 	battery->battery.get_property = wacom_battery_get_property;
-	battery->battery.name = battery->bat_name;
+	sprintf(wacom->battery.bat_name, "wacom_battery_%ld", n);
+	battery->battery.name = wacom->battery.bat_name;
 	battery->battery.type = POWER_SUPPLY_TYPE_USB;
 	battery->battery.use_for_apm = 0;
 
-	error = power_supply_register(&wacom->usbdev->dev,
-				      &battery->battery);
+	error = power_supply_register(dev, &battery->battery);
 
-	if (!error)
-		power_supply_powers(&battery->battery,
-				    &wacom->usbdev->dev);
+	if (error)
+		return error;
 
-	spin_unlock_irqrestore(&ps_lock, flags);
+	power_supply_powers(WACOM_POWERSUPPLY_REF(battery->battery), dev);
 
 	return error;
 }
