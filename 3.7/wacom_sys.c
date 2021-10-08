@@ -1303,17 +1303,17 @@ static int wacom_initialize_battery(struct wacom *wacom)
 
 static void wacom_destroy_battery(struct wacom *wacom)
 {
-	if (wacom->battery.battery.dev) {
-		power_supply_unregister(&wacom->battery.battery);
-		wacom->battery.battery.dev = NULL;
+	if (WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
+		power_supply_unregister(WACOM_POWERSUPPLY_REF(wacom->battery.battery));
+		WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery) = NULL;
 	}
 }
 
 static void wacom_destroy_remote_battery(struct wacom_battery *battery)
 {
-	if (battery->battery.dev) {
-		power_supply_unregister(&battery->battery);
-		battery->battery.dev = NULL;
+	if (WACOM_POWERSUPPLY_DEVICE(battery->battery)) {
+		power_supply_unregister(WACOM_POWERSUPPLY_REF(battery->battery));
+		WACOM_POWERSUPPLY_DEVICE(battery->battery) = NULL;
 	}
 }
 
@@ -1416,7 +1416,7 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 	if (remote->remotes[index].input)
 		input_unregister_device(remote->remotes[index].input);
 
-	if (remote->remotes[index].battery.battery.dev)
+	if (WACOM_POWERSUPPLY_DEVICE(remote->remotes[index].battery.battery))
 		wacom_destroy_remote_battery(&remote->remotes[index].battery);
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
@@ -1429,7 +1429,7 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 			kfree((char *)remote->remotes[i].group.name);
 			remote->remotes[i].group.name = NULL;
 			remote->remotes[i].registered = false;
-			remote->remotes[i].battery.battery.dev = NULL;
+			WACOM_POWERSUPPLY_DEVICE(remote->remotes[i].battery.battery) = NULL;
 			wacom->led.select[i] = WACOM_STATUS_UNKNOWN;
 		}
 	}
@@ -1715,7 +1715,7 @@ static int wacom_remote_attach_battery(struct wacom *wacom, int index)
 	if (!remote->remotes[index].registered)
 		return 0;
 
-	if (remote->remotes[index].battery.battery.dev)
+	if (WACOM_POWERSUPPLY_DEVICE(remote->remotes[index].battery.battery))
 		return 0;
 
 	error = __wacom_initialize_battery(wacom,
@@ -1871,11 +1871,11 @@ void wacom_battery_work(struct work_struct *work)
 	struct wacom *wacom = container_of(work, struct wacom, battery_work);
 
 	if ((wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
-	     !wacom->battery.battery.dev) {
+	     !WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
 		wacom_initialize_battery(wacom);
 	}
 	else if (!(wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
-		 wacom->battery.battery.dev) {
+		 WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
 		wacom_destroy_battery(wacom);
 	}
 }

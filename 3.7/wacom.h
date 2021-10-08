@@ -117,6 +117,10 @@ MODULE_LICENSE("GPL");
 #  define fallthrough                    do {} while (0)  /* fallthrough */
 #endif
 
+#define WACOM_POWERSUPPLY_DEVICE(ps) ((ps).dev)
+#define WACOM_POWERSUPPLY_REF(ps) (&(ps))
+#define WACOM_POWERSUPPLY_DESC(ps) (ps)
+
 enum wacom_worker {
 	WACOM_WORKER_WIRELESS,
 	WACOM_WORKER_BATTERY,
