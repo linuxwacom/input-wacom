@@ -117,9 +117,15 @@ MODULE_LICENSE("GPL");
 #  define fallthrough                    do {} while (0)  /* fallthrough */
 #endif
 
+#ifdef WACOM_POWERSUPPLY_41
+#define WACOM_POWERSUPPLY_DEVICE(ps) (ps)
+#define WACOM_POWERSUPPLY_REF(ps) (ps)
+#define WACOM_POWERSUPPLY_DESC(ps) (ps##_desc)
+#else
 #define WACOM_POWERSUPPLY_DEVICE(ps) ((ps).dev)
 #define WACOM_POWERSUPPLY_REF(ps) (&(ps))
 #define WACOM_POWERSUPPLY_DESC(ps) (ps)
+#endif
 
 enum wacom_worker {
 	WACOM_WORKER_WIRELESS,
@@ -129,7 +135,12 @@ enum wacom_worker {
 
 struct wacom_battery {
 	struct wacom *wacom;
+#ifdef WACOM_POWERSUPPLY_41
+	struct power_supply_desc bat_desc;
+	struct power_supply *battery;
+#else
 	struct power_supply battery;
+#endif
 	char bat_name[WACOM_NAME_MAX];
 	int bat_status;
 	int battery_capacity;

@@ -1219,7 +1219,11 @@ static int wacom_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
 {
+#ifdef WACOM_POWERSUPPLY_41
+	struct wacom_battery *battery = power_supply_get_drvdata(psy);
+#else
 	struct wacom_battery *battery = container_of(psy, struct wacom_battery, battery);
+#endif
 	int ret = 0;
 
 	switch (psp) {
@@ -1256,6 +1260,7 @@ static int wacom_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
+#ifndef WACOM_POWERSUPPLY_41
 static int __wacom_initialize_battery(struct wacom *wacom,
 				      struct wacom_battery *battery)
 {
@@ -1281,8 +1286,54 @@ static int __wacom_initialize_battery(struct wacom *wacom,
 
 	power_supply_powers(WACOM_POWERSUPPLY_REF(battery->battery), dev);
 
+	return 0;
+}
+
+#else
+static int __wacom_initialize_battery(struct wacom *wacom,
+				      struct wacom_battery *battery)
+{
+	static atomic_t battery_no = ATOMIC_INIT(0);
+	struct device *dev = &wacom->intf->dev;
+	struct power_supply_config psy_cfg = { .drv_data = battery, };
+	struct power_supply *ps_bat;
+	struct power_supply_desc *bat_desc = &battery->bat_desc;
+	unsigned long n;
+	int error;
+
+	if (!devres_open_group(dev, bat_desc, GFP_KERNEL))
+		return -ENOMEM;
+
+	battery->wacom = wacom;
+
+	n = atomic_inc_return(&battery_no) - 1;
+
+	bat_desc->properties = wacom_battery_props;
+	bat_desc->num_properties = ARRAY_SIZE(wacom_battery_props);
+	bat_desc->get_property = wacom_battery_get_property;
+	sprintf(battery->bat_name, "wacom_battery_0%ld", n);
+	bat_desc->name = battery->bat_name;
+	bat_desc->type = POWER_SUPPLY_TYPE_USB;
+	bat_desc->use_for_apm = 0;
+
+	ps_bat = devm_power_supply_register(dev, bat_desc, &psy_cfg);
+	if (IS_ERR(ps_bat)) {
+		error = PTR_ERR(ps_bat);
+		goto err;
+	}
+
+	power_supply_powers(ps_bat, &wacom->intf->dev);
+
+	battery->battery = ps_bat;
+
+	devres_close_group(dev, bat_desc);
+	return 0;
+
+err:
+	devres_release_group(dev, bat_desc);
 	return error;
 }
+#endif
 
 static int wacom_initialize_battery(struct wacom *wacom)
 {
@@ -1295,7 +1346,12 @@ static int wacom_initialize_battery(struct wacom *wacom)
 static void wacom_destroy_battery(struct wacom *wacom)
 {
 	if (WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
-		power_supply_unregister(WACOM_POWERSUPPLY_REF(wacom->battery.battery));
+#ifdef WACOM_POWERSUPPLY_41
+		devres_release_group(&wacom->intf->dev,
+				     &wacom->battery.bat_desc);
+#else
+		power_supply_unregister(&wacom->battery.battery);
+#endif
 		WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery) = NULL;
 	}
 }
