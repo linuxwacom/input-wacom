@@ -1937,6 +1937,11 @@ static int wacom_mspro_pad_irq(struct wacom_wac *wacom)
 			ring = le16_to_cpup((__le16 *)&data[4]);
 			keys = 0;
 			break;
+		case 8: /* Cintiq Pro 16 */
+			buttons = data[1];
+			keys = 0;
+			ring = WACOM_INTUOSP2_RING_UNTOUCHED; /* No ring */
+			break;
 		case 0:
 			buttons = 0;
 			ring = WACOM_INTUOSP2_RING_UNTOUCHED; /* No ring */
@@ -2548,6 +2553,17 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(KEY_BUTTONCONFIG, input_dev->keybit);
 
 			wacom_wac->previous_ring = WACOM_INTUOSP2_RING_UNTOUCHED;
+		}
+
+		if (input_dev->id.product == 0x3B2) {
+			/* Cintiq Pro 16 refresh */
+			wacom_wac->shared->has_mute_touch_switch = true;
+		}
+		else if (input_dev->id.product == 0x3B3) {
+			/* Cintiq Pro 16 refresh touchscreen */
+			input_dev->evbit[0] |= BIT_MASK(EV_SW);
+			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
+			wacom_wac->shared->has_mute_touch_switch = true;
 		}
 
 		wacom_setup_cintiq(wacom_wac);
@@ -3515,6 +3531,16 @@ static const struct wacom_features wacom_features_0x3B0 =
 	  CINTIQ_16, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
+static const struct wacom_features wacom_features_0x3B2 =
+	{ "Wacom Cintiq Pro 16", WACOM_PKGLEN_MSPRO, 69644, 39524, 8191, 63,
+	  CINTIQ_16, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 8,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x3B3 };
+static const struct wacom_features wacom_features_0x3B3 =
+	{ "Wacom Cintiq Pro 16 Touch", WACOM_PKGLEN_MSPROT, /* Touch */
+	  .type = WACOM_MSPROT, .touch_max = 10,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x3B2 };
 static const struct wacom_features wacom_features_0x3c5 =
 	{ "Intuos BT S", WACOM_PKGLEN_INTUOSP2, 15200, 9500, 4095,
 	  63, INTUOSHT3, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
@@ -3723,6 +3749,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x3AC) },
 	{ USB_DEVICE_DETAILED(0x3AE, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x3B0, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x3B2) },
+	{ USB_DEVICE_WACOM(0x3B3) },
 	{ USB_DEVICE_WACOM(0x3c5) },
 	{ USB_DEVICE_WACOM(0x3c7) },
 	{ USB_DEVICE_WACOM(0x4001) },
