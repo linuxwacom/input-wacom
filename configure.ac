@@ -220,9 +220,9 @@ else
 	WCM_KERNEL_VER="4.5"
 fi
 
-dnl overwrite for RHEL distribution
+dnl Build both legacy and hid versions
 if test "$RHEL7_RELEASE" -ge "4"; then
-        WCM_KERNEL_VER="3.17"
+        WCM_KERNEL_VER+=" 3.17"
 fi
 
 dnl =======================================================
