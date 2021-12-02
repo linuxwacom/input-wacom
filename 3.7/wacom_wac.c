@@ -1299,6 +1299,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		int c_y = -1;
 		int prox = -1;
 		int offset = bytes_per_packet * i + bytes_header;
+		bool confidence = true;
 
 		switch (features->type) {
 		case WACOM_24HDT:
@@ -1323,6 +1324,7 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		case DTH1152T:
 		case DTH2452T:
 			prox = data[offset] & 0x1;
+			confidence = data[offset] & 0x4;
 			contact_id = get_unaligned_le16(&data[offset + 1]);
 			x = get_unaligned_le16(&data[offset + 3]);
 			y = get_unaligned_le16(&data[offset + 5]);
@@ -1343,7 +1345,8 @@ static int wacom_multitouch_generic(struct wacom_wac *wacom)
 		default:
 			continue;
 		}
-
+		if (!confidence)
+			continue;
 		wacom_multitouch_generic_finger(wacom, contact_id, prox, x, y, w, h, c_x, c_y);
 	}
 

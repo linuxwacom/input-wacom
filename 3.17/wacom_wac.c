@@ -2619,6 +2619,9 @@ static void wacom_wac_finger_event(struct hid_device *hdev,
 		return;
 
 	switch (equivalent_usage) {
+	case HID_DG_CONFIDENCE:
+		wacom_wac->hid_data.confidence = value;
+		break;
 	case HID_GD_X:
 		wacom_wac->hid_data.x = value;
 		break;
@@ -2651,7 +2654,8 @@ static void wacom_wac_finger_event(struct hid_device *hdev,
 	}
 
 	if (usage->usage_index + 1 == field->report_count) {
-		if (equivalent_usage == wacom_wac->hid_data.last_slot_field)
+		if (equivalent_usage == wacom_wac->hid_data.last_slot_field &&
+		    wacom_wac->hid_data.confidence)
 			wacom_wac_finger_slot(wacom_wac, wacom_wac->touch_input);
 	}
 }
@@ -2668,6 +2672,8 @@ static void wacom_wac_finger_pre_report(struct hid_device *hdev,
 		return;
 
 	wacom_wac->is_invalid_bt_frame = false;
+
+	hid_data->confidence = true;
 
 	for (i = 0; i < report->maxfield; i++) {
 		struct hid_field *field = report->field[i];
