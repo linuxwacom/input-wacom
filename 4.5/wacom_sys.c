@@ -43,6 +43,20 @@ static bool wacom_is_using_usb_driver(struct hid_device *hdev)
 #define wacom_is_using_usb_driver(hdev) hid_is_using_ll_driver(hdev, &usb_hid_driver)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,6,0)
+static int devm_add_action_or_reset(struct device *dev,
+				    void (*action)(void *), void *data)
+{
+	int ret;
+
+	ret = devm_add_action(dev, action, data);
+	if (ret)
+		action(data);
+
+	return ret;
+}
+#endif
+
 static int wacom_get_report(struct hid_device *hdev, u8 type, u8 *buf,
 			    size_t size, unsigned int retries)
 {
@@ -750,7 +764,7 @@ static void wacom_retrieve_hid_descriptor(struct hid_device *hdev,
 	 * Skip the query for this type and modify defaults based on
 	 * interface number.
 	 */
-	if (features->type == WIRELESS) {
+	if (features->type == WIRELESS && intf) {
 		if (intf->cur_altsetting->desc.bInterfaceNumber == 0)
 			features->device_type = WACOM_DEVICETYPE_WL_MONITOR;
 		else
@@ -921,8 +935,8 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 	if (!data) {
 		data = kzalloc(sizeof(struct wacom_hdev_data), GFP_KERNEL);
 		if (!data) {
-			retval = -ENOMEM;
-			goto out;
+			mutex_unlock(&wacom_udev_list_lock);
+			return -ENOMEM;
 		}
 
 		kref_init(&data->kref);
@@ -930,22 +944,19 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 		list_add_tail(&data->list, &wacom_udev_list);
 	}
 
+	mutex_unlock(&wacom_udev_list_lock);
+
 	wacom_wac->shared = &data->shared;
 
-	retval = devm_add_action(&hdev->dev, wacom_remove_shared_data, wacom);
-	if (retval) {
-		mutex_unlock(&wacom_udev_list_lock);
-		wacom_remove_shared_data(wacom);
+	retval = devm_add_action_or_reset(&hdev->dev, wacom_remove_shared_data, wacom);
+	if (retval)
 		return retval;
-	}
 
 	if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)
 		wacom_wac->shared->touch = hdev;
 	else if (wacom_wac->features.device_type & WACOM_DEVICETYPE_PEN)
 		wacom_wac->shared->pen = hdev;
 
-out:
-	mutex_unlock(&wacom_udev_list_lock);
 	return retval;
 }
 
@@ -1462,20 +1473,6 @@ static void wacom_led_groups_release_one(void *data)
 
 	devres_release_group(group->dev, group);
 }
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,6,0)
-static int devm_add_action_or_reset(struct device *dev,
-				    void (*action)(void *), void *data)
-{
-	int ret;
-
-	ret = devm_add_action(dev, action, data);
-	if (ret)
-		action(data);
-
-	return ret;
-}
-#endif
 
 static int wacom_led_groups_alloc_and_register_one(struct device *dev,
 						   struct wacom *wacom,
@@ -2514,6 +2511,9 @@ static void wacom_wireless_work(struct work_struct *work)
 
 	wacom_destroy_battery(wacom);
 
+	if (!usbdev)
+		return;
+
 	/* Stylus interface */
 	hdev1 = usb_get_intfdata(usbdev->config->interface[1]);
 	wacom1 = hid_get_drvdata(hdev1);
@@ -2793,8 +2793,6 @@ static void wacom_mode_change_work(struct work_struct *work)
 static int wacom_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
-	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
-	struct usb_device *dev = interface_to_usbdev(intf);
 	struct wacom *wacom;
 	struct wacom_wac *wacom_wac;
 	struct wacom_features *features;
@@ -2829,8 +2827,14 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom_wac->hid_data.inputmode = -1;
 	wacom_wac->mode_report = -1;
 
-	wacom->usbdev = dev;
-	wacom->intf = intf;
+	if (wacom_is_using_usb_driver(hdev)) {
+		struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+		struct usb_device *dev = interface_to_usbdev(intf);
+
+		wacom->usbdev = dev;
+		wacom->intf = intf;
+	}
+
 	mutex_init(&wacom->lock);
 	INIT_DELAYED_WORK(&wacom->init_work, wacom_init_work);
 	INIT_WORK(&wacom->wireless_work, wacom_wireless_work);
