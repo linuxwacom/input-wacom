@@ -3514,6 +3514,9 @@ static const struct wacom_features wacom_features_0x39B =
 static const struct wacom_features wacom_features_0x3A6 =
 	{ "Wacom One Pen Display 13", WACOM_PKGLEN_MSPRO, 29434, 16556, 4095, 63,
 	  WACOM_ONE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x3BD =
+	{ "Wacom One Pen Display 13", WACOM_PKGLEN_MSPRO, 29376, 16524, 4095, 63,
+	  WACOM_ONE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x3AA =
 	{ "Wacom MobileStudio Pro 16", WACOM_PKGLEN_MSPRO, 69920, 39680, 8191, 63,
 	  WACOM_MSPRO, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 13,
@@ -3754,6 +3757,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x3B0, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x3B2) },
 	{ USB_DEVICE_WACOM(0x3B3) },
+	{ USB_DEVICE_WACOM(0x3BD) },
 	{ USB_DEVICE_WACOM(0x3c5) },
 	{ USB_DEVICE_WACOM(0x3c7) },
 	{ USB_DEVICE_WACOM(0x4001) },
