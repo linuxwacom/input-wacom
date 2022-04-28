@@ -10,10 +10,11 @@ ccflags-y := -DWACOM_VERSION_SUFFIX=\"-$(WCM_VERSION)\" -Wall -Wextra -Wno-unuse
 wacom-objs := wacom_wac.o wacom_sys.o
 obj-m += wacom.o
 obj-m += wacom_w8001.o
-obj-m += wacom_i2c.o
 else
 $(error You requested to build wacom with configure, but wacom is configured as built-in in your kernel config)
 endif # CONFIG_HID_WACOM
+
+LINUXINCLUDE := $(subst -I, -isystem, $(LINUXINCLUDE))
 
 else  # We were called from command line
 PWD  := $(shell pwd)
@@ -46,18 +47,19 @@ clean:
 signature: all
 	$(MODSIGN_COMMAND) wacom.ko
 	$(MODSIGN_COMMAND) wacom_w8001.ko
-	$(MODSIGN_COMMAND) wacom_i2c.ko
 
 install modules_install:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) modules_install mod_sign_cmd='$(MODSIGN_COMMAND)'
 	mkdir -p /etc/depmod.d
 	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
+	echo "override wacom_w8001 * extra" >> /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
 endif
-ifdef DRACUT:
-	$(DRACUT) -f /boot/initramfs-$(MODUTS).img
+ifdef DRACUT
+	echo 'add_drivers+=" wacom wacom_w8001 "' > /etc/dracut.conf.d/input-wacom.conf
+	$(DRACUT) -f --kver=$(MODUTS)
 endif
 
 uninstall:
@@ -67,11 +69,14 @@ uninstall:
 	@# first cd into the directory and then remove.
 	cd $(WCM_KERNEL_DIR)/../extra; rm wacom.ko*
 	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_w8001.ko*
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_i2c.ko*
 	rm -f /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
+endif
+ifdef DRACUT
+	rm -f /etc/dracut.conf.d/input-wacom.conf
+	$(DRACUT) -f --kver=$(MODUTS)
 endif
 
 endif  # End kbuild check
@@ -80,7 +85,7 @@ endif  # End kbuild check
 
 distclean: clean
 
-DISTFILES = wacom.h wacom_sys.c wacom_w8001.c wacom_wac.c wacom_wac.h wacom_i2c.c
+DISTFILES = wacom.h wacom_sys.c wacom_w8001.c wacom_wac.c wacom_wac.h
 
 distdir:
 	for file in $(DISTFILES); do \
