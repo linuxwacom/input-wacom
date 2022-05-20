@@ -4,6 +4,9 @@ env:
   COMPILE_CFLAGS: -fno-pie -Werror
   PREPARE_CFLAGS: -fno-pie
 
+permissions:
+  contents: read
+
 jobs:
   compile:
     runs-on: ubuntu-20.04
