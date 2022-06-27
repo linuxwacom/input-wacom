@@ -57,6 +57,12 @@ jobs:
               COMPILER_H=$(ls -v ${KERNELROOT}/include/linux/compiler-gcc*.h | tail -n1)
               ln -s "${COMPILER_H}" "${KERNELROOT}/include/linux/compiler-gcc${GCC_MAJOR_VER}.h"
           fi
+
+          # Fix issue preventing some late-version 4.x kenels from completing config
+          if [[ "${KERNELVER}" == "4."* || "${KERNELVER}" == "5.1" ]]; then
+              curl "https://github.com/torvalds/linux/commit/dfbd199a7cfe3e3cd8531e1353cdbd7175bfbc5e.patch" | patch -t -N -r - -p1 -d "${KERNELROOT}" || true
+          fi
+
           make -C ${KERNELROOT} defconfig
           ${KERNELROOT}/scripts/config --file ${KERNELROOT}/.config --disable UNWINDER_ORC --enable UNWINDER_FRAME_POINTER
           make -C ${KERNELROOT} prepare modules_prepare EXTRA_CFLAGS="${PREPARE_CFLAGS} ${{ matrix.prepare_cflags }}"
