@@ -22,13 +22,13 @@ jobs:
           - kernel: "4.1"
             compile_cflags: -Wno-error=format-truncation
           - kernel: "4.5"
-            compile_cflags: -Wno-error=format-truncation
+            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
           - kernel: "4.6"
-            compile_cflags: -Wno-error=format-truncation
+            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
           - kernel: "4.14"
-            compile_cflags: -Wno-error=format-truncation
+            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
           - kernel: "5.10"
-            compile_cflags: -Wno-error=format-truncation
+            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
