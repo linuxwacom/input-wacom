@@ -65,6 +65,7 @@
 #define WACOM_REPORT_TPCHID		15
 #define WACOM_REPORT_CINTIQ		16
 #define WACOM_REPORT_MSPRO		16
+#define WACOM_REPORT_PRO2022		30
 #define WACOM_REPORT_INTUOS_PEN		16
 #define WACOM_REPORT_CINTIQPAD		17
 #define WACOM_REPORT_TPCST		16
@@ -89,6 +90,10 @@
 
 #ifndef BTN_STYLUS3
 #define BTN_STYLUS3                     0x149
+#endif
+
+#ifndef MSC_TIMESTAMP
+#define MSC_TIMESTAMP                   0x05
 #endif
 
 #define WACOM_INTUOSP2_RING_UNTOUCHED	0x7f
@@ -127,6 +132,7 @@ enum {
 	CINTIQ_COMPANION_2,
 	WACOM_MSPRO,
 	CINTIQ_16,
+	WACOM_PRO2022,
 	WACOM_ONE,
 	CINTIQ,
 	WACOM_BEE,
@@ -184,6 +190,7 @@ struct wacom_features {
 	unsigned touch_max;
 	int oVid;
 	int oPid;
+	unsigned short sequence_number;
 };
 
 struct wacom_shared {
