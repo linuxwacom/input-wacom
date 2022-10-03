@@ -2121,11 +2121,117 @@ static int wacom_mspro_pen_irq(struct wacom_wac *wacom)
 	return 1;
 }
 
+static int wacom_Pro2022_pen_irq(struct wacom_wac *wacom)
+{
+	unsigned char *data = wacom->data;
+	struct input_dev *input = wacom->input;
+	struct wacom_features *features = &wacom->features;
+	bool tip, sw1, sw2, sw3, range, proximity;
+	unsigned int x, y;
+	unsigned int pressure;
+	int tilt_x, tilt_y;
+	int rotation;
+	unsigned int fingerwheel;
+	unsigned int height;
+	u64 tool_uid;
+	unsigned int tool_type;
+	unsigned int timestamp;
+	unsigned short sequence_number;
+
+	if (delay_pen_events(wacom))
+		return 1;
+
+	tip         = data[2] & 0x01;
+	sw1         = data[2] & 0x02;
+	sw2         = data[2] & 0x04;
+	sw3         = data[2] & 0x08;
+	/* eraser   = data[2] & 0x10; */
+	/* invert   = data[2] & 0x20; */
+	range       = data[2] & 0x40;
+	proximity   = data[2] & 0x80;
+	x           = le32_to_cpup((__le32 *)&data[3]) & 0xFFFFFF;
+	y           = le32_to_cpup((__le32 *)&data[6]) & 0xFFFFFF;
+	pressure    = le16_to_cpup((__le16 *)&data[9]);
+	tilt_x      = (char)le16_to_cpup((__le16 *)&data[11]);
+	tilt_y      = (char)le16_to_cpup((__le16 *)&data[13]);
+	rotation    = (int16_t)le16_to_cpup((__le16 *)&data[15]);
+	fingerwheel = le16_to_cpup((__le16 *)&data[17]);
+	height      = data[19];
+	tool_uid    = le64_to_cpup((__le64 *)&data[20]);
+	tool_type   = le16_to_cpup((__le16 *)&data[28]);
+	timestamp   = le16_to_cpup((__le16 *)&data[30]);
+	sequence_number = le16_to_cpup((__le16 *)&data[32]);
+
+	if (range) {
+		wacom->serial[0] = (tool_uid & 0xFFFFFFFF);
+		wacom->id[0]     = ((tool_uid >> 32) & 0xFFFFF) | tool_type;
+		wacom->tool[0] = wacom_intuos_get_tool_type(wacom->id[0] & 0xFFFFF);
+	}
+
+	/* pointer going from fully "in range" to merely "in proximity" */
+	if (!range && wacom->tool[0])
+		height = wacom->features.distance_max;
+
+
+	/*
+	 * only report data if there's a tool for userspace to associate
+	 * the events with.
+	 */
+	if (wacom->tool[0]) {
+
+		/* Fix rotation alignment: userspace expects zero at left */
+		rotation += 1800/4;
+		if (rotation > 899)
+			rotation -= 1800;
+
+		/* Fix tilt zero-point: wacom_setup_cintiq declares 0..127, not -63..+64 */
+		tilt_x += 64;
+		tilt_y += 64;
+
+		input_report_key(input, BTN_TOUCH,    proximity ? tip           : 0);
+		input_report_key(input, BTN_STYLUS,   proximity ? sw1           : 0);
+		input_report_key(input, BTN_STYLUS2,  proximity ? sw2           : 0);
+		input_report_key(input, BTN_STYLUS3,  proximity ? sw3           : 0);
+		input_report_abs(input, ABS_X,        proximity ? x             : 0);
+		input_report_abs(input, ABS_Y,        proximity ? y             : 0);
+		input_report_abs(input, ABS_PRESSURE, proximity ? pressure      : 0);
+		input_report_abs(input, ABS_TILT_X,   proximity ? tilt_x        : 0);
+		input_report_abs(input, ABS_TILT_Y,   proximity ? tilt_y        : 0);
+		input_report_abs(input, ABS_Z,        proximity ? rotation      : 0);
+		input_report_abs(input, ABS_WHEEL,    proximity ? fingerwheel   : 0);
+		input_report_abs(input, ABS_DISTANCE, proximity ? height        : 0);
+		input_event(input, EV_MSC, MSC_TIMESTAMP, timestamp);
+
+		if (wacom->features.type != WACOM_ONE) {
+			input_event(input, EV_MSC, MSC_SERIAL,
+				    wacom->serial[0]);
+			input_report_abs(input, ABS_MISC, proximity ?
+					 wacom_intuos_id_mangle(wacom->id[0])
+					 : 0);
+		} else {
+			input_report_abs(input, ABS_MISC, proximity ?
+					 STYLUS_DEVICE_ID : 0);
+		}
+		input_report_key(input, wacom->tool[0], proximity ? 1 : 0);
+
+		if (features->sequence_number != sequence_number)
+			hid_warn(wacom->input, "dropped %hu packets", sequence_number - features->sequence_number);
+
+		features->sequence_number = sequence_number + 1;
+
+		if (!proximity)
+			wacom->tool[0] = 0;
+	}
+
+	wacom->shared->stylus_in_proximity = proximity;
+
+	return 1;
+}
+
 static int wacom_mspro_irq(struct wacom_wac *wacom)
 {
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
-
 	switch (data[0]) {
 		case WACOM_REPORT_MSPRO:
 			return wacom_mspro_pen_irq(wacom);
@@ -2133,6 +2239,8 @@ static int wacom_mspro_irq(struct wacom_wac *wacom)
 			return wacom_mspro_pad_irq(wacom);
 		case WACOM_REPORT_MSPRODEVICE:
 			return wacom_mspro_device_irq(wacom);
+		case WACOM_REPORT_PRO2022:
+			return wacom_Pro2022_pen_irq(wacom);
 		default:
 			dev_dbg(input->dev.parent,
 				"%s: received unknown report #%d\n", __func__, data[0]);
@@ -2203,6 +2311,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case WACOM_MSPRO:
 	case INTUOSP2:
 	case INTUOSP2S:
+	case WACOM_PRO2022:
 	case CINTIQ_16:
 		if (len == WACOM_PKGLEN_INTUOSP2T &&
 		    wacom_wac->data[0] == WACOM_REPORT_VENDOR_DEF_TOUCH)
@@ -2554,6 +2663,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case WACOM_MSPRO:
+	case WACOM_PRO2022:
 	case CINTIQ_16:
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		__set_bit(BTN_STYLUS3, input_dev->keybit);
@@ -3557,12 +3667,20 @@ static const struct wacom_features wacom_features_0x3B3 =
 	{ "Wacom Cintiq Pro 16 Touch", WACOM_PKGLEN_MSPROT, /* Touch */
 	  .type = WACOM_MSPROT, .touch_max = 10,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x3B2 };
+static const struct wacom_features wacom_features_0x3C0 =
+	{ "Wacom Cintiq Pro 27", WACOM_PKGLEN_MSPRO, 120032, 67868, 8191, 63,
+	  WACOM_PRO2022, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 8,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x3c5 =
 	{ "Intuos BT S", WACOM_PKGLEN_INTUOSP2, 15200, 9500, 4095,
 	  63, INTUOSHT3, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
 static const struct wacom_features wacom_features_0x3c7 =
 	{ "Intuos BT M", WACOM_PKGLEN_INTUOSP2, 21600, 13500, 4095,
 	  63, INTUOSHT3, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
+static const struct wacom_features wacom_features_0x3dc =
+	{ "Wacom Intuos Pro S", WACOM_PKGLEN_INTUOSP2, 31920, 19950, 8191, 63,
+	   INTUOSP2S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 7, .touch_max = 10 };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -3768,8 +3886,10 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x3B2) },
 	{ USB_DEVICE_WACOM(0x3B3) },
 	{ USB_DEVICE_WACOM(0x3BD) },
+	{ USB_DEVICE_WACOM(0x3C0) },
 	{ USB_DEVICE_WACOM(0x3c5) },
 	{ USB_DEVICE_WACOM(0x3c7) },
+	{ USB_DEVICE_WACOM(0x3dc) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
