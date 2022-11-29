@@ -53,18 +53,26 @@
 #define WACOM_QUERY_SIZE	22
 
 /* Resolutions */
-#define XY_RESOLUTION		100	/* Distance : SI Linear Unit with exponent -3 */
-#define DIST_RESOLUTION 	10	/* Distance : SI Linear Unit with exponent -2. This covers 'Z' resolution too */
-#define TILT_RESOLUTION 	5730	/* Degrees : English Rotation with exponent -2 */
+/* Distance : SI Linear Unit with exponent -3 */
+#define XY_RESOLUTION		100
+/* Distance : SI Linear Unit with exponent -2. This covers 'Z' resolution too */
+#define DIST_RESOLUTION		10
+/* Degrees : English Rotation with exponent -2 */
+#define TILT_RESOLUTION		5730
 
 /* Generation selction */
-#define WACOM_BG9		0	/* G9 or earlier neither height nor tilt is supported */
-#define WACOM_AG12		1	/* After G12 including G14 the IC supports "height", which is "ABS_DISTANCE" event */
+/* G9 or earlier neither height nor tilt is supported */
+#define WACOM_BG9		0
+/* After G12 including G14 the IC supports "height", which is "ABS_DISTANCE" event */
+#define WACOM_AG12		1
 
 /* Maximum packet length settngs */
-#define MAX_LEN_BG9		10	/* Packet length for G9 or eralier */
-#define MAX_LEN_G12		15	/* Length for G12 */
-#define MAX_LEN_AG14		17	/* Length for G14 or later */
+/* Packet length for G9 or eralier */
+#define MAX_LEN_BG9		10
+/* Length for G12 */
+#define MAX_LEN_G12		15
+/* Length for G14 or later */
+#define MAX_LEN_AG14		17
 
 #define DISTANCE_MAX 255
 
@@ -207,7 +215,8 @@ static irqreturn_t wacom_i2c_irq(int irq, void *dev_id)
 			distance = data[10];
 		} else if (data[0] == MAX_LEN_AG14) {
 			distance = le16_to_cpup((__le16 *)&data[15]);
-			distance = -distance; /* The output is negative. Make it positive */
+			/* The output is negative. Make it positive */
+			distance = -distance;
 		}
 		input_report_abs(input, ABS_DISTANCE, distance);
 	}
@@ -300,13 +309,16 @@ static int wacom_i2c_probe(struct i2c_client *client,
 
 	if (features->generation & 0xff) { /* G12/G14 */
 		/* Tilt X & Y property setting */
-		input_set_abs_params(input, ABS_TILT_X, -features->tilt_x_max, features->tilt_x_max, 0, 0);
-		input_set_abs_params(input, ABS_TILT_Y, -features->tilt_y_max, features->tilt_y_max, 0, 0);
+		input_set_abs_params(input, ABS_TILT_X,
+				     -features->tilt_x_max, features->tilt_x_max, 0, 0);
+		input_set_abs_params(input, ABS_TILT_Y,
+				     -features->tilt_y_max, features->tilt_y_max, 0, 0);
 		input_abs_set_res(input, ABS_TILT_X, TILT_RESOLUTION);
 		input_abs_set_res(input, ABS_TILT_Y, TILT_RESOLUTION);
 
 		/* Distance property setting follows Linux Input subsystem event */
-		input_set_abs_params(input, ABS_DISTANCE, 0, features->distance_max, 0, 0);
+		input_set_abs_params(input, ABS_DISTANCE, 0,
+				     features->distance_max, 0, 0);
 		input_abs_set_res(input, ABS_DISTANCE, DIST_RESOLUTION);
 	}
 
