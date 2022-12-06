@@ -15,7 +15,7 @@
 #include <asm/unaligned.h>
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
 #include <linux/bits.h>
 
 /* Bitmasks (for data[3]) */
@@ -144,9 +144,9 @@ static int wacom_query_device(struct i2c_client *client,
 	features->fw_version = get_unaligned_le16(&data[13]);
 	features->tilt_x_max = get_unaligned_le16(&data[17]);
 	features->tilt_y_max = get_unaligned_le16(&data[19]);
-	features->distance_max = data[16];
+	features->distance_max = (unsigned char)data[16];
 
-	if ((features->distance_max = data[16]))
+	if (features->distance_max)
 		features->support.distance = true;
 
 	if ((features->tilt_x_max && features->tilt_y_max))
@@ -179,13 +179,13 @@ static irqreturn_t wacom_i2c_irq(int irq, void *dev_id)
 	short tilt_x, tilt_y;
 	short distance = 0;
 	int error;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,16,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0)
 	error = i2c_master_recv_dmasafe(wac_i2c->client,
 				data, sizeof(data));
 #else
 	error = i2c_master_recv(wac_i2c->client,
 				data, sizeof(data));
-#endif	
+#endif
 	if (error < 0)
 		goto out;
 
@@ -384,7 +384,7 @@ static struct i2c_driver wacom_i2c_driver = {
 
 #ifdef CONFIG_OF
 		.of_match_table = of_match_ptr(wacom_i2c_of_match_table),
-#endif			 
+#endif
 
 	},
 
