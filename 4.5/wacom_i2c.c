@@ -309,10 +309,10 @@ static int wacom_i2c_probe(struct i2c_client *client,
 
 	if (features->generation & 0xff) { /* G12/G14 */
 		/* Tilt X & Y property setting */
-		input_set_abs_params(input, ABS_TILT_X,
-				     -features->tilt_x_max, features->tilt_x_max, 0, 0);
-		input_set_abs_params(input, ABS_TILT_Y,
-				     -features->tilt_y_max, features->tilt_y_max, 0, 0);
+		input_set_abs_params(input, ABS_TILT_X, -features->tilt_x_max,
+				     features->tilt_x_max, 0, 0);
+		input_set_abs_params(input, ABS_TILT_Y, -features->tilt_y_max,
+				     features->tilt_y_max, 0, 0);
 		input_abs_set_res(input, ABS_TILT_X, TILT_RESOLUTION);
 		input_abs_set_res(input, ABS_TILT_Y, TILT_RESOLUTION);
 
@@ -370,7 +370,7 @@ static const struct i2c_device_id wacom_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, wacom_i2c_id);
 
 #ifdef CONFIG_OF
- static const struct of_device_id wacom_i2c_of_match_table[] = {
+static const struct of_device_id wacom_i2c_of_match_table[] = {
 	 { .compatible = "emr,wacom_i2c" },
 	 {}
 };
