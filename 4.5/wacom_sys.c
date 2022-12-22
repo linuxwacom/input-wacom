@@ -2262,11 +2262,12 @@ static size_t wacom_compute_pktlen(struct hid_device *hdev)
 	return size;
 }
 
-static void wacom_update_name(struct wacom *wacom, const char *suffix)
+static int wacom_update_name(struct wacom *wacom, const char *suffix)
 {
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct wacom_features *features = &wacom_wac->features;
 	char name[WACOM_NAME_MAX - 20]; /* Leave some room for suffixes */
+	int ret = 0;
 
 	/* Generic devices name unspecified */
 	if ((features->type == HID_GENERIC) && !strcmp("Wacom HID", features->name)) {
@@ -2284,7 +2285,7 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		} else if (strstr(product_name, "Wacom") ||
 			   strstr(product_name, "wacom") ||
 			   strstr(product_name, "WACOM")) {
-			strscpy(name, product_name, sizeof(name));
+			ret = strscpy(name, product_name, sizeof(name));
 		} else {
 			snprintf(name, sizeof(name), "Wacom %s", product_name);
 		}
@@ -2302,7 +2303,10 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		if (name[strlen(name)-1] == ' ')
 			name[strlen(name)-1] = '\0';
 	} else {
-		strscpy(name, features->name, sizeof(name));
+		ret = strscpy(name, features->name, sizeof(name));
+	}
+	if (ret < 0) {
+		return ret;
 	}
 
 	snprintf(wacom_wac->name, sizeof(wacom_wac->name), "%s%s",
@@ -2315,6 +2319,8 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		"%s%s Finger", name, suffix);
 	snprintf(wacom_wac->pad_name, sizeof(wacom_wac->pad_name),
 		"%s%s Pad", name, suffix);
+
+	return 0;
 }
 
 static void wacom_release_resources(struct wacom *wacom)
@@ -2418,7 +2424,9 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 
 	wacom_calculate_res(features);
 
-	wacom_update_name(wacom, wireless ? " (WL)" : "");
+	error = wacom_update_name(wacom, wireless ? " (WL)" : "");
+	if (error)
+		goto fail;
 
 	/* pen only Bamboo neither support touch nor pad */
 	if ((features->type == BAMBOO_PEN) &&
@@ -2567,8 +2575,11 @@ static void wacom_wireless_work(struct work_struct *work)
 				goto fail;
 		}
 
-		strscpy(wacom_wac->name, wacom_wac1->name,
+		error = strscpy(wacom_wac->name, wacom_wac1->name,
 			sizeof(wacom_wac->name));
+		if (error < 0)
+			goto fail;
+
 		error = wacom_initialize_battery(wacom);
 		if (error)
 			goto fail;
