@@ -1753,17 +1753,12 @@ fail:
 static int wacom_remote_attach_battery(struct wacom *wacom, int index)
 {
 	struct wacom_remote *remote = wacom->remote;
-	int error;
+
 	if (!remote->remotes[index].registered)
 		return 0;
 
 	if (WACOM_POWERSUPPLY_DEVICE(remote->remotes[index].battery.battery))
 		return 0;
-
-	error = __wacom_initialize_battery(wacom,
-					   &wacom->remote->remotes[index].battery);
-	if (error)
-		return error;
 
 	return 0;
 }
@@ -1894,10 +1889,6 @@ static void wacom_wireless_work(struct work_struct *work)
 				wacom_wac->shared->touch_input = wacom_wac2->input;
 			}
 		}
-
-		error = wacom_initialize_battery(wacom);
-		if (error)
-			goto fail;
 	}
 
 	return;
