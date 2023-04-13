@@ -2265,13 +2265,6 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	if (error)
 		goto fail_shared_data;
 
-	if (!(features->device_type & WACOM_DEVICETYPE_WL_MONITOR) &&
-	     (features->quirks & WACOM_QUIRK_BATTERY)) {
-		error = wacom_initialize_battery(wacom);
-		if (error)
-			goto fail_battery;
-	}
-
 	error = wacom_register_inputs(wacom);
 	if (error)
 		goto fail_register_inputs;
@@ -2331,7 +2324,6 @@ fail_register_inputs:
 #ifndef WACOM_POWERSUPPLY_41
 	wacom_destroy_battery(wacom);
 #endif
-fail_battery:
 fail_shared_data:
 fail_parsed:
 fail_allocate_inputs:
@@ -2417,9 +2409,6 @@ static void wacom_wireless_work(struct work_struct *work)
 
 		strlcpy(wacom_wac->name, wacom_wac1->name,
 			sizeof(wacom_wac->name));
-		error = wacom_initialize_battery(wacom);
-		if (error)
-			goto fail;
 	}
 
 	return;
