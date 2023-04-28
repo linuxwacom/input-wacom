@@ -72,7 +72,7 @@ void wacom_idleprox_timeout(struct timer_list *list)
 #else
 void wacom_idleprox_timeout(unsigned long data)
 {
-       struct wacom *wacom = (struct wacom *)data;
+	struct wacom *wacom = (struct wacom *)data;
 #endif
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 
@@ -1973,7 +1973,6 @@ static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 				 code);
 		}
 		input_abs_set_res(input, code, resolution);
- 		break;
 		break;
 	case EV_KEY:
 	case EV_MSC:
