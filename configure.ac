@@ -205,6 +205,21 @@ struct power_supply_desc test;
 	AC_MSG_RESULT([pre-v4.1])
 ])
 
+dnl RedHat enterprise Linux 7.9 backports devm functions from 4.6
+AC_MSG_CHECKING(devm_add_action_or_reset)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/device.h>
+int devm_add_action_or_reset(struct device *dev, void (*action)(void *), void *data) { return 0; }
+],[
+],[
+	HAVE_DEVM_ADD_OR_RESET=no
+	AC_MSG_RESULT([no])
+],[
+	HAVE_DEVM_ADD_OR_RESET=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_DEVM_OR_RESET], [], [kernel defines devm_add_action_or_reset from v4.6+])
+])
+
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"

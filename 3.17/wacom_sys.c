@@ -62,7 +62,7 @@ static bool wacom_is_using_usb_driver(struct hid_device *hdev)
 	       usb_for_each_dev(hdev, __wacom_is_usb_parent);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,6,0)
+#ifndef WACOM_DEVM_OR_RESET
 static int devm_add_action_or_reset(struct device *dev,
 				    void (*action)(void *), void *data)
 {
