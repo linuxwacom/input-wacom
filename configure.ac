@@ -156,6 +156,8 @@ $2
   ;
   return 0;
 }
+#include "linux/module.h"
+MODULE_LICENSE("GPL");
 ])
 
 dnl #
