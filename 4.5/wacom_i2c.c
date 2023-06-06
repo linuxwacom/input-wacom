@@ -6,6 +6,8 @@
  * <tobita.tatsunosuke@wacom.co.jp>
  */
 
+#include "../config.h"
+
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
