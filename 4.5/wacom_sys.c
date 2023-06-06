@@ -14,7 +14,11 @@
 #define DEV_ATTR_WO_PERM (S_IWUSR | S_IWGRP)
 #define DEV_ATTR_RO_PERM (S_IRUSR | S_IRGRP)
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
+#if defined WACOM_HID_IS_USB
+#define wacom_is_using_usb_driver(hdev) hid_is_usb(hdev)
+#elif defined WACOM_USING_LL_DRIVER
+#define wacom_is_using_usb_driver(hdev) hid_is_using_ll_driver(hdev, &usb_hid_driver)
+#else
 static int __wacom_is_usb_parent(struct usb_device *usbdev, void *ptr)
 {
 	struct hid_device *hdev = ptr;
@@ -34,8 +38,6 @@ static bool wacom_is_using_usb_driver(struct hid_device *hdev)
 	return hdev->bus == BUS_USB &&
 	       usb_for_each_dev(hdev, __wacom_is_usb_parent);
 }
-#else
-#define wacom_is_using_usb_driver(hdev) hid_is_using_ll_driver(hdev, &usb_hid_driver)
 #endif
 
 #ifndef WACOM_DEVM_OR_RESET

@@ -222,6 +222,34 @@ int devm_add_action_or_reset(struct device *dev, void (*action)(void *), void *d
 	AC_DEFINE([WACOM_DEVM_OR_RESET], [], [kernel defines devm_add_action_or_reset from v4.6+])
 ])
 
+dnl Check which API is available for determining bus type
+AC_MSG_CHECKING(hid_is_using_ll_driver)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/hid.h>
+bool hid_is_using_ll_driver(struct hid_device *hdev, struct hid_ll_driver *driver) { return 0; }
+],[
+],[
+	HAVE_IS_USING_LL_DRIVER=no
+	AC_MSG_RESULT([no])
+],[
+	HAVE_IS_USING_LL_DRIVER=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_USING_LL_DRIVER], [], [kernel defines hid_is_using_ll_driver from v4.14+])
+])
+AC_MSG_CHECKING(hid_is_usb)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/hid.h>
+bool hid_is_usb(struct hid_device *hdev) { return 0; }
+],[
+],[
+	HAVE_HID_IS_USB=no
+	AC_MSG_RESULT([no])
+],[
+	HAVE_HID_IS_USB=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_HID_IS_USB], [], [kernel defines hid_is_usb from v5.15+])
+])
+
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"
