@@ -38,7 +38,7 @@ static bool wacom_is_using_usb_driver(struct hid_device *hdev)
 #define wacom_is_using_usb_driver(hdev) hid_is_using_ll_driver(hdev, &usb_hid_driver)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,6,0)
+#ifndef WACOM_DEVM_OR_RESET
 static int devm_add_action_or_reset(struct device *dev,
 				    void (*action)(void *), void *data)
 {
