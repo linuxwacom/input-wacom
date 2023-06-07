@@ -6,6 +6,7 @@
  * <tobita.tatsunosuke@wacom.co.jp>
  */
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
@@ -13,10 +14,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <asm/unaligned.h>
-#include <linux/version.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
-#include <linux/bits.h>
 
 /* Bitmasks (for data[3]) */
 #define WACOM_TIP_SWITCH	BIT(0)
@@ -25,43 +22,51 @@
 #define WACOM_INVERT		BIT(3)
 #define WACOM_BARREL_SWITCH_2	BIT(4)
 #define WACOM_IN_PROXIMITY	BIT(5)
-
-#else
-/* Bitmasks (for data[3]) */
-#define WACOM_TIP_SWITCH	0x01
-#define WACOM_BARREL_SWITCH	0x02
-#define WACOM_ERASER		0x04
-#define WACOM_INVERT		0x08
-#define WACOM_BARREL_SWITCH_2	0x10
-#define WACOM_IN_PROXIMITY	0x20
-#endif
-
+#define WACOM_TRANSDUCE 	BIT(6) | BIT(7)
+#define WACOM_SHINONOME_REPORT	26
 /* Registers */
-#define WACOM_COMMAND_LSB	0x04
-#define WACOM_COMMAND_MSB	0x00
+#define WACOM_CMD_QUERY0	0x04
+#define WACOM_CMD_QUERY1	0x00
+#define WACOM_CMD_QUERY2	0x33
+#define WACOM_CMD_QUERY3	0x02
+#define WACOM_CMD_THROW0	0x05
+#define WACOM_CMD_THROW1	0x00
+#define WACOM_QUERY_SIZE	22
 
-#define WACOM_DATA_LSB		0x05
-#define WACOM_DATA_MSB		0x00
+/* Resolutions */
+#define XY_RESOLUTION		100	/* Distance : SI Linear Unit with exponent -3 */
+#define DIST_RESOLUTION 	10	/* Distance : SI Linear Unit with exponent -2. This covers 'Z' resolution too */
+#define TILT_RESOLUTION 	5730	/* Degrees : English Rotation with exponent -2 */
 
-/* Report types */
-#define REPORT_FEATURE		0x30
+/* Generation selction */
+#define WACOM_BG9		0	/* G9 or earlier neither height nor tilt is supported */
+#define WACOM_AG12		1	/* After G12 the IC supports "height", which is "ABS_DISTANCE" event */
+#define MAX_LEN_BG9		10	/* Packet length for G9 or eralier */
+#define MAX_LEN_G12		15	/* Length for G12 */
+#define MAX_LEN_AG14		17	/* Length for G14 or later */
 
-/* Requests / operations */
-#define OPCODE_GET_REPORT	0x02
+#define DISTANCE_MAX 255
 
-#define WACOM_QUERY_REPORT	3
-#define WACOM_QUERY_SIZE	19
+struct feature_support {
+	bool distance;
+	bool tilt;
+};
 
 struct wacom_features {
+	struct feature_support support;
 	int x_max;
 	int y_max;
 	int pressure_max;
-	char fw_version;
+	int distance_max;
+	int tilt_x_max;
+	int tilt_y_max;	char fw_version;
+	unsigned char generation;
 };
 
 struct wacom_i2c {
 	struct i2c_client *client;
 	struct input_dev *input;
+	struct wacom_features features;
 	u8 data[WACOM_QUERY_SIZE];
 	bool prox;
 	int tool;
@@ -70,24 +75,23 @@ struct wacom_i2c {
 static int wacom_query_device(struct i2c_client *client,
 			      struct wacom_features *features)
 {
-	u8 get_query_data_cmd[] = {
-		WACOM_COMMAND_LSB,
-		WACOM_COMMAND_MSB,
-		REPORT_FEATURE | WACOM_QUERY_REPORT,
-		OPCODE_GET_REPORT,
-		WACOM_DATA_LSB,
-		WACOM_DATA_MSB,
-	};
-	u8 data[WACOM_QUERY_SIZE];
 	int ret;
-
+	u8 cmd1[] = { WACOM_CMD_QUERY0, WACOM_CMD_QUERY1,
+			WACOM_CMD_QUERY2, WACOM_CMD_QUERY3 };
+	u8 cmd2[] = { WACOM_CMD_THROW0, WACOM_CMD_THROW1 };
+	u8 data[WACOM_QUERY_SIZE];
 	struct i2c_msg msgs[] = {
-		/* Request reading of feature ReportID: 3 (Pen Query Data) */
 		{
 			.addr = client->addr,
 			.flags = 0,
-			.len = sizeof(get_query_data_cmd),
-			.buf = get_query_data_cmd,
+			.len = sizeof(cmd1),
+			.buf = cmd1,
+		},
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = sizeof(cmd2),
+			.buf = cmd2,
 		},
 		{
 			.addr = client->addr,
@@ -107,12 +111,29 @@ static int wacom_query_device(struct i2c_client *client,
 	features->y_max = get_unaligned_le16(&data[5]);
 	features->pressure_max = get_unaligned_le16(&data[11]);
 	features->fw_version = get_unaligned_le16(&data[13]);
+	features->tilt_x_max = get_unaligned_le16(&data[17]);
+	features->tilt_y_max = get_unaligned_le16(&data[19]);
+	features->distance_max = data[16];
+
+	if ((features->distance_max = data[16]))
+		features->support.distance = true;
+
+	if ((features->tilt_x_max && features->tilt_y_max))
+		features->support.tilt = true;
 
 	dev_dbg(&client->dev,
-		"x_max:%d, y_max:%d, pressure:%d, fw:%d\n",
+		"x_max:%d, y_max:%d, pressure:%d, fw:%d, "
+		"distance: %d, distance"
+		"tilt_x_max: %d, tilt_y_max: %d\n",
 		features->x_max, features->y_max,
-		features->pressure_max, features->fw_version);
+		features->pressure_max, features->fw_version,
+		features->distance_max,
+		features->tilt_x_max, features->tilt_y_max);
 
+	if (!features->support.distance && !features->support.tilt)
+		features->generation = WACOM_BG9;
+	else if (features->distance_max == DISTANCE_MAX)
+		features->generation = WACOM_AG12;
 	return 0;
 }
 
@@ -120,9 +141,12 @@ static irqreturn_t wacom_i2c_irq(int irq, void *dev_id)
 {
 	struct wacom_i2c *wac_i2c = dev_id;
 	struct input_dev *input = wac_i2c->input;
+	struct wacom_features *features = &wac_i2c->features;
 	u8 *data = wac_i2c->data;
 	unsigned int x, y, pressure;
-	unsigned char tsw, f1, f2, ers;
+	unsigned char tsw, f1, f2, ers, transducer = 0;
+	short tilt_x, tilt_y;
+	short distance = 0;
 	int error;
 
 	error = i2c_master_recv(wac_i2c->client,
@@ -143,6 +167,28 @@ static irqreturn_t wacom_i2c_irq(int irq, void *dev_id)
 			BTN_TOOL_RUBBER : BTN_TOOL_PEN;
 
 	wac_i2c->prox = data[3] & WACOM_IN_PROXIMITY;
+
+	// Shinonome Refill has a transducer index field:
+	if (data[2] == WACOM_SHINONOME_REPORT) {
+		transducer = (data[3]) & (WACOM_TRANSDUCE);
+	}
+
+	if (features->generation) {
+		/* Tilt (signed) */
+		tilt_x = le16_to_cpup((__le16 *)&data[11]);
+		tilt_y = le16_to_cpup((__le16 *)&data[13]);
+		input_report_abs(input, ABS_TILT_X, tilt_x);
+		input_report_abs(input, ABS_TILT_Y, tilt_y);
+
+		/* Hover height */
+		if (data[0] == MAX_LEN_G12) {
+			distance = data[10];
+		} else if (data[0] == MAX_LEN_AG14) {
+			distance = le16_to_cpup((__le16 *)&data[15]);
+			distance = -distance; /* The output is negative. Make it positive */
+		}
+		input_report_abs(input, ABS_DISTANCE, distance);
+	}
 
 	input_report_key(input, BTN_TOUCH, tsw || ers);
 	input_report_key(input, wac_i2c->tool, wac_i2c->prox);
@@ -181,7 +227,7 @@ static int wacom_i2c_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct wacom_i2c *wac_i2c;
 	struct input_dev *input;
-	struct wacom_features features = { 0 };
+	struct wacom_features *features;
 	int error;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -189,13 +235,14 @@ static int wacom_i2c_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	error = wacom_query_device(client, &features);
-	if (error)
-		return error;
-
 	wac_i2c = devm_kzalloc(dev, sizeof(*wac_i2c), GFP_KERNEL);
 	if (!wac_i2c)
 		return -ENOMEM;
+
+	features = &wac_i2c->features;
+	error = wacom_query_device(client, features);
+	if (error)
+		return error;
 
 	wac_i2c->client = client;
 
@@ -208,22 +255,38 @@ static int wacom_i2c_probe(struct i2c_client *client,
 	input->name = "Wacom I2C Digitizer";
 	input->id.bustype = BUS_I2C;
 	input->id.vendor = 0x56a;
-	input->id.version = features.fw_version;
+	input->id.version = features->fw_version;
+	input->dev.parent = &client->dev;
 	input->open = wacom_i2c_open;
 	input->close = wacom_i2c_close;
 
 	input->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
+	__set_bit(INPUT_PROP_DIRECT, input->propbit);
 	__set_bit(BTN_TOOL_PEN, input->keybit);
 	__set_bit(BTN_TOOL_RUBBER, input->keybit);
 	__set_bit(BTN_STYLUS, input->keybit);
 	__set_bit(BTN_STYLUS2, input->keybit);
 	__set_bit(BTN_TOUCH, input->keybit);
 
-	input_set_abs_params(input, ABS_X, 0, features.x_max, 0, 0);
-	input_set_abs_params(input, ABS_Y, 0, features.y_max, 0, 0);
+	input_set_abs_params(input, ABS_X, 0, features->x_max, 0, 0);
+	input_set_abs_params(input, ABS_Y, 0, features->y_max, 0, 0);
 	input_set_abs_params(input, ABS_PRESSURE,
-			     0, features.pressure_max, 0, 0);
+			     0, features->pressure_max, 0, 0);
+	input_abs_set_res(input, ABS_X, XY_RESOLUTION);
+	input_abs_set_res(input, ABS_Y, XY_RESOLUTION);
+
+	if (features->generation & 0xff) { /* G12/G14 */
+		/* Tilt X & Y property setting */
+		input_set_abs_params(input, ABS_TILT_X, -features->tilt_x_max, features->tilt_x_max, 0, 0);
+		input_set_abs_params(input, ABS_TILT_Y, -features->tilt_y_max, features->tilt_y_max, 0, 0);
+		input_abs_set_res(input, ABS_TILT_X, TILT_RESOLUTION);
+		input_abs_set_res(input, ABS_TILT_Y, TILT_RESOLUTION);
+
+		/* Distance property setting follows Linux Input subsystem event */
+		input_set_abs_params(input, ABS_DISTANCE, 0, features->distance_max, 0, 0);
+		input_abs_set_res(input, ABS_DISTANCE, DIST_RESOLUTION);
+	}
 
 	input_set_drvdata(input, wac_i2c);
 
@@ -272,10 +335,23 @@ static const struct i2c_device_id wacom_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wacom_i2c_id);
 
+#ifdef CONFIG_OF
+ static const struct of_device_id wacom_i2c_of_match_table[] = {
+	 { .compatible = "emr,wacom_i2c" },
+	 {}
+};
+MODULE_DEVICE_TABLE(of, wacom_i2c_of_match_table);
+#endif
+
 static struct i2c_driver wacom_i2c_driver = {
 	.driver	= {
 		.name	= "wacom_i2c",
 		.pm	= &wacom_i2c_pm,
+
+#ifdef CONFIG_OF
+		.of_match_table = of_match_ptr(wacom_i2c_of_match_table),
+#endif
+
 	},
 
 	.probe		= wacom_i2c_probe,
