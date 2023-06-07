@@ -46,7 +46,7 @@ endif
 
 all:
 	@echo '    Building input-wacom drivers for $(WCM_KERNEL_VER) kernel.'
-	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD)
+	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) $(EXTRA_MAKEFLAGS)
 
 clean:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) clean
