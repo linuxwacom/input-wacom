@@ -3,6 +3,8 @@
 #ifndef WACOM_WAC_H
 #define WACOM_WAC_H
 
+#include "../config.h"
+
 #include <linux/types.h>
 #include <linux/hid.h>
 #include <linux/kfifo.h>
@@ -348,7 +350,9 @@ struct hid_data {
 	int ps_connected;
 	bool pad_input_event_flag;
 	unsigned short sequence_number;
-	int time_delayed;
+#ifdef WACOM_INPUT_SET_TIMESTAMP
+	ktime_t time_delayed;
+#endif
 };
 
 struct wacom_remote_data {

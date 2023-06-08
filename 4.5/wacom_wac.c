@@ -1325,7 +1325,7 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 	unsigned char *data = wacom->data;
 	int number_of_valid_frames = 0;
 #ifdef WACOM_INPUT_SET_TIMESTAMP
-	int time_interval = 15000000;
+	ktime_t time_interval = 15000000;
 	ktime_t time_packet_received = ktime_get();
 #endif
 	int i;
@@ -1361,7 +1361,7 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 	if (number_of_valid_frames) {
 		if (wacom->hid_data.time_delayed)
 			time_interval = ktime_get() - wacom->hid_data.time_delayed;
-		time_interval /= number_of_valid_frames;
+		time_interval = div_u64(time_interval, number_of_valid_frames);
 		wacom->hid_data.time_delayed = time_packet_received;
 	}
 #endif
@@ -1374,7 +1374,7 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 		bool invert = frame[0] & 0x10;
 #ifdef WACOM_INPUT_SET_TIMESTAMP
 		int frames_number_reversed = number_of_valid_frames - i - 1;
-		int event_timestamp = time_packet_received - frames_number_reversed * time_interval;
+		ktime_t event_timestamp = time_packet_received - frames_number_reversed * time_interval;
 #endif
 
 		if (!valid)
@@ -1388,7 +1388,9 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 			wacom->tool[0] = 0;
 			wacom->id[0] = 0;
 			wacom->serial[0] = 0;
+#ifdef WACOM_INPUT_SET_TIMESTAMP
 			wacom->hid_data.time_delayed = 0;
+#endif
 			return;
 		}
 
