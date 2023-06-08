@@ -55,7 +55,7 @@ jobs:
           gcc -print-file-name=plugin
 
       - name: Checkout the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Download and extract v${{ matrix.kernel }} kernel
         run: |
