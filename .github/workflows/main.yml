@@ -38,6 +38,7 @@ jobs:
             compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
           - kernel: "6.3"
             compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
+            build_makeflags: KBUILD_MODPOST_WARN=1
     steps:
       - name: Install dependencies
         run: |
@@ -88,5 +89,5 @@ jobs:
           KERNELDIR=${HOME}/kernel
           KERNELROOT=${KERNELDIR}/linux-${{ matrix.kernel }}
           ./autogen.sh --with-kernel=${KERNELROOT}
-          make V=1 EXTRA_CFLAGS="${COMPILE_CFLAGS} ${{ matrix.compile_cflags }}"
+          make V=1 EXTRA_CFLAGS="${COMPILE_CFLAGS} ${{ matrix.compile_cflags }}" EXTRA_MAKEFLAGS="${BUILD_MAKEFLAGS} ${{ matrix.build_makeflags }}"
 
