@@ -6,6 +6,8 @@
  * <tobita.tatsunosuke@wacom.co.jp>
  */
 
+#include "../config.h"
+
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
@@ -175,8 +177,12 @@ static void wacom_i2c_close(struct input_dev *dev)
 	disable_irq(client->irq);
 }
 
+#ifdef WACOM_PROBE_LEGACY
 static int wacom_i2c_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
+#else
+static int wacom_i2c_probe(struct i2c_client *client)
+#endif
 {
 	struct device *dev = &client->dev;
 	struct wacom_i2c *wac_i2c;
