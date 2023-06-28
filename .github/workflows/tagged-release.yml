@@ -39,38 +39,15 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: false
           
-      - name: Generate md5 checksum
-        uses: jmgilman/actions-generate-checksum@v1
-        with:
-          method: md5
-          output: md5.txt
-          patterns: ./*.tar.bz2
-          
-      - name: Read md5 checksum file
-        id: get-md5
-        run: echo "::set-output name=md5::$(sed -r 's/(.{32}).*/\1/' md5.txt;cat md5.txt)"
-        
-      - name: Generate sha1 checksum
-        uses: jmgilman/actions-generate-checksum@v1
-        with:
-          method: sha1
-          output: sha1.txt
-          patterns: ./*.tar.bz2
-          
-      - name: Read sha1 checksum file
-        id: get-sha1
-        run: echo "::set-output name=sha1::$(sed -r 's/(.{40}).*/\1/' sha1.txt;cat sha1.txt)"
-        
-      - name: Generate sha256 checksum
-        uses: jmgilman/actions-generate-checksum@v1
-        with:
-          method: sha256
-          output: sha256.txt
-          patterns: ./*.tar.bz2
-          
-      - name: Read sha256 checksum file
-        id: get-sha256
-        run: echo "::set-output name=sha256::$(sed -r 's/(.{64}).*/\1/' sha256.txt;cat sha256.txt)"
+      - name: Generate Checksums
+        id: generate-checksums
+        run : |
+          md5sum *tar.bz2 | tee md5sum.txt
+          sha1sum *tar.bz2 | tee sha1sum.txt
+          sha256sum *tar.bz2 | tee sha256sum.txt
+          echo "md5=$(cut -f1 -d' ' md5sum.txt)" >> $GITHUB_OUTPUT
+          echo "sha1=$(cut -f1 -d' ' sha1sum.txt)" >> $GITHUB_OUTPUT
+          echo "sha256=$(cut -f1 -d' ' sha256sum.txt)" >> $GITHUB_OUTPUT
         
       - name: Upload Release Asset
         id: upload-main-asset 
@@ -92,7 +69,7 @@ jobs:
           body: |
             **git tag: ${{  github.ref_name }}**
             ${{ steps.upload-main-asset.outputs.browser_download_url }}
-            md5: ${{ steps.get-md5.outputs.md5 }}
-            sha1: ${{ steps.get-sha1.outputs.sha1 }}
-            sha256: ${{ steps.get-sha256.outputs.sha256 }}
+            md5: `${{ steps.generate-checksums.outputs.md5 }}`
+            sha1: `${{ steps.generate-checksums.outputs.sha1 }}`
+            sha256: `${{ steps.generate-checksums.outputs.sha256 }}`
           isAppendBody: true
