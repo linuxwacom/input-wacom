@@ -269,6 +269,23 @@ struct i2c_driver test = { .probe = probe_legacy };
 	AC_MSG_RESULT([no])
 ])
 
+dnl Check if input_set_timestamp is available to us or not. This should
+dnl be available in Linux 5.4.0 and later.
+AC_MSG_CHECKING(input_set_timestamp)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/input.h>
+bool input_set_timestamp(struct input_dev *dev, ktime_t timestamp) { return true; }
+],[
+],[
+	HAVE_INPUT_SET_TIMESTAMP=no
+	AC_MSG_RESULT([no])
+],[
+	HAVE_INPUT_SET_TIMESTAMP=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_INPUT_SET_TIMESTAMP], [], [kernel defines input_set_timestamp from v5.4+])
+])
+
+
 
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])

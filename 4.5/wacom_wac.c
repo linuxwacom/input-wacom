@@ -1324,7 +1324,7 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 	struct input_dev *pen_input = wacom->pen_input;
 	unsigned char *data = wacom->data;
 	int number_of_valid_frames = 0;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+#ifdef WACOM_INPUT_SET_TIMESTAMP
 	int time_interval = 15000000;
 	ktime_t time_packet_received = ktime_get();
 #endif
@@ -1357,7 +1357,7 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 			number_of_valid_frames++;
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+#ifdef WACOM_INPUT_SET_TIMESTAMP
 	if (number_of_valid_frames) {
 		if (wacom->hid_data.time_delayed)
 			time_interval = ktime_get() - wacom->hid_data.time_delayed;
@@ -1372,7 +1372,7 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 		bool prox = frame[0] & 0x40;
 		bool range = frame[0] & 0x20;
 		bool invert = frame[0] & 0x10;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+#ifdef WACOM_INPUT_SET_TIMESTAMP
 		int frames_number_reversed = number_of_valid_frames - i - 1;
 		int event_timestamp = time_packet_received - frames_number_reversed * time_interval;
 #endif
@@ -1449,7 +1449,7 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 
 		wacom->shared->stylus_in_proximity = prox;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+#ifdef WACOM_INPUT_SET_TIMESTAMP
 		/* add timestamp to unpack the frames */
 		input_set_timestamp(pen_input, event_timestamp);
 #endif
