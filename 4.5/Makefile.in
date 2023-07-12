@@ -55,7 +55,7 @@ install modules_install:
 	mkdir -p /etc/depmod.d
 	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
 	echo "override wacom_w8001 * extra" >> /etc/depmod.d/input-wacom.conf
-	echo "override wacom_i2c * extra" >> /etc/depmod.d/input-wacom_i2c.conf
+	echo "override wacom_i2c * extra" >> /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
@@ -70,10 +70,8 @@ uninstall:
 	@# which causes trouble for tools like 'rm' which don't
 	@# see the path how you might think. As a workaround,
 	@# first cd into the directory and then remove.
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom.ko*
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_w8001.ko*
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_i2c.ko*
-	rm -f /etc/depmod.d/input-wacom.conf
+	cd $(WCM_KERNEL_DIR)/../extra; rm wacom*.ko*
+	rm -f /etc/depmod.d/input-wacom*.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
