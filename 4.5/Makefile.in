@@ -40,7 +40,7 @@ endif
 
 all:
 	@echo '    Building input-wacom drivers for $(WCM_KERNEL_VER) kernel.'
-	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD)
+	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) $(EXTRA_MAKEFLAGS)
 
 clean:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) clean
@@ -50,12 +50,18 @@ signature: all
 	$(MODSIGN_COMMAND) wacom_w8001.ko
 	$(MODSIGN_COMMAND) wacom_i2c.ko
 
-install modules_install:
+kernel_install:
 	$(MAKE) -C $(WCM_KERNEL_DIR) M=$(PWD) modules_install mod_sign_cmd='$(MODSIGN_COMMAND)'
+
+depmod: SEARCH_EXTRA=$(strip $(wildcard /lib/modules/$(MODUTS)/extra/wacom.ko*))
+depmod: SEARCH_UPDATES=$(strip $(wildcard /lib/modules/$(MODUTS)/updates/wacom.ko*))
+depmod: MODINST_DIR=$(strip $(if $(SEARCH_EXTRA), extra, $(if $(SEARCH_UPDATES), updates)))
+depmod:
+	$(if $(MODINST_DIR),,$(error Could not find where driver was installed))
 	mkdir -p /etc/depmod.d
-	echo "override wacom * extra" > /etc/depmod.d/input-wacom.conf
-	echo "override wacom_w8001 * extra" >> /etc/depmod.d/input-wacom.conf
-	echo "override wacom_i2c * extra" >> /etc/depmod.d/input-wacom_i2c.conf
+	echo "override wacom * $(MODINST_DIR)" > /etc/depmod.d/input-wacom.conf
+	echo "override wacom_w8001 * $(MODINST_DIR)" >> /etc/depmod.d/input-wacom.conf
+	echo "override wacom_i2c * $(MODINST_DIR)" >> /etc/depmod.d/input-wacom.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
@@ -65,15 +71,18 @@ ifdef DRACUT
 	$(DRACUT) -f --kver=$(MODUTS)
 endif
 
+install modules_install: kernel_install depmod
+
+uninstall: SEARCH_EXTRA=$(strip $(wildcard /lib/modules/$(MODUTS)/extra/wacom.ko*))
+uninstall: SEARCH_UPDATES=$(strip $(wildcard /lib/modules/$(MODUTS)/updates/wacom.ko*))
+uninstall: MODINST_DIR=$(strip $(if $(SEARCH_EXTRA), extra, $(if $(SEARCH_UPDATES), updates)))
 uninstall:
 	@# Debian uses symlinks in the path to WCM_KERNEL_DIR
 	@# which causes trouble for tools like 'rm' which don't
 	@# see the path how you might think. As a workaround,
 	@# first cd into the directory and then remove.
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom.ko*
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_w8001.ko*
-	cd $(WCM_KERNEL_DIR)/../extra; rm wacom_i2c.ko*
-	rm -f /etc/depmod.d/input-wacom.conf
+	cd /lib/modules/$(MODUTS)/$(MODINST_DIR); rm wacom*.ko*
+	rm -f /etc/depmod.d/input-wacom*.conf
 	PATH="$(PATH):/bin:/sbin" depmod -a $(MODUTS)
 ifdef UPDATE_INITRAMFS
 	$(UPDATE_INITRAMFS) -u -k $(MODUTS)
@@ -98,6 +107,6 @@ distdir:
 
 EMPTY_AUTOMAKE_TARGETS = install-data install-exec uninstall install-info
 EMPTY_AUTOMAKE_TARGETS += installdirs check dvi pdf ps info html tags ctags mostlyclean maintainer-clean
-EMPTY_AUTOMAKE_TARGETS += signature
+EMPTY_AUTOMAKE_TARGETS += signature depmod kernel_install
 .PHONY: $(EMPTY_AUTOMAKE_TARGETS)
 	$(EMPTY_AUTOMAKE_TARGETS):

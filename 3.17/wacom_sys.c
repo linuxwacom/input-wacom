@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * drivers/input/tablet/wacom_sys.c
- *
  *  USB Wacom tablet support - system specific code
- */
-
-/*
  */
 
 #include "wacom_wac.h"
@@ -67,7 +62,7 @@ static bool wacom_is_using_usb_driver(struct hid_device *hdev)
 	       usb_for_each_dev(hdev, __wacom_is_usb_parent);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,6,0)
+#ifndef WACOM_DEVM_OR_RESET
 static int devm_add_action_or_reset(struct device *dev,
 				    void (*action)(void *), void *data)
 {
@@ -221,6 +216,9 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 		u8 *raw_data, int size)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
+
+	if (wacom->wacom_wac.features.type == BOOTLOADER)
+		return 0;
 
 	if (size > WACOM_PKGLEN_MAX)
 		return 1;
@@ -2267,13 +2265,6 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	if (error)
 		goto fail_shared_data;
 
-	if (!(features->device_type & WACOM_DEVICETYPE_WL_MONITOR) &&
-	     (features->quirks & WACOM_QUIRK_BATTERY)) {
-		error = wacom_initialize_battery(wacom);
-		if (error)
-			goto fail_battery;
-	}
-
 	error = wacom_register_inputs(wacom);
 	if (error)
 		goto fail_register_inputs;
@@ -2316,8 +2307,13 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 		goto fail_quirks;
 	}
 
-	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR)
+	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR) {
 		error = hid_hw_open(hdev);
+		if (error) {
+			hid_err(hdev, "hw open failed\n");
+			goto fail_quirks;
+		}
+	}
 
 	wacom_set_shared_values(wacom_wac);
 	devres_close_group(&hdev->dev, wacom);
@@ -2333,7 +2329,6 @@ fail_register_inputs:
 #ifndef WACOM_POWERSUPPLY_41
 	wacom_destroy_battery(wacom);
 #endif
-fail_battery:
 fail_shared_data:
 fail_parsed:
 fail_allocate_inputs:
@@ -2419,9 +2414,6 @@ static void wacom_wireless_work(struct work_struct *work)
 
 		strlcpy(wacom_wac->name, wacom_wac1->name,
 			sizeof(wacom_wac->name));
-		error = wacom_initialize_battery(wacom);
-		if (error)
-			goto fail;
 	}
 
 	return;
@@ -2707,6 +2699,11 @@ static int wacom_probe(struct hid_device *hdev,
 	if (error) {
 		hid_err(hdev, "parse failed\n");
 		goto fail;
+	}
+
+	if (features->type == BOOTLOADER) {
+		hid_warn(hdev, "Using device in hidraw-only mode");
+		return hid_hw_start(hdev, HID_CONNECT_HIDRAW);
 	}
 
 	error = wacom_parse_and_register(wacom, false);

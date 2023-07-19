@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * drivers/input/tablet/wacom_sys.c
- *
  *  USB Wacom tablet support - system specific code
- */
-
-/*
  */
 
 #include "wacom_wac.h"
@@ -19,7 +14,11 @@
 #define DEV_ATTR_WO_PERM (S_IWUSR | S_IWGRP)
 #define DEV_ATTR_RO_PERM (S_IRUSR | S_IRGRP)
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
+#if defined WACOM_HID_IS_USB
+#define wacom_is_using_usb_driver(hdev) hid_is_usb(hdev)
+#elif defined WACOM_USING_LL_DRIVER
+#define wacom_is_using_usb_driver(hdev) hid_is_using_ll_driver(hdev, &usb_hid_driver)
+#else
 static int __wacom_is_usb_parent(struct usb_device *usbdev, void *ptr)
 {
 	struct hid_device *hdev = ptr;
@@ -39,11 +38,9 @@ static bool wacom_is_using_usb_driver(struct hid_device *hdev)
 	return hdev->bus == BUS_USB &&
 	       usb_for_each_dev(hdev, __wacom_is_usb_parent);
 }
-#else
-#define wacom_is_using_usb_driver(hdev) hid_is_using_ll_driver(hdev, &usb_hid_driver)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,6,0)
+#ifndef WACOM_DEVM_OR_RESET
 static int devm_add_action_or_reset(struct device *dev,
 				    void (*action)(void *), void *data)
 {
@@ -197,6 +194,9 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 		u8 *raw_data, int size)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
+
+	if (wacom->wacom_wac.features.type == BOOTLOADER)
+		return 0;
 
 	if (size > WACOM_PKGLEN_MAX)
 		return 1;
@@ -2286,7 +2286,9 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		} else if (strstr(product_name, "Wacom") ||
 			   strstr(product_name, "wacom") ||
 			   strstr(product_name, "WACOM")) {
-			strlcpy(name, product_name, sizeof(name));
+			if (strscpy(name, product_name, sizeof(name)) < 0) {
+				hid_warn(wacom->hdev, "String overflow while assembling device name");
+			}
 		} else {
 			snprintf(name, sizeof(name), "Wacom %s", product_name);
 		}
@@ -2304,7 +2306,9 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		if (name[strlen(name)-1] == ' ')
 			name[strlen(name)-1] = '\0';
 	} else {
-		strlcpy(name, features->name, sizeof(name));
+		if (strscpy(name, features->name, sizeof(name)) < 0) {
+			hid_warn(wacom->hdev, "String overflow while assembling device name");
+		}
 	}
 
 	snprintf(wacom_wac->name, sizeof(wacom_wac->name), "%s%s",
@@ -2434,13 +2438,6 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	if (error)
 		goto fail;
 
-	if (!(features->device_type & WACOM_DEVICETYPE_WL_MONITOR) &&
-	     (features->quirks & WACOM_QUIRK_BATTERY)) {
-		error = wacom_initialize_battery(wacom);
-		if (error)
-			goto fail;
-	}
-
 	error = wacom_register_inputs(wacom);
 	if (error)
 		goto fail;
@@ -2479,8 +2476,13 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 		goto fail_quirks;
 	}
 
-	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR)
+	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR) {
 		error = hid_hw_open(hdev);
+		if (error) {
+			hid_err(hdev, "hw open failed\n");
+			goto fail_quirks;
+		}
+	}
 
 	wacom_set_shared_values(wacom_wac);
 	devres_close_group(&hdev->dev, wacom);
@@ -2569,11 +2571,10 @@ static void wacom_wireless_work(struct work_struct *work)
 				goto fail;
 		}
 
-		strlcpy(wacom_wac->name, wacom_wac1->name,
-			sizeof(wacom_wac->name));
-		error = wacom_initialize_battery(wacom);
-		if (error)
-			goto fail;
+		if (strscpy(wacom_wac->name, wacom_wac1->name,
+			sizeof(wacom_wac->name)) < 0) {
+			hid_warn(wacom->hdev, "String overflow while assembling device name");
+		}
 	}
 
 	return;
@@ -2852,6 +2853,11 @@ static int wacom_probe(struct hid_device *hdev,
 	if (error) {
 		hid_err(hdev, "parse failed\n");
 		return error;
+	}
+
+	if (features->type == BOOTLOADER) {
+		hid_warn(hdev, "Using device in hidraw-only mode");
+		return hid_hw_start(hdev, HID_CONNECT_HIDRAW);
 	}
 
 	error = wacom_parse_and_register(wacom, false);

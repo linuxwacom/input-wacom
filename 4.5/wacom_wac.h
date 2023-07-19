@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/*
- * drivers/input/tablet/wacom_wac.h
- */
+
 #ifndef WACOM_WAC_H
 #define WACOM_WAC_H
+
+#include "../config.h"
 
 #include <linux/types.h>
 #include <linux/hid.h>
@@ -269,6 +269,7 @@ enum {
 	MTTPC,
 	MTTPC_B,
 	HID_GENERIC,
+	BOOTLOADER,
 	MAX_TYPE
 };
 
@@ -349,6 +350,9 @@ struct hid_data {
 	int ps_connected;
 	bool pad_input_event_flag;
 	unsigned short sequence_number;
+#ifdef WACOM_INPUT_SET_TIMESTAMP
+	ktime_t time_delayed;
+#endif
 };
 
 struct wacom_remote_data {

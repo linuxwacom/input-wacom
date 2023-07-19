@@ -1,6 +1,6 @@
 AC_PREREQ(2.60)
 AC_INIT([input-wacom],
-	[0.49.0])
+	[1.0.0])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
@@ -156,6 +156,8 @@ $2
   ;
   return 0;
 }
+#include "linux/module.h"
+MODULE_LICENSE("GPL");
 ])
 
 dnl #
@@ -204,6 +206,86 @@ struct power_supply_desc test;
 	HAVE_POWERSUPPLY_41=no
 	AC_MSG_RESULT([pre-v4.1])
 ])
+
+dnl RedHat enterprise Linux 7.9 backports devm functions from 4.6
+AC_MSG_CHECKING(devm_add_action_or_reset)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/device.h>
+int devm_add_action_or_reset(struct device *dev, void (*action)(void *), void *data) { return 0; }
+],[
+],[
+	HAVE_DEVM_ADD_OR_RESET=no
+	AC_MSG_RESULT([no])
+],[
+	HAVE_DEVM_ADD_OR_RESET=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_DEVM_OR_RESET], [], [kernel defines devm_add_action_or_reset from v4.6+])
+])
+
+dnl Check which API is available for determining bus type
+AC_MSG_CHECKING(hid_is_using_ll_driver)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/hid.h>
+bool hid_is_using_ll_driver(struct hid_device *hdev, struct hid_ll_driver *driver) { return 0; }
+],[
+],[
+	HAVE_IS_USING_LL_DRIVER=no
+	AC_MSG_RESULT([no])
+],[
+	HAVE_IS_USING_LL_DRIVER=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_USING_LL_DRIVER], [], [kernel defines hid_is_using_ll_driver from v4.14+])
+])
+AC_MSG_CHECKING(hid_is_usb)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/hid.h>
+bool hid_is_usb(struct hid_device *hdev) { return 0; }
+],[
+],[
+	HAVE_HID_IS_USB=no
+	AC_MSG_RESULT([no])
+],[
+	HAVE_HID_IS_USB=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_HID_IS_USB], [], [kernel defines hid_is_usb from v5.15+])
+])
+
+dnl Check which API style the I2C subsystem uses for probing.
+dnl The old-style was deprecated in Linux 4.10 and a "probe_new" function
+dnl introduced during the transition. The old-style was removed and
+dnl "probe_new" renamed in Linux 6.3.
+AC_MSG_CHECKING(legacy I2C probe API)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/i2c.h>
+int probe_legacy(struct i2c_client *client, const struct i2c_device_id *id);
+],[
+struct i2c_driver test = { .probe = probe_legacy };
+],[
+	HAVE_I2C_PROBE_LEGACY=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_PROBE_LEGACY], [], [legacy .probe removed in v6.3 and later])
+],[
+	HAVE_I2C_PROBE_LEGACY=no
+	AC_MSG_RESULT([no])
+])
+
+dnl Check if input_set_timestamp is available to us or not. This should
+dnl be available in Linux 5.4.0 and later.
+AC_MSG_CHECKING(input_set_timestamp)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/input.h>
+bool input_set_timestamp(struct input_dev *dev, ktime_t timestamp) { return true; }
+],[
+],[
+	HAVE_INPUT_SET_TIMESTAMP=no
+	AC_MSG_RESULT([no])
+],[
+	HAVE_INPUT_SET_TIMESTAMP=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_INPUT_SET_TIMESTAMP], [], [kernel defines input_set_timestamp from v5.4+])
+])
+
+
 
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
