@@ -2761,7 +2761,7 @@ static void wacom_remote_work(struct work_struct *work)
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		serial = data.remote[i].serial;
-		if (data.remote[i].connected) {
+		if (serial) {
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
 			if (kt - remote->remotes[i].active_time > WACOM_REMOTE_BATTERY_TIMEOUT
