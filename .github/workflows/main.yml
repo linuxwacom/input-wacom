@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        kernel: ["6.3", "5.10", "4.14", "4.6", "4.5", "4.1", "3.19", "3.18", "3.17"]
+        kernel: ["6.3", "5.10", "4.14", "4.10", "4.6", "4.5", "4.1", "3.19", "3.18", "3.17"]
         include:
           - kernel: "3.17"
             compile_cflags: -fno-pie -Wno-error=format-truncation
@@ -27,6 +27,9 @@ jobs:
             compile_cflags: -fno-pie -Wno-error=format-truncation -Wno-error=pointer-sign
             prepare_cflags: -fno-pie -no-pie
           - kernel: "4.6"
+            compile_cflags: -fno-pie -Wno-error=format-truncation -Wno-error=pointer-sign
+            prepare_cflags: -fno-pie -no-pie
+          - kernel: "4.10"
             compile_cflags: -fno-pie -Wno-error=format-truncation -Wno-error=pointer-sign
             prepare_cflags: -fno-pie -no-pie
           - kernel: "4.14"

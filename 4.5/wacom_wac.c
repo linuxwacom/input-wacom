@@ -1144,6 +1144,9 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	if (index < 0 || !remote->remotes[index].registered)
 		goto out;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+	remote->remotes[i].active_time = ktime_get();
+#endif
 	input = remote->remotes[index].input;
 
 	input_report_key(input, BTN_0, (data[9] & 0x01));
