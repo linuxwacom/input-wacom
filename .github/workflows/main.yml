@@ -9,11 +9,8 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        kernel: ["6.3", "5.10", "4.14", "4.6", "4.5", "4.1", "3.19", "3.18", "3.17", "3.7"]
+        kernel: ["6.3", "5.10", "4.14", "4.6", "4.5", "4.1", "3.19", "3.18", "3.17"]
         include:
-          - kernel: "3.7"
-            compile_cflags: -fno-pie -Wno-error=pointer-sign
-            prepare_cflags: -fno-pie -no-pie
           - kernel: "3.17"
             compile_cflags: -fno-pie -Wno-error=format-truncation
             prepare_cflags: -fno-pie -no-pie

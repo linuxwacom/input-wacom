@@ -290,12 +290,10 @@ bool input_set_timestamp(struct input_dev *dev, ktime_t timestamp) { return true
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"
-if test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.7)"; then
-	AC_MSG_ERROR(m4_normalize([Kernels older than 3.7 are no longer supported by input-wacom.
+if test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
+	AC_MSG_ERROR(m4_normalize([Kernels older than 3.17 are no longer supported by input-wacom.
 		 For newer Wacom models, please upgrade your system to a newer kernel.
-		 For old Wacom models, 'input-wacom-0.47.0' may still support the device]))
-elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
-	WCM_KERNEL_VER="3.7"
+		 For old Wacom models, 'input-wacom-1.0.0' may still support the device]))
 elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(4.5)"; then
 	WCM_KERNEL_VER="3.17"
 else
@@ -461,7 +459,6 @@ AC_SUBST(MODSIGN_PRIVFILE)
 AC_SUBST(MODSIGN_CERTFILE)
 
 AC_CONFIG_FILES([Makefile
-                 3.7/Makefile
                  3.17/Makefile
                  4.5/Makefile])
 AC_OUTPUT
