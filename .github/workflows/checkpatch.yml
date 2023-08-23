@@ -1,4 +1,8 @@
-on: [ pull_request ]
+on:
+  pull_request:
+    paths:
+    - '3.17/**'
+    - '4.5/**'
 
 jobs:
   checkpatch:
