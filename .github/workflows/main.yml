@@ -42,6 +42,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install gcc-9-plugin-dev libelf-dev
           gcc -print-file-name=plugin
 
