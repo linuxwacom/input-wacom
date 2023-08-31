@@ -166,6 +166,9 @@ struct wacom_remote {
 		struct input_dev *input;
 		bool registered;
 		struct wacom_battery battery;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+		ktime_t active_time;
+#endif
 	} remotes[WACOM_MAX_REMOTES];
 };
 

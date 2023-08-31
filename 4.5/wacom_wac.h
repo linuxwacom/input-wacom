@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/hid.h>
 #include <linux/kfifo.h>
+#include <linux/version.h>
 
 /* maximum packet length for USB/BT devices */
 #define WACOM_PKGLEN_MAX	361
@@ -15,6 +16,7 @@
 #define WACOM_NAME_MAX		64
 #define WACOM_MAX_REMOTES	5
 #define WACOM_STATUS_UNKNOWN	255
+#define WACOM_REMOTE_BATTERY_TIMEOUT	21000000000ll
 
 /* packet length for individual models */
 #define WACOM_PKGLEN_BBFUN	 9
@@ -355,10 +357,9 @@ struct hid_data {
 #endif
 };
 
-struct wacom_remote_data {
+struct wacom_remote_work_data {
 	struct {
 		u32 serial;
-		bool connected;
 	} remote[WACOM_MAX_REMOTES];
 };
 
