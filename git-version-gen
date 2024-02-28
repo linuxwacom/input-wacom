@@ -2,7 +2,7 @@
 
 DIRECTORY=$(basename "$(dirname "$(readlink -mn "$0")")")
 DEF_VER="$DIRECTORY"
-TAG_PREFIX="input-wacom-"
+TAG_PREFIX="v"
 LF='
 '
 
