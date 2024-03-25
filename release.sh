@@ -632,10 +632,8 @@ Options:
   --dist                 make 'dist' instead of 'distcheck'; use with caution
   --distcheck            Default, ignored for compatibility
   --dry-run              Does everything except tagging and uploading tarballs
-  --force                Force overwriting an existing release
   --help                 Display this help and exit successfully
   --modfile <file>       Release the git modules specified in <file>
-  --moduleset <file>     The jhbuild moduleset full pathname to be updated
   --no-quit              Do not quit after error; just print error message
   --token <tokenval>     GitHub personal access token value
 
@@ -696,11 +694,6 @@ do
     --dry-run)
 	DRY_RUN=yes
 	;;
-    # Force overwriting an existing release
-    # Use only if nothing changed in the git repo
-    --force)
-	FORCE=yes
-	;;
     # Display this help and exit successfully
     --help)
 	usage
@@ -711,12 +704,6 @@ do
 	check_option_args $1 $2
 	shift
 	MODFILE=$1
-	;;
-    # The jhbuild moduleset to update with relase info
-    --moduleset)
-	check_option_args $1 $2
-	shift
-	JH_MODULESET=$1
 	;;
     # Do not quit after error; just print error message
     --no-quit)
