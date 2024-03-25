@@ -135,25 +135,32 @@ release_to_github() {
                         "body": %s,
                         "draft": false,
                         "prerelease": false}' "$tar_name" "$tar_name" "$release_descr")
-    create_result=`curl -s --data "$api_json" -u $GH_USERNAME https://api.github.com/repos/$GH_REPO/$PROJECT/releases`
+    create_result=$(curl -s --data "$api_json" \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer $TOKEN" \
+        https://api.github.com/repos/$GH_REPO/$PROJECT/releases)
     GH_RELEASE_ID=`echo $create_result | jq '.id'`
 
     check_json_message "$create_result"
 
     # Upload the tar to the release
-    upload_result=`curl -s -u $GH_USERNAME \
+    upload_result=$(curl -s \
         -H "Content-Type: application/x-bzip" \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer $TOKEN" \
         --data-binary @$tarbz2 \
-        "https://uploads.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID/assets?name=$tarbz2"`
+        "https://uploads.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID/assets?name=$tarbz2")
     DL_URL=`echo $upload_result | jq -r '.browser_download_url'`
 
     check_json_message "$upload_result"
 
     # Upload the sig to the release
-    sig_result=`curl -s -u $GH_USERNAME \
+    sig_result=$(curl -s \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/pgp-signature" \
         --data-binary @$tarbz2.sig \
-        "https://uploads.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID/assets?name=$tarbz2.sig"`
+        "https://uploads.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID/assets?name=$tarbz2.sig")
     PGP_URL=`echo $sig_result | jq -r '.browser_download_url'`
 
     check_json_message "$sig_result"
@@ -610,7 +617,10 @@ process_module() {
                             "body": %s,
                             "draft": false,
                             "prerelease": false}' "$tar_name" "$tar_name" "$release_descr")
-        create_result=`curl -s -X PATCH --data "$api_json" -u $GH_USERNAME https://api.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID`
+        create_result=$(curl -s -X PATCH --data "$api_json" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $TOKEN" \
+            https://api.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID)
 
         check_json_message "$create_result"
         echo "Git shortlog posted to the release at Github, please edit the release to add a description of what's interesting."
@@ -644,7 +654,7 @@ Options:
   --modfile <file>       Release the git modules specified in <file>
   --moduleset <file>     The jhbuild moduleset full pathname to be updated
   --no-quit              Do not quit after error; just print error message
-  --github <name[:pat]>  Release project to Github with username / token
+  --token <tokenval>     GitHub personal access token value
 
 Environment variables defined by the "make" program and used by release.sh:
   MAKE        The name of the make command [make]
@@ -729,11 +739,9 @@ do
     --no-quit)
 	NO_QUIT=yes
 	;;
-    # Github username. Optional. Append colon and Personal
-    # Access Token to username if 2FA is enabled on the user
-    # account doing the release
-    --github)
-	GH_USERNAME=$2
+    # Personal GitHub Access Token to create the release
+    --token)
+        TOKEN=$2
 	shift
 	;;
     --*)
@@ -764,11 +772,6 @@ do
 
     shift
 done
-
-if [[ x$GH_USERNAME = "x" ]] ; then
-    GH_USERNAME=`whoami`
-    echo "--github <username> missing, using local username as github username"
-fi
 
 # If no modules specified (blank cmd line) display help
 check_modules_specification
