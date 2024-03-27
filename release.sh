@@ -60,7 +60,7 @@ check_option_args() {
     arg=$2
 
     # check for an argument
-    if [ x"$arg" = x ]; then
+    if [ -z "$arg" ]; then
 	echo ""
 	echo "Error: the '$option' option is missing its required argument."
 	echo ""
@@ -189,7 +189,7 @@ RELEASE
 #
 read_modfile() {
 
-    if [ x"$MODFILE" != x ]; then
+    if [ -n "$MODFILE" ]; then
 	# Make sure the file is sane
 	if [ ! -r "$MODFILE" ]; then
 	    echo "Error: module file '$MODFILE' is not readable or does not exist."
@@ -198,7 +198,7 @@ read_modfile() {
 	# read from input file, skipping blank and comment lines
 	while read line; do
 	    # skip blank lines
-	    if [ x"$line" = x ]; then
+	    if [ -z "$line" ]; then
 		continue
 	    fi
 	    # skip comment lines
@@ -218,11 +218,11 @@ read_modfile() {
 print_epilog() {
 
     epilog="========  Successful Completion"
-    if [ x"$NO_QUIT" != x ]; then
-	if [ x"$failed_modules" != x ]; then
+    if [ -n "$NO_QUIT" ]; then
+	if [ -n "$failed_modules" ]; then
 	    epilog="========  Partial Completion"
 	fi
-    elif [ x"$failed_modules" != x ]; then
+    elif [ -n "$failed_modules" ]; then
 	epilog="========  Stopped on Error"
     fi
 
@@ -230,7 +230,7 @@ print_epilog() {
     echo "$epilog `date`"
 
     # Report about modules that failed for one reason or another
-    if [ x"$failed_modules" != x ]; then
+    if [ -n "$failed_modules" ]; then
 	echo "	List of failed modules:"
 	for mod in $failed_modules; do
 	    echo "	$mod"
@@ -252,7 +252,7 @@ process_modules() {
 	if ! process_module ; then
 	    echo "Error: processing module \"$MODULE_RPATH\" failed."
 	    failed_modules="$failed_modules $MODULE_RPATH"
-	    if [ x"$NO_QUIT" = x ]; then
+	    if [ -z "$NO_QUIT" ]; then
 		print_epilog
 		exit 1
 	    fi
@@ -303,7 +303,7 @@ get_section() {
 	return 1
     fi
 
-    if [ x"$section" = xlinuxwacom ]; then
+    if [ "$section" = "linuxwacom" ]; then
 	section=`echo $module_url | cut -d'/' -f2`
 	if [ $? -ne 0 ]; then
 	    echo "Error: unable to extract section from $module_url second field."
@@ -372,16 +372,11 @@ process_module() {
     # Change directory to be in the git build directory (could be out-of-source)
     # More than one can be found when distcheck has run and failed
     configNum=`find . -name config.status -type f | wc -l | sed 's:^ *::'`
-    if [ $? -ne 0 ]; then
+    if [ $? -ne 0 -o "$configNum" = "0" ]; then
 	echo "Error: failed to locate config.status."
 	echo "Has the module been configured?"
 	return 1
-    fi
-    if [ x"$configNum" = x0 ]; then
-	echo "Error: failed to locate config.status, has the module been configured?"
-	return 1
-    fi
-    if [ x"$configNum" != x1 ]; then
+    elif [ "$configNum" != "1" ]; then
 	echo "Error: more than one config.status file was found,"
 	echo "       clean-up previously failed attempts at distcheck"
 	return 1
@@ -499,12 +494,12 @@ process_module() {
 	cd $top_src
 	return 1
     fi
-    if [ x"$remote_top_commit_sha" != x"$local_top_commit_sha" ]; then
+    if [ "$remote_top_commit_sha" != "$local_top_commit_sha" ]; then
 	echo "Error: the local top commit has not been pushed to the remote."
 	local_top_commit_descr=`git log --oneline --max-count=1 $local_top_commit_sha`
 	echo "       the local top commit is: \"$local_top_commit_descr\""
 
-	if [ x"$DRY_RUN" = x ]; then
+	if [ -z "$DRY_RUN" ]; then
 	    cd $top_src
 	    return 1
 	fi
@@ -515,7 +510,7 @@ process_module() {
     tagged_commit_sha=`git  rev-list --max-count=1 $tag_name 2>/dev/null`
     if [ $? -eq 0 ]; then
 	# Check if the tag is pointing to the top commit
-	if [ x"$tagged_commit_sha" != x"$remote_top_commit_sha" ]; then
+	if [ "$tagged_commit_sha" != "$remote_top_commit_sha" ]; then
 	    echo "Error: the \"$tag_name\" already exists."
 	    echo "       this tag is not tagging the top commit."
 	    remote_top_commit_descr=`git log --oneline --max-count=1 $remote_top_commit_sha`
@@ -529,7 +524,7 @@ process_module() {
 	fi
     else
 	# Tag the top commit with the tar name
-	if [ x"$DRY_RUN" = x ]; then
+	if [ -z "$DRY_RUN" ]; then
 	    git tag -s -m $tag_name $tag_name
 	    if [ $? -ne 0 ]; then
 		echo "Error:  unable to tag module with \"$tag_name\"."
@@ -544,7 +539,7 @@ process_module() {
     fi
 
     # Pushing the top commit tag to the remote repository
-    if [ x$DRY_RUN = x ]; then
+    if [ -z $DRY_RUN ]; then
 	echo "Info: pushing tag \"$tag_name\" to remote \"$remote_name\":"
 	git push $remote_name $tag_name
 	if [ $? -ne 0 ]; then
@@ -557,7 +552,7 @@ process_module() {
 	echo "Info: skipped pushing tag \"$tag_name\" to the remote repository in dry-run mode."
     fi
 
-    if [ x$DRY_RUN = x ]; then
+    if [ -z $DRY_RUN ]; then
         release_to_github $pkg_name
     else
 	echo "Info: skipped pushing release to github in dry-run mode."
@@ -577,7 +572,7 @@ process_module() {
 	    echo "         Please check the commit history in the announce."
 	fi
     fi
-    if [ x"$tag_previous" != x ]; then
+    if [ -n "$tag_previous" ]; then
 	# The top commit may not have been tagged in dry-run mode. Use commit.
 	tag_range=$tag_previous..$local_top_commit_sha
     else
@@ -656,7 +651,7 @@ MAKE=${MAKE:="make"}
 check_for_jq
 
 # Choose which grep program to use (on Solaris, must be gnu grep)
-if [ "x$GREP" = "x" ] ; then
+if [ -z "$GREP" ] ; then
     if [ -x /usr/gnu/bin/grep ] ; then
 	GREP=/usr/gnu/bin/grep
     else
@@ -665,7 +660,7 @@ if [ "x$GREP" = "x" ] ; then
 fi
 
 # Find path for GnuPG v2
-if [ "x$GPG" = "x" ] ; then
+if [ -z "$GPG" ] ; then
     if [ -x /usr/bin/gpg2 ] ; then
 	GPG=/usr/bin/gpg2
     else
@@ -729,7 +724,7 @@ do
 	exit 1
 	;;
     *)
-	if [ x"${MODFILE}" != x ]; then
+	if [ -n "${MODFILE}" ]; then
 	    echo ""
 	    echo "Error: specifying both modules and --modfile is not permitted"
 	    echo ""
