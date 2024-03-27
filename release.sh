@@ -60,7 +60,7 @@ check_option_args() {
     arg=$2
 
     # check for an argument
-    if [ x"$arg" = x ]; then
+    if [ -z "$arg" ]; then
 	echo ""
 	echo "Error: the '$option' option is missing its required argument."
 	echo ""
@@ -77,23 +77,6 @@ check_option_args() {
 	usage
 	exit 1
     fi
-}
-
-#------------------------------------------------------------------------------
-#			Function: check_modules_specification
-#------------------------------------------------------------------------------
-#
-check_modules_specification() {
-
-if [ x"$MODFILE" = x ]; then
-    if [ x"${INPUT_MODULES}" = x ]; then
-	echo ""
-	echo "Error: no modules specified (blank command line)."
-	usage
-	exit 1
-    fi
-fi
-
 }
 
 #------------------------------------------------------------------------------
@@ -135,25 +118,32 @@ release_to_github() {
                         "body": %s,
                         "draft": false,
                         "prerelease": false}' "$tar_name" "$tar_name" "$release_descr")
-    create_result=`curl -s --data "$api_json" -u $GH_USERNAME https://api.github.com/repos/$GH_REPO/$PROJECT/releases`
+    create_result=$(curl -s --data "$api_json" \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer $TOKEN" \
+        https://api.github.com/repos/$GH_REPO/$PROJECT/releases)
     GH_RELEASE_ID=`echo $create_result | jq '.id'`
 
     check_json_message "$create_result"
 
     # Upload the tar to the release
-    upload_result=`curl -s -u $GH_USERNAME \
+    upload_result=$(curl -s \
         -H "Content-Type: application/x-bzip" \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer $TOKEN" \
         --data-binary @$tarbz2 \
-        "https://uploads.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID/assets?name=$tarbz2"`
+        "https://uploads.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID/assets?name=$tarbz2")
     DL_URL=`echo $upload_result | jq -r '.browser_download_url'`
 
     check_json_message "$upload_result"
 
     # Upload the sig to the release
-    sig_result=`curl -s -u $GH_USERNAME \
+    sig_result=$(curl -s \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/pgp-signature" \
         --data-binary @$tarbz2.sig \
-        "https://uploads.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID/assets?name=$tarbz2.sig"`
+        "https://uploads.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID/assets?name=$tarbz2.sig")
     PGP_URL=`echo $sig_result | jq -r '.browser_download_url'`
 
     check_json_message "$sig_result"
@@ -199,7 +189,7 @@ RELEASE
 #
 read_modfile() {
 
-    if [ x"$MODFILE" != x ]; then
+    if [ -n "$MODFILE" ]; then
 	# Make sure the file is sane
 	if [ ! -r "$MODFILE" ]; then
 	    echo "Error: module file '$MODFILE' is not readable or does not exist."
@@ -208,7 +198,7 @@ read_modfile() {
 	# read from input file, skipping blank and comment lines
 	while read line; do
 	    # skip blank lines
-	    if [ x"$line" = x ]; then
+	    if [ -z "$line" ]; then
 		continue
 	    fi
 	    # skip comment lines
@@ -228,11 +218,11 @@ read_modfile() {
 print_epilog() {
 
     epilog="========  Successful Completion"
-    if [ x"$NO_QUIT" != x ]; then
-	if [ x"$failed_modules" != x ]; then
+    if [ -n "$NO_QUIT" ]; then
+	if [ -n "$failed_modules" ]; then
 	    epilog="========  Partial Completion"
 	fi
-    elif [ x"$failed_modules" != x ]; then
+    elif [ -n "$failed_modules" ]; then
 	epilog="========  Stopped on Error"
     fi
 
@@ -240,7 +230,7 @@ print_epilog() {
     echo "$epilog `date`"
 
     # Report about modules that failed for one reason or another
-    if [ x"$failed_modules" != x ]; then
+    if [ -n "$failed_modules" ]; then
 	echo "	List of failed modules:"
 	for mod in $failed_modules; do
 	    echo "	$mod"
@@ -262,7 +252,7 @@ process_modules() {
 	if ! process_module ; then
 	    echo "Error: processing module \"$MODULE_RPATH\" failed."
 	    failed_modules="$failed_modules $MODULE_RPATH"
-	    if [ x"$NO_QUIT" = x ]; then
+	    if [ -z "$NO_QUIT" ]; then
 		print_epilog
 		exit 1
 	    fi
@@ -313,7 +303,7 @@ get_section() {
 	return 1
     fi
 
-    if [ x"$section" = xlinuxwacom ]; then
+    if [ "$section" = "linuxwacom" ]; then
 	section=`echo $module_url | cut -d'/' -f2`
 	if [ $? -ne 0 ]; then
 	    echo "Error: unable to extract section from $module_url second field."
@@ -382,16 +372,11 @@ process_module() {
     # Change directory to be in the git build directory (could be out-of-source)
     # More than one can be found when distcheck has run and failed
     configNum=`find . -name config.status -type f | wc -l | sed 's:^ *::'`
-    if [ $? -ne 0 ]; then
+    if [ $? -ne 0 -o "$configNum" = "0" ]; then
 	echo "Error: failed to locate config.status."
 	echo "Has the module been configured?"
 	return 1
-    fi
-    if [ x"$configNum" = x0 ]; then
-	echo "Error: failed to locate config.status, has the module been configured?"
-	return 1
-    fi
-    if [ x"$configNum" != x1 ]; then
+    elif [ "$configNum" != "1" ]; then
 	echo "Error: more than one config.status file was found,"
 	echo "       clean-up previously failed attempts at distcheck"
 	return 1
@@ -509,12 +494,12 @@ process_module() {
 	cd $top_src
 	return 1
     fi
-    if [ x"$remote_top_commit_sha" != x"$local_top_commit_sha" ]; then
+    if [ "$remote_top_commit_sha" != "$local_top_commit_sha" ]; then
 	echo "Error: the local top commit has not been pushed to the remote."
 	local_top_commit_descr=`git log --oneline --max-count=1 $local_top_commit_sha`
 	echo "       the local top commit is: \"$local_top_commit_descr\""
 
-	if [ x"$DRY_RUN" = x ]; then
+	if [ -z "$DRY_RUN" ]; then
 	    cd $top_src
 	    return 1
 	fi
@@ -525,7 +510,7 @@ process_module() {
     tagged_commit_sha=`git  rev-list --max-count=1 $tag_name 2>/dev/null`
     if [ $? -eq 0 ]; then
 	# Check if the tag is pointing to the top commit
-	if [ x"$tagged_commit_sha" != x"$remote_top_commit_sha" ]; then
+	if [ "$tagged_commit_sha" != "$remote_top_commit_sha" ]; then
 	    echo "Error: the \"$tag_name\" already exists."
 	    echo "       this tag is not tagging the top commit."
 	    remote_top_commit_descr=`git log --oneline --max-count=1 $remote_top_commit_sha`
@@ -539,7 +524,7 @@ process_module() {
 	fi
     else
 	# Tag the top commit with the tar name
-	if [ x"$DRY_RUN" = x ]; then
+	if [ -z "$DRY_RUN" ]; then
 	    git tag -s -m $tag_name $tag_name
 	    if [ $? -ne 0 ]; then
 		echo "Error:  unable to tag module with \"$tag_name\"."
@@ -554,7 +539,7 @@ process_module() {
     fi
 
     # Pushing the top commit tag to the remote repository
-    if [ x$DRY_RUN = x ]; then
+    if [ -z $DRY_RUN ]; then
 	echo "Info: pushing tag \"$tag_name\" to remote \"$remote_name\":"
 	git push $remote_name $tag_name
 	if [ $? -ne 0 ]; then
@@ -567,7 +552,7 @@ process_module() {
 	echo "Info: skipped pushing tag \"$tag_name\" to the remote repository in dry-run mode."
     fi
 
-    if [ x$DRY_RUN = x ]; then
+    if [ -z $DRY_RUN ]; then
         release_to_github $pkg_name
     else
 	echo "Info: skipped pushing release to github in dry-run mode."
@@ -587,7 +572,7 @@ process_module() {
 	    echo "         Please check the commit history in the announce."
 	fi
     fi
-    if [ x"$tag_previous" != x ]; then
+    if [ -n "$tag_previous" ]; then
 	# The top commit may not have been tagged in dry-run mode. Use commit.
 	tag_range=$tag_previous..$local_top_commit_sha
     else
@@ -610,7 +595,10 @@ process_module() {
                             "body": %s,
                             "draft": false,
                             "prerelease": false}' "$tar_name" "$tar_name" "$release_descr")
-        create_result=`curl -s -X PATCH --data "$api_json" -u $GH_USERNAME https://api.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID`
+        create_result=$(curl -s -X PATCH --data "$api_json" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $TOKEN" \
+            https://api.github.com/repos/$GH_REPO/$PROJECT/releases/$GH_RELEASE_ID)
 
         check_json_message "$create_result"
         echo "Git shortlog posted to the release at Github, please edit the release to add a description of what's interesting."
@@ -631,20 +619,18 @@ usage() {
     basename="`expr "//$0" : '.*/\([^/]*\)'`"
     cat <<HELP
 
-Usage: $basename [options] path...
+Usage: $basename [options] [path...]
 
-Where "path" is a relative path to a git module, including '.'.
+Where "path" is a relative path to a git module, including '.' (the default).
 
 Options:
   --dist                 make 'dist' instead of 'distcheck'; use with caution
   --distcheck            Default, ignored for compatibility
   --dry-run              Does everything except tagging and uploading tarballs
-  --force                Force overwriting an existing release
   --help                 Display this help and exit successfully
   --modfile <file>       Release the git modules specified in <file>
-  --moduleset <file>     The jhbuild moduleset full pathname to be updated
   --no-quit              Do not quit after error; just print error message
-  --github <name[:pat]>  Release project to Github with username / token
+  --token <tokenval>     GitHub personal access token value
 
 Environment variables defined by the "make" program and used by release.sh:
   MAKE        The name of the make command [make]
@@ -665,7 +651,7 @@ MAKE=${MAKE:="make"}
 check_for_jq
 
 # Choose which grep program to use (on Solaris, must be gnu grep)
-if [ "x$GREP" = "x" ] ; then
+if [ -z "$GREP" ] ; then
     if [ -x /usr/gnu/bin/grep ] ; then
 	GREP=/usr/gnu/bin/grep
     else
@@ -674,7 +660,7 @@ if [ "x$GREP" = "x" ] ; then
 fi
 
 # Find path for GnuPG v2
-if [ "x$GPG" = "x" ] ; then
+if [ -z "$GPG" ] ; then
     if [ -x /usr/bin/gpg2 ] ; then
 	GPG=/usr/bin/gpg2
     else
@@ -703,11 +689,6 @@ do
     --dry-run)
 	DRY_RUN=yes
 	;;
-    # Force overwriting an existing release
-    # Use only if nothing changed in the git repo
-    --force)
-	FORCE=yes
-	;;
     # Display this help and exit successfully
     --help)
 	usage
@@ -719,21 +700,13 @@ do
 	shift
 	MODFILE=$1
 	;;
-    # The jhbuild moduleset to update with relase info
-    --moduleset)
-	check_option_args $1 $2
-	shift
-	JH_MODULESET=$1
-	;;
     # Do not quit after error; just print error message
     --no-quit)
 	NO_QUIT=yes
 	;;
-    # Github username. Optional. Append colon and Personal
-    # Access Token to username if 2FA is enabled on the user
-    # account doing the release
-    --github)
-	GH_USERNAME=$2
+    # Personal GitHub Access Token to create the release
+    --token)
+        TOKEN=$2
 	shift
 	;;
     --*)
@@ -751,7 +724,7 @@ do
 	exit 1
 	;;
     *)
-	if [ x"${MODFILE}" != x ]; then
+	if [ -n "${MODFILE}" ]; then
 	    echo ""
 	    echo "Error: specifying both modules and --modfile is not permitted"
 	    echo ""
@@ -765,13 +738,12 @@ do
     shift
 done
 
-if [[ x$GH_USERNAME = "x" ]] ; then
-    GH_USERNAME=`whoami`
-    echo "--github <username> missing, using local username as github username"
-fi
-
 # If no modules specified (blank cmd line) display help
-check_modules_specification
+if [ -z "$INPUT_MODULES" ]; then
+    echo ""
+    echo "No modules specified, using \$PWD."
+    INPUT_MODULES=" ."
+fi
 
 # Read the module file and normalize input in INPUT_MODULES
 read_modfile
