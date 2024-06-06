@@ -18,8 +18,10 @@ jobs:
 
     steps:
       # ...
-      - uses: actions/checkout@master
-      
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-tags: 'true'
       - name: "Make Step"
         run: |
           ./autogen.sh
