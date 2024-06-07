@@ -30,22 +30,22 @@ jobs:
             compile_cflags: -fno-pie -Wno-error=format-truncation
             prepare_cflags: -fno-pie -no-pie
           - kernel: "4.5"
-            compile_cflags: -fno-pie -Wno-error=format-truncation -Wno-error=pointer-sign -Wno-error=unused-result
+            compile_cflags: -fno-pie -Wno-error=format-truncation -Wno-error=pointer-sign
             prepare_cflags: -fno-pie -no-pie
           - kernel: "4.6"
-            compile_cflags: -fno-pie -Wno-error=format-truncation -Wno-error=pointer-sign -Wno-error=unused-result
+            compile_cflags: -fno-pie -Wno-error=format-truncation -Wno-error=pointer-sign
             prepare_cflags: -fno-pie -no-pie
           - kernel: "4.10"
-            compile_cflags: -fno-pie -Wno-error=format-truncation -Wno-error=pointer-sign -Wno-error=unused-result
+            compile_cflags: -fno-pie -Wno-error=format-truncation -Wno-error=pointer-sign
             prepare_cflags: -fno-pie -no-pie
           - kernel: "4.14"
-            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign -Wno-error=unused-result
+            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
           - kernel: "4.19"
-            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign -Wno-error=unused-result
+            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
           - kernel: "5.10"
-            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign -Wno-error=unused-result
+            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
           - kernel: "6.3"
-            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign -Wno-error=unused-result
+            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
             build_makeflags: KBUILD_MODPOST_WARN=1
     steps:
       - name: Install dependencies
