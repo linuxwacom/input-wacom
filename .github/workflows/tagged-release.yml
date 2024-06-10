@@ -18,32 +18,32 @@ jobs:
 
     steps:
       # ...
-      - uses: actions/checkout@master
-      
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-tags: 'true'
+          fetch-depth: 0
+
       - name: "Make Step"
         run: |
           ./autogen.sh
           make dist
           echo "done!"
-          
+
       - name: Get tar file
         id: get-tar-name
-        run: echo "::set-output name=fileName::$(find . -type f -iname "*.tar.bz2" -printf "%f\n")"
-          
-      - name: Fetch tar file
-        id: get-tar-path
-        uses: Rishabh510/Path-lister-action@master
-        with:
-          path: "./"
-          type: ".tar.bz2"
+        run: echo "fileName=$(find . -type f -iname "*.tar.bz2" -printf "%f\n")" >> $GITHUB_OUTPUT
 
-      - name: Create Release
-        uses: "marvinpinto/action-automatic-releases@latest"
-        id: release-create
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          
+      - name: Get shortlog
+        id: get-shortlog
+        run: |
+          {
+            echo 'shortlog<<EOFEOFEOF'
+            git shortlog $(git describe --abbrev=0 HEAD^)..HEAD | sed -E 's/^([^ ].*)$/**\1**/; s/^ + / - /'
+            echo
+            echo EOFEOFEOF
+          } >> $GITHUB_OUTPUT
+
       - name: Generate Checksums
         id: generate-checksums
         run : |
@@ -53,28 +53,23 @@ jobs:
           echo "md5=$(cut -f1 -d' ' md5sum.txt)" >> $GITHUB_OUTPUT
           echo "sha1=$(cut -f1 -d' ' sha1sum.txt)" >> $GITHUB_OUTPUT
           echo "sha256=$(cut -f1 -d' ' sha256sum.txt)" >> $GITHUB_OUTPUT
-        
+
       - name: Upload Release Asset
-        id: upload-main-asset 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: upload-main-asset
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ steps.release-create.outputs.upload_url }}  
-          asset_path: ${{ steps.get-tar-path.outputs.paths }}
-          asset_name: ${{ steps.get-tar-name.outputs.fileName }}
-          asset_content_type: application/zip
-        
-      - name: Update Release
-        id: update-release
-        uses: tubone24/update_release@v1.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: ${{ steps.get-tar-name.outputs.fileName }}
+          generate_release_notes: false
           body: |
+            Commit description goes here.
+
+            ## Commits
+            ${{ steps.get-shortlog.outputs.shortlog }}
+
+            ## Release
             **git tag: ${{  github.ref_name }}**
             ${{ steps.upload-main-asset.outputs.browser_download_url }}
             md5: `${{ steps.generate-checksums.outputs.md5 }}`
             sha1: `${{ steps.generate-checksums.outputs.sha1 }}`
             sha256: `${{ steps.generate-checksums.outputs.sha256 }}`
-          isAppendBody: true
