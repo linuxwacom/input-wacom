@@ -65,15 +65,9 @@ static void wacom_force_proxout(struct wacom_wac *wacom_wac)
 	input_sync(input);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
 void wacom_idleprox_timeout(struct timer_list *list)
 {
-       struct wacom *wacom = from_timer(wacom, list, idleprox_timer);
-#else
-void wacom_idleprox_timeout(unsigned long data)
-{
-	struct wacom *wacom = (struct wacom *)data;
-#endif
+	struct wacom *wacom = from_timer(wacom, list, idleprox_timer);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 
 	if (!wacom_wac->hid_data.sense_state) {
@@ -1144,9 +1138,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	if (index < 0 || !remote->remotes[index].registered)
 		goto out;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
 	remote->remotes[i].active_time = ktime_get();
-#endif
 	input = remote->remotes[index].input;
 
 	input_report_key(input, BTN_0, (data[9] & 0x01));
@@ -1948,14 +1940,8 @@ static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 	int resolution_code = code;
 	int resolution = hidinput_calc_abs_res(field, resolution_code);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
-	if (equivalent_usage == HID_DG_TWIST) {
-#else
-	if (equivalent_usage == HID_DG_TWIST ||
-	    equivalent_usage == WACOM_HID_WD_TOUCHRING) {
-#endif
+	if (equivalent_usage == HID_DG_TWIST)
 		resolution_code = ABS_RZ;
-	}
 
 	if (equivalent_usage == HID_GD_X) {
 		fmin += features->offset_left;
