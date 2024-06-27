@@ -18,40 +18,6 @@
 #define wacom_is_using_usb_driver(hdev) hid_is_usb(hdev)
 #elif defined WACOM_USING_LL_DRIVER
 #define wacom_is_using_usb_driver(hdev) hid_is_using_ll_driver(hdev, &usb_hid_driver)
-#else
-static int __wacom_is_usb_parent(struct usb_device *usbdev, void *ptr)
-{
-	struct hid_device *hdev = ptr;
-	struct device *parent = hdev->dev.parent;
-	struct usb_host_config *config = usbdev->actconfig;
-	int i;
-
-	for (i = 0; config && i < config->desc.bNumInterfaces; i++) {
-		if (&config->interface[i]->dev == parent)
-			return 1;
-	}
-	return 0;
-}
-
-static bool wacom_is_using_usb_driver(struct hid_device *hdev)
-{
-	return hdev->bus == BUS_USB &&
-	       usb_for_each_dev(hdev, __wacom_is_usb_parent);
-}
-#endif
-
-#ifndef WACOM_DEVM_OR_RESET
-static int devm_add_action_or_reset(struct device *dev,
-				    void (*action)(void *), void *data)
-{
-	int ret;
-
-	ret = devm_add_action(dev, action, data);
-	if (ret)
-		action(data);
-
-	return ret;
-}
 #endif
 
 static int wacom_get_report(struct hid_device *hdev, u8 type, u8 *buf,
@@ -1444,9 +1410,7 @@ static int wacom_led_register_one(struct device *dev, struct wacom *wacom,
 	led->hlv = wacom->led.hlv;
 	led->cdev.name = name;
 	led->cdev.max_brightness = LED_FULL;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
 	led->cdev.flags = LED_HW_PLUGGABLE;
-#endif
 	led->cdev.brightness_get = __wacom_led_brightness_get;
 	if (!read_only) {
 		led->cdev.brightness_set_blocking = wacom_led_brightness_set;
@@ -2615,7 +2579,6 @@ fail:
 	return;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
 static void wacom_remote_destroy_battery(struct wacom *wacom, int index)
 {
 	struct wacom_remote *remote = wacom->remote;
@@ -2627,7 +2590,6 @@ static void wacom_remote_destroy_battery(struct wacom *wacom, int index)
 		remote->remotes[index].active_time = 0;
 	}
 }
-#endif
 
 static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 {
@@ -2643,13 +2605,7 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 			remote->remotes[i].registered = false;
 			spin_unlock_irqrestore(&remote->remote_lock, flags);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
 			wacom_remote_destroy_battery(wacom, i);
-#else
-			if (remote->remotes[i].battery.battery)
-				devres_release_group(&wacom->hdev->dev,
-						     &remote->remotes[i].battery.bat_desc);
-#endif
 
 			if (remote->remotes[i].group.name)
 				devres_release_group(&wacom->hdev->dev,
@@ -2657,9 +2613,7 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 
 			remote->remotes[i].serial = 0;
 			remote->remotes[i].group.name = NULL;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0)
-			remote->remotes[i].battery.battery = NULL;
-#endif
+
 			wacom->led.groups[i].select = WACOM_STATUS_UNKNOWN;
 		}
 	}
@@ -2744,10 +2698,8 @@ static int wacom_remote_attach_battery(struct wacom *wacom, int index)
 	if (remote->remotes[index].battery.battery)
 		return 0;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
 	if (!remote->remotes[index].active_time)
 		return 0;
-#endif
 
 	if (wacom->led.groups[index].select == WACOM_STATUS_UNKNOWN)
 		return 0;
@@ -2764,9 +2716,7 @@ static void wacom_remote_work(struct work_struct *work)
 {
 	struct wacom *wacom = container_of(work, struct wacom, remote_work);
 	struct wacom_remote *remote = wacom->remote;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
 	ktime_t kt = ktime_get();
-#endif
 	struct wacom_remote_work_data remote_work_data;
 	unsigned long flags;
 	unsigned int count;
@@ -2794,11 +2744,9 @@ static void wacom_remote_work(struct work_struct *work)
 		work_serial = remote_work_data.remote[i].serial;
 		if (work_serial) {
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
 			if (kt - remote->remotes[i].active_time > WACOM_REMOTE_BATTERY_TIMEOUT
 			    && remote->remotes[i].active_time != 0)
 				wacom_remote_destroy_battery(wacom, i);
-#endif
 
 			if (remote->remotes[i].serial == work_serial) {
 				wacom_remote_attach_battery(wacom, i);
@@ -2908,11 +2856,7 @@ static int wacom_probe(struct hid_device *hdev,
 	INIT_WORK(&wacom->battery_work, wacom_battery_work);
 	INIT_WORK(&wacom->remote_work, wacom_remote_work);
 	INIT_WORK(&wacom->mode_change_work, wacom_mode_change_work);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
 	timer_setup(&wacom->idleprox_timer, &wacom_idleprox_timeout, TIMER_DEFERRABLE);
-#else
-       setup_timer(&wacom->idleprox_timer, &wacom_idleprox_timeout, (unsigned long) wacom);
-#endif
 
 	/* ask for the report descriptor to be loaded by HID */
 	error = hid_parse(hdev);

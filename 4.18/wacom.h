@@ -166,9 +166,7 @@ struct wacom_remote {
 		struct input_dev *input;
 		bool registered;
 		struct wacom_battery battery;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
 		ktime_t active_time;
-#endif
 	} remotes[WACOM_MAX_REMOTES];
 };
 
@@ -258,9 +256,5 @@ struct wacom_led *wacom_led_find(struct wacom *wacom, unsigned int group,
 struct wacom_led *wacom_led_next(struct wacom *wacom, struct wacom_led *cur);
 int wacom_equivalent_usage(int usage);
 int wacom_initialize_leds(struct wacom *wacom);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
 void wacom_idleprox_timeout(struct timer_list *list);
-#else
-void wacom_idleprox_timeout(unsigned long data);
-#endif
 #endif
