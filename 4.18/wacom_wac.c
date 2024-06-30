@@ -8,20 +8,8 @@
 #include <linux/input/mt.h>
 #include <linux/jiffies.h>
 
-#ifndef INPUT_PROP_ACCELEROMETER
-#define INPUT_PROP_ACCELEROMETER	0x06	/* has accelerometer */
-#endif
-
 #ifndef KEY_ONSCREEN_KEYBOARD
 #define KEY_ONSCREEN_KEYBOARD	0x278
-#endif
-
-#ifndef KEY_BUTTONCONFIG
-#define KEY_BUTTONCONFIG		0x240
-#endif
-
-#ifndef KEY_CONTROLPANEL
-#define KEY_CONTROLPANEL		0x243
 #endif
 
 /* resolution for penabled devices */
@@ -51,6 +39,9 @@ static void wacom_report_numbered_buttons(struct input_dev *input_dev,
 
 static int wacom_numbered_button_to_key(int n);
 
+static void wacom_update_led(struct wacom *wacom, int button_count, int mask,
+			     int group);
+
 static void wacom_force_proxout(struct wacom_wac *wacom_wac)
 {
 	struct input_dev *input = wacom_wac->pen_input;
@@ -74,9 +65,9 @@ static void wacom_force_proxout(struct wacom_wac *wacom_wac)
 	input_sync(input);
 }
 
-void wacom_idleprox_timeout(unsigned long data)
+void wacom_idleprox_timeout(struct timer_list *list)
 {
-	struct wacom *wacom = (struct wacom *)data;
+	struct wacom *wacom = from_timer(wacom, list, idleprox_timer);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 
 	if (!wacom_wac->hid_data.sense_state) {
@@ -116,8 +107,8 @@ static void __wacom_notify_battery(struct wacom_battery *battery,
 		battery->bat_connected = bat_connected;
 		battery->ps_connected = ps_connected;
 
-		if (WACOM_POWERSUPPLY_DEVICE(battery->battery))
-			power_supply_changed(WACOM_POWERSUPPLY_REF(battery->battery));
+		if (battery->battery)
+			power_supply_changed(battery->battery);
 	}
 }
 
@@ -126,7 +117,7 @@ static void wacom_notify_battery(struct wacom_wac *wacom_wac,
 	bool bat_connected, bool ps_connected)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	bool bat_initialized = WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery);
+	bool bat_initialized = wacom->battery.battery;
 	bool has_quirk = wacom_wac->features.quirks & WACOM_QUIRK_BATTERY;
 
 	if (bat_initialized != has_quirk)
@@ -506,10 +497,8 @@ exit:
 	return retval;
 }
 
-static void wacom_intuos_schedule_prox_event(struct work_struct *work)
+static void wacom_intuos_schedule_prox_event(struct wacom_wac *wacom_wac)
 {
-	struct wacom_wac *wacom_wac =
-		container_of(work, struct wacom_wac, intuos_prox_event_worker);
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 	struct wacom_features *features = &wacom_wac->features;
 	struct hid_report *r;
@@ -926,7 +915,7 @@ static int wacom_intuos_general(struct wacom_wac *wacom)
 	/* don't report events if we don't know the tool ID */
 	if (!wacom->id[idx]) {
 		/* but reschedule a read of the current tool */
-		schedule_work(&wacom->intuos_prox_event_worker);
+		wacom_intuos_schedule_prox_event(wacom);
 		return 1;
 	}
 
@@ -1149,6 +1138,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	if (index < 0 || !remote->remotes[index].registered)
 		goto out;
 
+	remote->remotes[i].active_time = ktime_get();
 	input = remote->remotes[index].input;
 
 	input_report_key(input, BTN_0, (data[9] & 0x01));
@@ -1211,22 +1201,20 @@ static void wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 	unsigned char *data = wacom_wac->data;
 	struct wacom_remote *remote = wacom->remote;
-	struct wacom_remote_data remote_data;
+	struct wacom_remote_work_data remote_data;
 	unsigned long flags;
 	int i, ret;
 
 	if (data[0] != WACOM_REPORT_DEVICE_LIST)
 		return;
 
-	memset(&remote_data, 0, sizeof(struct wacom_remote_data));
+	memset(&remote_data, 0, sizeof(struct wacom_remote_work_data));
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		int j = i * 6;
 		int serial = (data[j+6] << 16) + (data[j+5] << 8) + data[j+4];
-		bool connected = data[j+2];
 
 		remote_data.remote[i].serial = serial;
-		remote_data.remote[i].connected = connected;
 	}
 
 	spin_lock_irqsave(&remote->remote_lock, flags);
@@ -1328,6 +1316,11 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 
 	struct input_dev *pen_input = wacom->pen_input;
 	unsigned char *data = wacom->data;
+	int number_of_valid_frames = 0;
+#ifdef WACOM_INPUT_SET_TIMESTAMP
+	ktime_t time_interval = 15000000;
+	ktime_t time_packet_received = ktime_get();
+#endif
 	int i;
 
 	if (wacom->features.type == INTUOSP2_BT ||
@@ -1348,12 +1341,34 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 		wacom->id[0] |= (wacom->serial[0] >> 32) & 0xFFFFF;
 	}
 
+	/* number of valid frames */
 	for (i = 0; i < pen_frames; i++) {
+		unsigned char *frame = &data[i*pen_frame_len + 1];
+		bool valid = frame[0] & 0x80;
+
+		if (valid)
+			number_of_valid_frames++;
+	}
+
+#ifdef WACOM_INPUT_SET_TIMESTAMP
+	if (number_of_valid_frames) {
+		if (wacom->hid_data.time_delayed)
+			time_interval = ktime_get() - wacom->hid_data.time_delayed;
+		time_interval = div_u64(time_interval, number_of_valid_frames);
+		wacom->hid_data.time_delayed = time_packet_received;
+	}
+#endif
+
+	for (i = 0; i < number_of_valid_frames; i++) {
 		unsigned char *frame = &data[i*pen_frame_len + 1];
 		bool valid = frame[0] & 0x80;
 		bool prox = frame[0] & 0x40;
 		bool range = frame[0] & 0x20;
 		bool invert = frame[0] & 0x10;
+#ifdef WACOM_INPUT_SET_TIMESTAMP
+		int frames_number_reversed = number_of_valid_frames - i - 1;
+		ktime_t event_timestamp = time_packet_received - frames_number_reversed * time_interval;
+#endif
 
 		if (!valid)
 			continue;
@@ -1366,6 +1381,9 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 			wacom->tool[0] = 0;
 			wacom->id[0] = 0;
 			wacom->serial[0] = 0;
+#ifdef WACOM_INPUT_SET_TIMESTAMP
+			wacom->hid_data.time_delayed = 0;
+#endif
 			return;
 		}
 
@@ -1426,6 +1444,10 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 
 		wacom->shared->stylus_in_proximity = prox;
 
+#ifdef WACOM_INPUT_SET_TIMESTAMP
+		/* add timestamp to unpack the frames */
+		input_set_timestamp(pen_input, event_timestamp);
+#endif
 		input_sync(pen_input);
 	}
 }
@@ -1918,10 +1940,8 @@ static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 	int resolution_code = code;
 	int resolution = hidinput_calc_abs_res(field, resolution_code);
 
-	if (equivalent_usage == HID_DG_TWIST ||
-	    equivalent_usage == WACOM_HID_WD_TOUCHRING) {
+	if (equivalent_usage == HID_DG_TWIST)
 		resolution_code = ABS_RZ;
-	}
 
 	if (equivalent_usage == HID_GD_X) {
 		fmin += features->offset_left;
@@ -2136,7 +2156,9 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct input_dev *input = wacom_wac->pad_input;
+	struct wacom_features *features = &wacom_wac->features;
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
+	int i;
 	bool do_report = false;
 
 	/*
@@ -2218,10 +2240,9 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 		break;
 
 	case WACOM_HID_WD_BUTTONCENTER:
-		/*
-		 * In kernels before 4.5, changing the LED is
-		 * handled by gnome-settings-daemon.
-		 */
+		for (i = 0; i < wacom->led.count; i++)
+			wacom_update_led(wacom, features->numbered_buttons,
+					 value, i);
 		fallthrough;
 	default:
 		do_report = true;
@@ -2519,11 +2540,12 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	struct input_dev *input = wacom_wac->pen_input;
 	bool range = wacom_wac->hid_data.inrange_state;
 	bool sense = wacom_wac->hid_data.sense_state;
+	bool entering_range = !wacom_wac->tool[0] && range;
 
 	if (wacom_wac->is_invalid_bt_frame)
 		return;
 
-	if (!wacom_wac->tool[0] && range) { /* first in range */
+	if (entering_range) { /* first in range */
 		/* Going into range select tool */
 		if (wacom_wac->hid_data.invert_state)
 			wacom_wac->tool[0] = BTN_TOOL_RUBBER;
@@ -2579,6 +2601,15 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 		wacom_wac->hid_data.tipswitch = false;
 
 		input_sync(input);
+	}
+
+	/* Handle AES battery timeout behavior */
+	if (wacom_wac->features.quirks & WACOM_QUIRK_AESPEN) {
+		if (entering_range)
+			cancel_delayed_work(&wacom->aes_battery_work);
+		if (!sense)
+			schedule_delayed_work(&wacom->aes_battery_work,
+					      msecs_to_jiffies(WACOM_AES_BATTERY_TIMEOUT));
 	}
 
 	if (!sense) {
@@ -3371,7 +3402,7 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 				     battery, charging, battery || charging, 1);
 	}
 	else if ((features->quirks & WACOM_QUIRK_BATTERY) &&
-		 WACOM_POWERSUPPLY_DEVICE(wacom->battery.battery)) {
+		 wacom->battery.battery) {
 		features->quirks &= ~WACOM_QUIRK_BATTERY;
 		wacom_notify_battery(wacom_wac, POWER_SUPPLY_STATUS_UNKNOWN, 0, 0, 0, 0);
 	}
@@ -3563,9 +3594,6 @@ static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_RZ, -900, 899, 0, 0);
 	input_abs_set_res(input_dev, ABS_RZ, 287);
 	input_set_abs_params(input_dev, ABS_THROTTLE, -1023, 1023, 0, 0);
-
-	INIT_WORK(&wacom_wac->intuos_prox_event_worker,
-		  wacom_intuos_schedule_prox_event);
 }
 
 void wacom_setup_device_quirks(struct wacom *wacom)
@@ -3868,9 +3896,6 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 		if (features->type == INTUOSHT2 ||
 		    features->type == INTUOSHT3_BT) {
 			wacom_setup_basic_pro_pen(wacom_wac);
-
-			INIT_WORK(&wacom_wac->intuos_prox_event_worker,
-				  wacom_intuos_schedule_prox_event);
 		} else {
 			__clear_bit(ABS_MISC, input_dev->absbit);
 			__set_bit(BTN_TOOL_PEN, input_dev->keybit);
@@ -4052,10 +4077,107 @@ static void wacom_setup_numbered_buttons(struct input_dev *input_dev,
 	}
 }
 
+static void wacom_24hd_update_leds(struct wacom *wacom, int mask, int group)
+{
+	struct wacom_led *led;
+	int i;
+	bool updated = false;
+
+	/*
+	 * 24HD has LED group 1 to the left and LED group 0 to the right.
+	 * So group 0 matches the second half of the buttons and thus the mask
+	 * needs to be shifted.
+	 */
+	if (group == 0)
+		mask >>= 8;
+
+	for (i = 0; i < 3; i++) {
+		led = wacom_led_find(wacom, group, i);
+		if (!led) {
+			hid_err(wacom->hdev, "can't find LED %d in group %d\n",
+				i, group);
+			continue;
+		}
+		if (!updated && mask & BIT(i)) {
+			led->held = true;
+			led_trigger_event(&led->trigger, LED_FULL);
+		} else {
+			led->held = false;
+		}
+	}
+}
+
+static bool wacom_is_led_toggled(struct wacom *wacom, int button_count,
+				 int mask, int group)
+{
+	int group_button;
+
+	/*
+	 * 21UX2 has LED group 1 to the left and LED group 0
+	 * to the right. We need to reverse the group to match this
+	 * historical behavior.
+	 */
+	if (wacom->wacom_wac.features.type == WACOM_21UX2)
+		group = 1 - group;
+
+	group_button = group * (button_count/wacom->led.count);
+
+	if (wacom->wacom_wac.features.type == INTUOSP2_BT)
+		group_button = 8;
+
+	return mask & (1 << group_button);
+}
+
+static void wacom_update_led(struct wacom *wacom, int button_count, int mask,
+			     int group)
+{
+	struct wacom_led *led, *next_led;
+	int cur;
+	bool pressed;
+
+	if (wacom->wacom_wac.features.type == WACOM_24HD)
+		return wacom_24hd_update_leds(wacom, mask, group);
+
+	pressed = wacom_is_led_toggled(wacom, button_count, mask, group);
+	cur = wacom->led.groups[group].select;
+
+	led = wacom_led_find(wacom, group, cur);
+	if (!led) {
+		hid_err(wacom->hdev, "can't find current LED %d in group %d\n",
+			cur, group);
+		return;
+	}
+
+	if (!pressed) {
+		led->held = false;
+		return;
+	}
+
+	if (led->held && pressed)
+		return;
+
+	next_led = wacom_led_next(wacom, led);
+	if (!next_led) {
+		hid_err(wacom->hdev, "can't find next LED in group %d\n",
+			group);
+		return;
+	}
+	if (next_led == led)
+		return;
+
+	next_led->held = true;
+	led_trigger_event(&next_led->trigger,
+			  wacom_leds_brightness_get(next_led));
+}
+
 static void wacom_report_numbered_buttons(struct input_dev *input_dev,
 				int button_count, int mask)
 {
+	struct wacom *wacom = input_get_drvdata(input_dev);
 	int i;
+
+	for (i = 0; i < wacom->led.count; i++)
+		wacom_update_led(wacom,  button_count, mask, i);
 
 	for (i = 0; i < button_count; i++) {
 		int key = wacom_numbered_button_to_key(i);

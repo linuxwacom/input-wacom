@@ -117,17 +117,6 @@ package and try again.])
 fi
 WCM_ENV_KERNEL="yes"
 
-dnl Check for RedHat entreprise Linux >= 7.4
-AC_MSG_CHECKING(RHEL7 minor release)
-RHEL7_RELEASE=[$(sed -n 's/^\(Red Hat Enterprise\|Scientific\|CentOS\) Linux .*release 7.\([0-9]*\).*$/\2/gp' "/etc/redhat-release" 2> /dev/null | head -n1)]
-dnl RHEL7_RELEASE=""
-if test "$RHEL7_RELEASE" = ""; then
-	RHEL7_RELEASE="0"
-elif test "$RHEL7_RELEASE" -gt "3"; then
-	RHEL7_RELEASE="4"
-fi
-AC_MSG_RESULT([$RHEL7_RELEASE])
-
 dnl
 dnl # code taken from https://github.com/zfsonlinux/spl/blob/master/config/spl-build.m4
 dnl # licensed under GPL-v2.0
@@ -186,40 +175,6 @@ AC_DEFUN([WACOM_LINUX_TRY_COMPILE],
 	[modules],
 	[test -s .autoconf/build/conftest.o],
 	[$3], [$4])
-])
-
-dnl
-dnl # end of copy from ZFS/spl
-dnl
-
-dnl RedHat entreprise Linux 7.5 backports powersupply functions from 4.1
-AC_MSG_CHECKING(power supply version)
-WACOM_LINUX_TRY_COMPILE([
-#include <linux/power_supply.h>
-],[
-struct power_supply_desc test;
-],[
-	HAVE_POWERSUPPLY_41=yes
-	AC_MSG_RESULT([v4.1+])
-	AC_DEFINE([WACOM_POWERSUPPLY_41], [], [kernel uses powersupply from v4.1+])
-],[
-	HAVE_POWERSUPPLY_41=no
-	AC_MSG_RESULT([pre-v4.1])
-])
-
-dnl RedHat enterprise Linux 7.9 backports devm functions from 4.6
-AC_MSG_CHECKING(devm_add_action_or_reset)
-WACOM_LINUX_TRY_COMPILE([
-#include <linux/device.h>
-int devm_add_action_or_reset(struct device *dev, void (*action)(void *), void *data) { return 0; }
-],[
-],[
-	HAVE_DEVM_ADD_OR_RESET=no
-	AC_MSG_RESULT([no])
-],[
-	HAVE_DEVM_ADD_OR_RESET=yes
-	AC_MSG_RESULT([yes])
-	AC_DEFINE([WACOM_DEVM_OR_RESET], [], [kernel defines devm_add_action_or_reset from v4.6+])
 ])
 
 dnl Check which API is available for determining bus type
@@ -290,19 +245,12 @@ bool input_set_timestamp(struct input_dev *dev, ktime_t timestamp) { return true
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"
-if test "$EXPLODED_VER" -lt "WCM_EXPLODE(3.17)"; then
-	AC_MSG_ERROR(m4_normalize([Kernels older than 3.17 are no longer supported by input-wacom.
+if test "$EXPLODED_VER" -lt "WCM_EXPLODE(4.18)"; then
+	AC_MSG_ERROR(m4_normalize([Kernels older than 4.18 are no longer supported by input-wacom.
 		 For newer Wacom models, please upgrade your system to a newer kernel.
-		 For old Wacom models, 'input-wacom-1.0.0' may still support the device]))
-elif test "$EXPLODED_VER" -lt "WCM_EXPLODE(4.5)"; then
-	WCM_KERNEL_VER="3.17"
+		 For old Wacom models, 'input-wacom-1.2.0' may still support the device]))
 else
-	WCM_KERNEL_VER="4.5"
-fi
-
-dnl Build both legacy and hid versions
-if test "$RHEL7_RELEASE" -ge "4"; then
-        WCM_KERNEL_VER+=" 3.17"
+	WCM_KERNEL_VER="4.18"
 fi
 
 dnl =======================================================
@@ -451,16 +399,13 @@ echo
 WCM_SRC_SUBDIRS=". $WCM_KERNEL_VER"
 AC_SUBST(WCM_KERNEL_DIR)
 AC_SUBST(WCM_KERNEL_VER)
-AC_SUBST(RHEL6_RELEASE)
-AC_SUBST(RHEL7_RELEASE)
 AC_SUBST(MODUTS)
 AC_SUBST(MODSIGN_HASHALGO)
 AC_SUBST(MODSIGN_PRIVFILE)
 AC_SUBST(MODSIGN_CERTFILE)
 
 AC_CONFIG_FILES([Makefile
-                 3.17/Makefile
-                 4.5/Makefile])
+                 4.18/Makefile])
 AC_OUTPUT
 
 AC_MSG_NOTICE([
