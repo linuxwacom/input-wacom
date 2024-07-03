@@ -1,6 +1,6 @@
 SUBDIRS = @WCM_KERNEL_VER@
 
-DIST_SUBDIRS = 3.17 4.5
+DIST_SUBDIRS = 4.18
 EXTRA_DIST = git-version-gen \
              inputattach/inputattach.c inputattach/README \
 	     inputattach/serio-ids.h
