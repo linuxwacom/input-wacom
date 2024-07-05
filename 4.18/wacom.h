@@ -86,6 +86,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/hid.h>
 #include <linux/kfifo.h>
+#include <linux/leds.h>
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <linux/timer.h>
@@ -116,22 +117,6 @@
 #  define fallthrough                    do {} while (0)  /* fallthrough */
 #endif
 
-#ifdef WACOM_POWERSUPPLY_41
-#define WACOM_POWERSUPPLY_DEVICE(ps) (ps)
-#define WACOM_POWERSUPPLY_REF(ps) (ps)
-#define WACOM_POWERSUPPLY_DESC(ps) (ps##_desc)
-#else
-#define WACOM_POWERSUPPLY_DEVICE(ps) ((ps).dev)
-#define WACOM_POWERSUPPLY_REF(ps) (&(ps))
-#define WACOM_POWERSUPPLY_DESC(ps) (ps)
-#endif
-
-#ifndef to_hid_device
-#define to_hid_device(pdev) \
-	container_of(pdev, struct hid_device, dev)
-#endif /* to_hid_device */
-
-
 enum wacom_worker {
 	WACOM_WORKER_WIRELESS,
 	WACOM_WORKER_BATTERY,
@@ -139,18 +124,30 @@ enum wacom_worker {
 	WACOM_WORKER_MODE_CHANGE,
 };
 
+struct wacom;
+
+struct wacom_led {
+	struct led_classdev cdev;
+	struct led_trigger trigger;
+	struct wacom *wacom;
+	unsigned int group;
+	unsigned int id;
+	u8 llv;
+	u8 hlv;
+	bool held;
+};
+
 struct wacom_group_leds {
 	u8 select; /* status led selector (0..3) */
+	struct wacom_led *leds;
+	unsigned int count;
+	struct device *dev;
 };
 
 struct wacom_battery {
 	struct wacom *wacom;
-#ifdef WACOM_POWERSUPPLY_41
 	struct power_supply_desc bat_desc;
 	struct power_supply *battery;
-#else
-	struct power_supply battery;
-#endif
 	char bat_name[WACOM_NAME_MAX];
 	int bat_status;
 	int battery_capacity;
@@ -169,6 +166,7 @@ struct wacom_remote {
 		struct input_dev *input;
 		bool registered;
 		struct wacom_battery battery;
+		ktime_t active_time;
 	} remotes[WACOM_MAX_REMOTES];
 };
 
@@ -182,15 +180,19 @@ struct wacom {
 	struct work_struct battery_work;
 	struct work_struct remote_work;
 	struct delayed_work init_work;
+	struct delayed_work aes_battery_work;
 	struct wacom_remote *remote;
 	struct work_struct mode_change_work;
 	struct timer_list idleprox_timer;
 	bool generic_has_leds;
 	struct wacom_leds {
 		struct wacom_group_leds *groups;
+		unsigned int count;
 		u8 llv;       /* status led brightness no button (1..127) */
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
+		u8 max_llv;   /* maximum brightness of LED (llv) */
+		u8 max_hlv;   /* maximum brightness of LED (hlv) */
 	} led;
 	struct wacom_battery battery;
 	bool resources;
@@ -248,7 +250,11 @@ void wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value);
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
 void wacom_battery_work(struct work_struct *work);
+enum led_brightness wacom_leds_brightness_get(struct wacom_led *led);
+struct wacom_led *wacom_led_find(struct wacom *wacom, unsigned int group,
+				 unsigned int id);
+struct wacom_led *wacom_led_next(struct wacom *wacom, struct wacom_led *cur);
 int wacom_equivalent_usage(int usage);
 int wacom_initialize_leds(struct wacom *wacom);
-void wacom_idleprox_timeout(unsigned long data);
+void wacom_idleprox_timeout(struct timer_list *list);
 #endif
