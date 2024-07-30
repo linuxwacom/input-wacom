@@ -240,6 +240,22 @@ bool input_set_timestamp(struct input_dev *dev, ktime_t timestamp) { return true
 	AC_DEFINE([WACOM_INPUT_SET_TIMESTAMP], [], [kernel defines input_set_timestamp from v5.4+])
 ])
 
+dnl Check if resolution_multiplier is available to us or not. This should
+dnl be available in Linux 5.0.0 and later.
+AC_MSG_CHECKING(resolution_multiplier)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/hid.h>
+int test(struct hid_usage *usage) { return usage->resolution_multiplier; }
+],[
+],[
+	HAVE_RESOLUTION_MULTIPLIER=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_RESOLUTION_MULTIPLIER], [], [kernel defines resolution_multiplier from v5.0+])
+],[
+	HAVE_RESOLUTION_MULTIPLIER=no
+	AC_MSG_RESULT([no])
+])
+
 
 
 dnl Check which version of the driver we should compile
