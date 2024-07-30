@@ -1924,6 +1924,7 @@ static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 		}
 		input_abs_set_res(input, code, resolution);
 		break;
+	case EV_REL:
 	case EV_KEY:
 	case EV_MSC:
 	case EV_SW:
@@ -2060,7 +2061,10 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_TOUCHRING:
-		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
+		if (field->flags & HID_MAIN_ITEM_RELATIVE)
+			wacom_map_usage(input, usage, field, EV_REL, REL_WHEEL, 0);
+		else
+			wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_TOUCHRINGSTATUS:
@@ -2125,7 +2129,10 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 		return;
 
 	if (wacom_equivalent_usage(field->physical) == HID_DG_TABLETFUNCTIONKEY) {
-		if (usage->hid != WACOM_HID_WD_TOUCHRING)
+		bool is_abs_touchring = usage->hid == WACOM_HID_WD_TOUCHRING &&
+					!(field->flags & HID_MAIN_ITEM_RELATIVE);
+
+		if (!is_abs_touchring)
 			wacom_wac->hid_data.inrange_state |= value;
 	}
 
@@ -2177,6 +2184,15 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 				 hdev->product == 0x398 || hdev->product == 0x399 ||
 				 hdev->product == 0x3AA)
 				value = wacom_offset_rotation(input, usage, value, 1, 2);
+		}
+		else if (field->flags & HID_MAIN_ITEM_RELATIVE) {
+			/* We must invert the sign for vertical
+			 * relative scrolling. Clockwise rotation
+			 * produces positive values from HW, but
+			 * userspace treats positive REL_WHEEL as a
+			 * scroll *up*!
+			 */
+			value = -value;
 		}
 		else {
 			value = wacom_offset_rotation(input, usage, value, 1, 4);
