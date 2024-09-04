@@ -2613,7 +2613,6 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 
 			remote->remotes[i].serial = 0;
 			remote->remotes[i].group.name = NULL;
-
 			wacom->led.groups[i].select = WACOM_STATUS_UNKNOWN;
 		}
 	}
