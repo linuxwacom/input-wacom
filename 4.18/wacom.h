@@ -90,7 +90,11 @@
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <linux/timer.h>
+#ifdef WACOM_LINUX_UNALIGNED
+#include <linux/unaligned.h>
+#else
 #include <asm/unaligned.h>
+#endif
 #include <linux/version.h>
 
 /*

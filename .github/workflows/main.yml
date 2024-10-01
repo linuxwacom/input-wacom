@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        kernel: ["6.10", "6.3", "5.15", "5.10", "5.4", "5.0", "4.19"]
+        kernel: ["6.12", "6.10", "6.3", "5.15", "5.10", "5.4", "5.0", "4.19"]
         include:
           - kernel: "4.19"
             compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
@@ -28,6 +28,9 @@ jobs:
             compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
             build_makeflags: KBUILD_MODPOST_WARN=1
           - kernel: "6.10"
+            compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
+            build_makeflags: KBUILD_MODPOST_WARN=1
+          - kernel: "6.12"
             compile_cflags: -Wno-error=format-truncation -Wno-error=pointer-sign
             build_makeflags: KBUILD_MODPOST_WARN=1
     steps:

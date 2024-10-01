@@ -272,6 +272,21 @@ int test(struct led_trigger *trigger) { return trigger->brightness; }
 	AC_MSG_RESULT([no])
 ])
 
+dnl Check if unaligned.h has been moved to linux/. This should be in Linux
+dnl 6.12 and later.
+AC_MSG_CHECKING(for linux/unaligned.h)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/unaligned.h>
+],[
+],[
+	HAVE_LINUX_UNALIGNED=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_LINUX_UNALIGNED], [], [kernel defines linux/unaligned.h v6.12+])
+],[
+	HAVE_LINUX_UNALIGNED=no
+	AC_MSG_RESULT([no])
+])
+
 
 
 dnl Check which version of the driver we should compile
