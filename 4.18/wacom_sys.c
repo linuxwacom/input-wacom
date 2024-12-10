@@ -1097,6 +1097,7 @@ static ssize_t wacom_luminance_store(struct wacom *wacom, u8 *dest,
 				     const char *buf, size_t count)
 {
 	unsigned int value;
+	unsigned int i;
 	int err;
 
 	err = kstrtouint(buf, 10, &value);
@@ -1106,6 +1107,18 @@ static ssize_t wacom_luminance_store(struct wacom *wacom, u8 *dest,
 	mutex_lock(&wacom->lock);
 
 	*dest = value & 0x7f;
+	for (i = 0; i < wacom->led.count; i++) {
+		struct wacom_group_leds *group = &wacom->led.groups[i];
+		unsigned int j;
+
+		for (j = 0; j < group->count; j++) {
+			if (dest == &wacom->led.llv)
+				group->leds[j].llv = *dest;
+			else if (dest == &wacom->led.hlv)
+				group->leds[j].hlv = *dest;
+		}
+	}
+
 	err = wacom_led_control(wacom);
 
 	mutex_unlock(&wacom->lock);
