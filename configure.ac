@@ -256,6 +256,22 @@ int test(struct hid_usage *usage) { return usage->resolution_multiplier; }
 	AC_MSG_RESULT([no])
 ])
 
+dnl Check if LED triggers define brightness. This should be in Linux
+dnl 6.10 and later.
+AC_MSG_CHECKING(trigger brightness)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/leds.h>
+int test(struct led_trigger *trigger) { return trigger->brightness; }
+],[
+],[
+	HAVE_TRIGGER_BRIGHTNESS=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_TRIGGER_BRIGHTNESS], [], [kernel defines trigger brightness from v6.10+])
+],[
+	HAVE_TRIGGER_BRIGHTNESS=no
+	AC_MSG_RESULT([no])
+])
+
 
 
 dnl Check which version of the driver we should compile
