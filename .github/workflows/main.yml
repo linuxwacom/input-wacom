@@ -80,3 +80,10 @@ jobs:
           ./autogen.sh --with-kernel=${KERNELROOT}
           make V=1 EXTRA_CFLAGS="${COMPILE_CFLAGS} ${{ matrix.compile_cflags }}" EXTRA_MAKEFLAGS="${BUILD_MAKEFLAGS} ${{ matrix.build_makeflags }}"
 
+      - name: Save build directory as artifact
+        if: '!cancelled()'
+        uses: actions/upload-artifact@v4
+        with:
+          name: input-wacom-${{ matrix.kernel }}
+          retention-days: 7
+          path: ~/work/input-wacom
