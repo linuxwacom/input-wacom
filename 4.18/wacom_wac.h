@@ -10,9 +10,6 @@
 #include <linux/kfifo.h>
 #include <linux/version.h>
 
-/* maximum packet length for USB/BT devices */
-#define WACOM_PKGLEN_MAX	361
-
 #define WACOM_NAME_MAX		64
 #define WACOM_MAX_REMOTES	5
 #define WACOM_STATUS_UNKNOWN	255
@@ -304,7 +301,7 @@ struct wacom_features {
 	unsigned touch_max;
 	int oVid;
 	int oPid;
-	int pktlen;
+	unsigned int pktlen;
 	bool check_for_hid_type;
 	int hid_type;
 };
@@ -370,7 +367,7 @@ struct wacom_wac {
 	char pen_name[WACOM_NAME_MAX];
 	char touch_name[WACOM_NAME_MAX];
 	char pad_name[WACOM_NAME_MAX];
-	unsigned char data[WACOM_PKGLEN_MAX];
+	u8 *data;
 	int tool[2];
 	int id[2];
 	__u64 serial[2];
