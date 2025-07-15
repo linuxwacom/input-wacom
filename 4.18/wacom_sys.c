@@ -2927,7 +2927,11 @@ static void wacom_remove(struct hid_device *hdev)
 	cancel_work_sync(&wacom->battery_work);
 	cancel_work_sync(&wacom->remote_work);
 	cancel_work_sync(&wacom->mode_change_work);
+#ifdef WACOM_TIMER_DELETE_SYNC
 	timer_delete_sync(&wacom->idleprox_timer);
+#else
+	del_timer_sync(&wacom->idleprox_timer);
+#endif
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
 
