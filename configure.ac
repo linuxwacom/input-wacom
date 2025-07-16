@@ -287,6 +287,22 @@ WACOM_LINUX_TRY_COMPILE([
 	AC_MSG_RESULT([no])
 ])
 
+dnl Check if del_timer_sync has been renamed to timer_delete_sync or
+dnl not. This is the case in Linux 6.1.84 and later.
+AC_MSG_CHECKING(timer_delete_sync)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/timer.h>
+bool timer_delete_sync(struct timer_list *timer) { return true; }
+],[
+],[
+	HAVE_TIMER_DELETE_SYNC=no
+	AC_MSG_RESULT([no])
+],[
+	HAVE_TIMER_DELETE_SYNC=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_TIMER_DELETE_SYNC], [], [kernel defines timer_delete_sync from v6.1.84+])
+])
+
 
 
 dnl Check which version of the driver we should compile
