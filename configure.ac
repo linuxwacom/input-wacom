@@ -308,15 +308,17 @@ dnl not. This is the case in Linux 6.16 and later.
 AC_MSG_CHECKING(timer_container_of)
 WACOM_LINUX_TRY_COMPILE([
 #include <linux/timer.h>
-bool timer_container_of() { return true; }
+#ifndef timer_container_of
+#error "timer_container_of is not defined"
+#endif
 ],[
-],[
-	HAVE_TIMER_CONTAINER_OF=no
-	AC_MSG_RESULT([no])
 ],[
 	HAVE_TIMER_CONTAINER_OF=yes
 	AC_MSG_RESULT([yes])
 	AC_DEFINE([WACOM_TIMER_ADDR_CONTAINER_RENAME], [], [kernel defines timer_container_of from v6.16])
+],[
+	HAVE_TIMER_CONTAINER_OF=no
+	AC_MSG_RESULT([no])
 ])
 
 dnl Check which version of the driver we should compile
