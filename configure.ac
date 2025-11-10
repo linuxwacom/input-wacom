@@ -303,7 +303,23 @@ bool timer_delete_sync(struct timer_list *timer) { return true; }
 	AC_DEFINE([WACOM_TIMER_DELETE_SYNC], [], [kernel defines timer_delete_sync from v6.1.84+])
 ])
 
-
+dnl Check if from_timer has been renamed to timer_container_of or
+dnl not. This is the case in Linux 6.16 and later.
+AC_MSG_CHECKING(timer_container_of)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/timer.h>
+#ifndef timer_container_of
+#error "timer_container_of is not defined"
+#endif
+],[
+],[
+	HAVE_TIMER_CONTAINER_OF=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_TIMER_ADDR_CONTAINER_RENAME], [], [kernel defines timer_container_of from v6.16])
+],[
+	HAVE_TIMER_CONTAINER_OF=no
+	AC_MSG_RESULT([no])
+])
 
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
