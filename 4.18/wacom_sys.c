@@ -2982,7 +2982,7 @@ static struct hid_driver wacom_driver = {
 	.resume =	wacom_resume,
 	.reset_resume =	wacom_reset_resume,
 #endif
-#endif	
+#endif
 	.raw_event =	wacom_raw_event,
 };
 module_hid_driver(wacom_driver);
