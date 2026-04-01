@@ -2942,7 +2942,9 @@ static void wacom_remove(struct hid_device *hdev)
 		wacom_release_resources(wacom);
 }
 
+#ifndef HAVE_PM_PTR
 #ifdef CONFIG_PM
+#endif
 static int wacom_resume(struct hid_device *hdev)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
@@ -2962,7 +2964,9 @@ static int wacom_reset_resume(struct hid_device *hdev)
 {
 	return wacom_resume(hdev);
 }
+#ifndef HAVE_PM_PTR
 #endif /* CONFIG_PM */
+#endif
 
 static struct hid_driver wacom_driver = {
 	.name =		"wacom",
@@ -2970,10 +2974,15 @@ static struct hid_driver wacom_driver = {
 	.probe =	wacom_probe,
 	.remove =	wacom_remove,
 	.report =	wacom_wac_report,
+#ifdef HAVE_PM_PTR
+	.resume =	pm_ptr(wacom_resume),
+	.reset_resume =	pm_ptr(wacom_reset_resume),
+#else
 #ifdef CONFIG_PM
 	.resume =	wacom_resume,
 	.reset_resume =	wacom_reset_resume,
 #endif
+#endif	
 	.raw_event =	wacom_raw_event,
 };
 module_hid_driver(wacom_driver);

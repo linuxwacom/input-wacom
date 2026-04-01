@@ -321,6 +321,24 @@ WACOM_LINUX_TRY_COMPILE([
 	AC_MSG_RESULT([no])
 ])
 
+dnl Check if pm_ptr has been added to pm.h or
+dnl not. This is the case in Linux 5.9 and later.
+AC_MSG_CHECKING(pm_ptr)
+WACOM_LINUX_TRY_COMPILE([
+#include <linux/pm.h>
+#ifndef pm_ptr
+#error "pm_ptr is not defined"
+#endif
+],[
+],[
+	HAVE_PM_PTR=yes
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([WACOM_PM_PTR], [], [kernel defines pm_ptr from v5.9])
+],[
+	HAVE_PM_PTR=no
+	AC_MSG_RESULT([no])
+])
+
 dnl Check which version of the driver we should compile
 AC_DEFUN([WCM_EXPLODE], [$(echo "$1" | awk '{split($[0],x,"[[^0-9]]"); printf("%03d%03d%03d\n",x[[1]],x[[2]],x[[3]]);}')])
 EXPLODED_VER="WCM_EXPLODE($MODUTS)"
