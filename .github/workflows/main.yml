@@ -77,7 +77,7 @@ jobs:
 
           # Fix issue preventing the 4.19 kenel and early 5.* kernels from completing config
           if [[ "${KERNELVER}" == "4."* || "${KERNELVER}" == "5.0" || "${KERNELVER}" == "5.4" ]]; then
-              curl --output "fix.patch" "https://lore.kernel.org/lkml/20191208214607.20679-1-vt@altlinux.org/raw"
+              wget -O fix.patch "https://lore.kernel.org/lkml/20191208214607.20679-1-vt@altlinux.org/raw"
               patch -t -N -r - -p1 -d "${KERNELROOT}" < fix.patch
           fi
 
